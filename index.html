@@ -1,0 +1,2470 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>자라다케어 · 원격 환아 관리</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  :root{
+    --primary:#1B3A4B;
+    --accent:#C0902C;
+    --secondary:#43555F;
+    --light:#FBF8F1;
+    --border:#DED5C6;
+    --danger:#B24E36;
+    --overdue:#9C3B2A;
+    --soon:#C0902C;
+    --ok:#2E8B57;
+    --radius:10px;
+  }
+  html,body{min-height:100%;}
+  html{ overflow-y:scroll; -webkit-overflow-scrolling:touch; }
+  body{
+    font-family:'Noto Sans KR',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    background:var(--light);
+    color:var(--primary);
+    padding-bottom:76px;
+    -webkit-overflow-scrolling:touch;
+  }
+  header.app{
+    position:sticky; top:0; z-index:50;
+    background:var(--primary); color:var(--light);
+    padding:16px 18px 14px;
+    box-shadow:0 2px 10px rgba(0,0,0,.15);
+    display:flex; align-items:flex-start; justify-content:space-between; gap:10px;
+  }
+  header.app .hdr-text{ min-width:0; }
+  header.app .hdr-gear{
+    flex:0 0 auto; background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.3);
+    color:var(--light); border-radius:8px; width:34px; height:34px; font-size:16px; cursor:pointer;
+  }
+  header.app h1{ font-size:17px; font-weight:700; letter-spacing:-.3px; }
+  header.app p{ font-size:11.5px; color:#C7D3D8; margin-top:3px; }
+
+  .view{ display:none; padding:16px 16px 8px; max-width:640px; margin:0 auto; }
+  .view.active{ display:block; }
+
+  /* --- Section headers --- */
+  .section-title{ display:flex; align-items:baseline; justify-content:space-between; margin:20px 0 10px; }
+  .section-title:first-child{ margin-top:4px; }
+  .section-title h2{ font-size:14.5px; font-weight:700; color:var(--primary); }
+  .section-title span{ font-size:11.5px; color:var(--secondary); }
+
+  /* --- Dashboard call cards --- */
+  .call-card{
+    background:#fff; border:1px solid var(--border); border-left:4px solid var(--ok);
+    border-radius:var(--radius); padding:12px 14px; margin-bottom:9px;
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    cursor:pointer;
+  }
+  .call-card.overdue{ border-left-color:var(--overdue); background:#FBF0ED; }
+  .call-card.soon{ border-left-color:var(--soon); background:#FCF6EA; }
+  .call-card .who{ min-width:0; }
+  .call-card .name{ font-size:14.5px; font-weight:700; }
+  .call-card .meta{ font-size:11.5px; color:var(--secondary); margin-top:2px; }
+  .call-card .badge{
+    font-size:11px; font-weight:700; padding:5px 9px; border-radius:20px;
+    white-space:nowrap; color:#fff; background:var(--ok);
+  }
+  .call-card.overdue .badge{ background:var(--overdue); }
+  .call-card.soon .badge{ background:var(--soon); }
+  .empty-note{ font-size:12.5px; color:var(--secondary); padding:16px 4px; text-align:center; }
+
+  /* --- Patient list --- */
+  .search-bar{ display:flex; gap:8px; margin-bottom:14px; }
+  .search-bar input{
+    flex:1; padding:11px 13px; border:1px solid var(--border); border-radius:var(--radius);
+    font-size:14px; font-family:inherit; background:#fff;
+  }
+  .patient-card{
+    background:#fff; border:1px solid var(--border); border-radius:var(--radius);
+    padding:13px 14px; margin-bottom:9px; cursor:pointer;
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+  }
+  .patient-card .name-row{ display:flex; align-items:center; gap:7px; }
+  .patient-card .name{ font-size:14.5px; font-weight:700; }
+  .patient-card .sex-tag{ font-size:10.5px; color:var(--secondary); border:1px solid var(--border); border-radius:4px; padding:1px 5px; }
+  .q-alert{ font-size:10.5px; font-weight:700; color:#fff; background:var(--danger); border-radius:10px; padding:2px 7px; white-space:nowrap; }
+  .file-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .file-grid .fitem{ position:relative; }
+  .file-grid .fitem img{ width:100%; aspect-ratio:1; object-fit:cover; border-radius:8px; border:1px solid var(--border); cursor:pointer; }
+  .file-grid .fdate{ font-size:9px; color:var(--secondary); text-align:center; margin-top:2px; }
+  .file-grid .facts{ display:flex; gap:3px; margin-top:3px; }
+  .file-grid .facts button{ flex:1; font-size:9.5px; padding:4px 2px; border-radius:5px; border:1px solid var(--border); background:#fff; color:var(--primary); cursor:pointer; }
+  .file-grid .facts button.danger{ color:var(--danger); border-color:#E3C4BA; }
+  .patient-card .sub{ font-size:11.5px; color:var(--secondary); margin-top:3px; }
+  .patient-card .arrow{ color:var(--border); font-size:16px; }
+
+  /* --- Buttons --- */
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:6px;
+    padding:11px 16px; border-radius:var(--radius); border:none;
+    font-size:13.5px; font-weight:700; font-family:inherit; cursor:pointer;
+  }
+  .btn-primary{ background:var(--accent); color:#fff; }
+  .btn-outline{ background:#fff; border:1px solid var(--border); color:var(--primary); }
+  .btn-block{ width:100%; }
+  .btn-ghost{ background:transparent; color:var(--secondary); border:1px solid var(--border); }
+  .btn-danger-ghost{ background:transparent; color:var(--danger); border:1px solid #E3C4BA; }
+  .fab-row{ display:flex; gap:8px; margin-top:16px; }
+
+  /* --- Patient detail --- */
+  .profile-card{
+    background:#fff; border:1px solid var(--border); border-radius:var(--radius);
+    padding:16px; margin-bottom:16px;
+  }
+  .profile-head{ display:flex; justify-content:space-between; align-items:flex-start; }
+  .profile-head .name{ font-size:18px; font-weight:800; }
+  .profile-head .age{ font-size:12px; color:var(--secondary); margin-top:2px; }
+  .profile-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px 14px; margin-top:14px; }
+  .profile-grid .item label{ display:block; font-size:10.5px; color:var(--secondary); margin-bottom:2px; }
+  .profile-grid .item .val{ font-size:13px; font-weight:600; word-break:break-word; }
+  .profile-grid .item.full{ grid-column:1/-1; }
+  .contact-row{ display:flex; gap:8px; margin-top:14px; }
+  .contact-row a.btn{ flex:1; text-decoration:none; }
+
+  .chart-box{
+    background:#fff; border:1px solid var(--border); border-radius:var(--radius);
+    padding:12px 10px 8px; margin-bottom:16px;
+  }
+  .chart-box canvas{ width:100%; height:230px; display:block; }
+  .empty-chart-note{ padding:20px 10px; text-align:center; font-size:12px; color:var(--secondary); }
+
+  /* --- Calendar grid --- */
+  .cal-box{ background:#fff; border:1px solid var(--border); border-radius:var(--radius); padding:12px 12px 8px; margin-bottom:16px; }
+  .cal-nav{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .cal-nav button{ background:var(--light); border:1px solid var(--border); border-radius:6px; width:30px; height:30px; font-size:14px; color:var(--primary); cursor:pointer; }
+  .cal-nav .cal-title{ font-size:14px; font-weight:800; color:var(--primary); }
+  .cal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
+  .cal-dow{ text-align:center; font-size:10px; color:var(--secondary); font-weight:700; padding-bottom:4px; }
+  .cal-cell{
+    aspect-ratio:1; border-radius:7px; border:1px solid transparent; background:var(--light);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    font-size:11px; color:var(--primary); cursor:pointer; position:relative; gap:1px;
+  }
+  .cal-cell.empty{ visibility:hidden; }
+  .cal-cell.today{ border-color:var(--accent); }
+  .cal-cell.has-record{ background:#EAF0EE; }
+  .cal-cell.has-call{ background:#FCF6EA; }
+  .cal-cell .dot{ width:5px; height:5px; border-radius:50%; background:var(--ok); }
+  .cal-cell.has-call .dot{ background:var(--soon); }
+  .cal-legend{ display:flex; gap:14px; margin-top:8px; font-size:10.5px; color:var(--secondary); padding:0 2px; }
+  .cal-legend span{ display:inline-flex; align-items:center; gap:4px; }
+  .cal-legend i{ width:7px; height:7px; border-radius:50%; display:inline-block; }
+  .chart-legend{ display:flex; gap:16px; padding:0 6px 6px; font-size:11px; color:var(--secondary); }
+  .chart-legend span{ display:inline-flex; align-items:center; gap:5px; }
+  .chart-legend i{ width:9px; height:9px; border-radius:50%; display:inline-block; }
+
+  .record-item{
+    background:#fff; border:1px solid var(--border); border-radius:var(--radius);
+    padding:13px 14px; margin-bottom:9px;
+  }
+  .record-item .rec-top{ display:flex; justify-content:space-between; align-items:center; }
+  .record-item .rec-date{ font-size:13.5px; font-weight:700; }
+  .record-item .rec-badges{ display:flex; gap:5px; }
+  .record-item .rec-badges span{ font-size:10px; background:var(--light); border:1px solid var(--border); border-radius:4px; padding:2px 6px; color:var(--secondary); }
+  .record-item .rec-body{ margin-top:8px; font-size:12.5px; color:var(--primary); line-height:1.65; }
+  .record-item .rec-body .row{ display:flex; gap:6px; }
+  .record-item .rec-body .row b{ min-width:76px; color:var(--secondary); font-weight:600; font-size:11.5px; }
+  .record-item .rec-memo{ margin-top:6px; padding-top:6px; border-top:1px dashed var(--border); font-size:12px; color:var(--secondary); white-space:pre-wrap; }
+  .record-item .rec-actions{ display:flex; gap:6px; margin-top:9px; }
+  .record-item .rec-actions button{ font-size:11px; padding:6px 10px; }
+
+  /* --- Modal --- */
+  .modal-ov{
+    display:none; position:fixed; inset:0; background:rgba(27,58,75,.5);
+    z-index:200; align-items:flex-end; justify-content:center;
+  }
+  .modal-ov.open{ display:flex; }
+  .modal{
+    background:var(--light); width:100%; max-width:640px; max-height:92vh;
+    border-radius:16px 16px 0 0; overflow-y:auto; padding:18px 18px 24px;
+  }
+  .modal-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+  .modal-head h3{ font-size:16px; font-weight:800; }
+  .modal-close{ background:none; border:none; font-size:18px; color:var(--secondary); cursor:pointer; padding:4px; }
+  .field{ margin-bottom:12px; }
+  .field label{ display:block; font-size:11.5px; font-weight:700; color:var(--secondary); margin-bottom:5px; }
+  .field input, .field select, .field textarea{
+    width:100%; padding:10px 11px; border:1px solid var(--border); border-radius:8px;
+    font-size:14px; font-family:inherit; background:#fff; color:var(--primary);
+  }
+  .field textarea{ min-height:64px; resize:vertical; line-height:1.5; }
+  .field-row{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .field-row3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+  .choice-row{ display:flex; gap:8px; }
+  .choice-row.wrap{ flex-wrap:wrap; }
+  .choice-row.wrap .choice-btn{ flex:1 1 calc(50% - 4px); }
+  .choice-btn{
+    flex:1; padding:11px 8px; border-radius:8px; border:1px solid var(--border);
+    background:#fff; color:var(--primary); font-family:inherit; font-size:13px; font-weight:600; cursor:pointer;
+  }
+  .choice-btn.active{ background:var(--primary); color:#fff; border-color:var(--primary); }
+  .stepper-row{ display:flex; align-items:center; gap:8px; }
+  .stepper-btn{
+    width:38px; height:38px; flex:0 0 auto; border-radius:8px; border:1px solid var(--border);
+    background:#fff; color:var(--primary); font-size:18px; font-weight:700; font-family:inherit; cursor:pointer;
+  }
+  .stepper-row input{ flex:1; text-align:center; padding:10px 8px; border:1px solid var(--border); border-radius:8px; font-size:14px; font-family:inherit; }
+  .subhead{ font-size:12px; font-weight:800; color:var(--primary); margin:16px 0 8px; padding-top:12px; border-top:1px solid var(--border); }
+  .check-row{ display:flex; align-items:center; gap:8px; margin-bottom:12px; background:#fff; border:1px solid var(--border); border-radius:8px; padding:10px 12px; }
+  .check-row input{ width:17px; height:17px; }
+  .check-row label{ font-size:13px; font-weight:600; margin:0; }
+  .modal-actions{ display:flex; gap:8px; margin-top:18px; }
+  .modal-actions .btn{ flex:1; }
+
+  /* --- Bottom nav --- */
+  nav.tabbar{
+    position:fixed; bottom:0; left:0; right:0; background:#fff;
+    border-top:1px solid var(--border); display:flex; z-index:60;
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  nav.tabbar button{
+    flex:1; background:none; border:none; padding:10px 4px 8px; cursor:pointer;
+    font-family:inherit; color:var(--secondary); font-size:10.5px; font-weight:600;
+  }
+  nav.tabbar button .ic{ font-size:19px; display:block; margin-bottom:2px; }
+  nav.tabbar button.active{ color:var(--accent); }
+
+  .util-row{ display:flex; gap:8px; margin-top:18px; }
+  .util-row .btn{ flex:1; font-size:12px; padding:9px; }
+  input[type=file]{ display:none; }
+</style>
+</head>
+<body>
+
+<header class="app">
+  <div class="hdr-text">
+    <h1 id="headerTitle">자라다케어 · 원격 환아 관리</h1>
+    <p id="headerSub">성장치료 환아 통합 관리 (국내·해외)</p>
+  </div>
+  <button class="hdr-gear" onclick="openSettingsModal()" title="연동 설정">⚙️</button>
+</header>
+
+<!-- 대시보드 -->
+<div class="view active" id="view-dashboard">
+  <div class="section-title"><h2>다음 일정</h2><span id="dashCount"></span></div>
+  <div id="dashList"></div>
+
+  <div class="section-title"><h2>최근 등록 기록</h2></div>
+  <div id="recentList"></div>
+</div>
+
+<!-- 환자 목록 -->
+<div class="view" id="view-patients">
+  <button class="btn btn-primary btn-block" style="margin-bottom:12px;" onclick="openPatientModal()">+ 환아 추가</button>
+  <div class="search-bar">
+    <input type="text" id="searchInput" placeholder="이름 또는 진단명 검색" oninput="renderPatientList()">
+  </div>
+  <div id="patientList"></div>
+  <div class="util-row">
+    <button class="btn btn-ghost" onclick="exportData()">백업 내보내기</button>
+    <button class="btn btn-ghost" onclick="document.getElementById('importFile').click()">백업 불러오기</button>
+  </div>
+  <input type="file" id="importFile" accept="application/json" onchange="importData(event)">
+</div>
+
+<!-- 전체화면 이미지 뷰어 (엑스레이/검사 결과지) -->
+<div class="modal-ov" id="lightboxOv" onclick="if(event.target.id==='lightboxOv') closeLightbox()" style="align-items:center;overflow:auto;">
+  <img id="lightboxImg" style="max-width:94vw;max-height:90vh;border-radius:6px;transition:transform .15s;cursor:zoom-in;" ondblclick="toggleLightboxZoom(event)">
+</div>
+
+<!-- 연동 설정 모달 -->
+<div class="modal-ov" id="settingsModalOv">
+  <div class="modal">
+    <div class="modal-head"><h3>연동 설정</h3><button class="modal-close" onclick="closeModal('settingsModalOv')">✕</button></div>
+    <div class="field">
+      <label>사이트 주소 (세 파일을 올려둔 폴더 URL)</label>
+      <input type="text" id="s_siteUrl" placeholder="예: https://ha5857-web.github.io/remote-care/">
+    </div>
+    <div style="font-size:11.5px;color:var(--secondary);line-height:1.6;margin-bottom:14px;">
+      "환아 링크 보내기"로 만들어지는 링크가 문자·카톡·왓츠앱에서 바로 열리려면 필요해요.<br>
+      비워두면 파일명만으로 링크를 만들어서, 이 화면(브라우저)에서는 잘 열려도 다른 곳에서는 안 열릴 수 있어요.<br>
+      마지막에 슬래시(/)를 붙이거나 안 붙이거나 상관없이 자동으로 처리돼요.
+    </div>
+    <div class="field">
+      <label>백엔드 연동 URL (Google Apps Script 웹앱)</label>
+      <input type="text" id="s_apiUrl" placeholder="https://script.google.com/macros/s/xxx/exec">
+    </div>
+    <div style="font-size:11.5px;color:var(--secondary);line-height:1.6;margin-bottom:14px;">
+      환아가 집에서 키/몸무게, 질문을 남기면 이 화면에서 확인·반영할 수 있게 하려면 별도의 백엔드가 필요합니다.<br><br>
+      1) 새 Google Sheet 생성 → 확장 프로그램 → Apps Script<br>
+      2) 함께 받은 Code.gs 내용을 붙여넣고 저장<br>
+      3) 배포 → 새 배포 → 웹 앱 → 실행 계정 '나', 액세스 권한 '모든 사용자' → 배포<br>
+      4) 발급된 URL을 위 칸에 붙여넣기
+    </div>
+    <div class="field">
+      <label>챗봇 링크 (자라다케어_챗봇.html을 같은 폴더에 올렸다면 비워두세요)</label>
+      <input type="text" id="s_chatbotUrl" placeholder="자라다케어_챗봇.html">
+    </div>
+    <div class="subhead">기기 간 동기화 (모바일 ↔ PC)</div>
+    <div class="field">
+      <label>동기화 키 (모바일·PC에서 똑같이 입력)</label>
+      <input type="text" id="s_syncKey" placeholder="예: hataewon-clinic-2026 (아무 문자열, 본인만 아는 값)">
+    </div>
+    <div style="font-size:11.5px;color:var(--secondary);line-height:1.6;margin-bottom:10px;">
+      환아·기록을 추가/수정할 때마다 <b>자동으로 클라우드에도 저장</b>됩니다. 다른 기기에서는 "☁️ 클라우드에서 불러오기"만 눌러주시면 돼요. (수동 "저장" 버튼은 지금 바로 강제로 동기화하고 싶을 때만 쓰시면 됩니다.) <b>불러오기를 누르면 지금 이 기기의 데이터는 클라우드 내용으로 완전히 대체됩니다.</b>
+    </div>
+    <div class="fab-row" style="margin-bottom:14px;">
+      <button class="btn btn-outline" style="flex:1;" onclick="saveToCloud()">☁️ 지금 동기화</button>
+      <button class="btn btn-outline" style="flex:1;" onclick="loadFromCloud()">☁️ 클라우드에서 불러오기</button>
+    </div>
+    <div style="font-size:11px;color:var(--secondary);margin-bottom:14px;" id="syncStatus"></div>
+    <div style="font-size:11px;color:var(--secondary);line-height:1.7;background:#FBF0ED;border:1px solid #E3C4BA;border-radius:8px;padding:10px 12px;margin-bottom:14px;">
+      <b style="color:#9C3B2A;">법적·개인정보 유의사항 (참고용, 법률 자문 아님)</b><br>
+      · 이 도구는 정식 원격진료 시스템이 아니라 정기 진료 사이의 <b>보조 모니터링</b> 목적입니다. 해외 거주 환아 대상 비대면 진료·처방의 적법성은 국내 의료법과 진료 대상국 규정을 함께 검토해야 하므로, 실제 운영 전 의료법 자문(대한의사협회, 의료전문 변호사 등)을 받으시길 권합니다.<br>
+      · 환아 파일은 구글 드라이브에 "링크가 있으면 볼 수 있음"으로 저장됩니다 — 링크가 유출되면 제3자가 볼 수 있어, 병원 EMR 수준의 보안은 아닙니다.<br>
+      · 환아에게 보내는 링크·접속 코드는 재전송하지 말고 필요할 때마다 새로 발급해 사용하시는 것이 안전합니다.<br>
+      · 환아 페이지에서 성장곡선을 보여주기 위해 링크에 <b>생년월일</b>이 포함됩니다. 이 링크도 다른 사람과 공유하지 않도록 안내해주세요.<br>
+      · "동기화 키"를 아는 사람은 누구나 그 데이터를 불러올 수 있습니다. 진단명 등 민감한 정보가 포함되니, 키는 추측하기 어려운 값으로 정하고 남과 공유하지 마세요.
+    </div>
+    <div class="modal-actions"><button class="btn btn-primary" onclick="saveSettings()">저장</button></div>
+  </div>
+</div>
+
+<!-- 환자 상세 -->
+<div class="view" id="view-detail">
+  <button class="btn btn-ghost" style="margin-bottom:12px;" onclick="showView('patients')">← 환아 목록</button>
+  <div class="profile-card" id="profileCard"></div>
+
+  <div class="cal-box" id="chartUploadBox">
+    <div class="section-title" style="margin:0 0 8px;"><h2>차트 캡처 업로드</h2></div>
+    <p style="font-size:11.5px;color:var(--secondary);margin-bottom:10px;">병원 EMR 화면을 캡처해서 올려두면 이 환아 차트에 저장되고, 바로 옆에 띄워놓고 보면서 기록을 입력할 수 있어요.</p>
+    <div id="chartDropZone" style="border:2px dashed var(--border);border-radius:10px;padding:22px 10px;text-align:center;cursor:pointer;background:var(--light);"
+      onclick="document.getElementById('chartFileInput').click()"
+      ondragover="event.preventDefault(); this.style.borderColor='var(--accent)';"
+      ondragleave="this.style.borderColor='var(--border)';"
+      ondrop="handleChartDrop(event)">
+      <div style="font-size:24px;">📋</div>
+      <div style="font-size:12.5px;color:var(--secondary);margin-top:4px;">캡처 이미지를 여기로 끌어다 놓거나 눌러서 선택 (여러 장 가능)</div>
+    </div>
+    <input type="file" id="chartFileInput" accept="image/*" multiple style="display:none;" onchange="handleChartFiles(this.files)">
+    <div id="chartUploadStatus" style="font-size:11.5px;color:var(--secondary);margin-top:8px;"></div>
+    <div class="file-grid" id="chartCaptureGrid" style="margin-top:10px;"></div>
+  </div>
+
+  <div class="cal-box" id="inboxBox" style="display:none;">
+    <div class="section-title" style="margin:0 0 4px;">
+      <h2>환아 제출함</h2>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-outline" id="inboxToggleBtn" style="font-size:11px;padding:5px 10px;" onclick="toggleInbox()">접기</button>
+        <button class="btn btn-outline" style="font-size:11px;padding:5px 10px;" onclick="refreshInbox()">새로고침</button>
+      </div>
+    </div>
+    <div id="inboxBody">
+      <div id="inboxPending" style="font-size:11.5px;color:var(--accent);font-weight:700;margin-bottom:8px;"></div>
+      <div id="inboxList"></div>
+    </div>
+  </div>
+
+  <div class="cal-box">
+    <div class="cal-nav">
+      <button onclick="changeCalMonth(-1)">‹</button>
+      <div class="cal-title" id="calTitle"></div>
+      <button onclick="changeCalMonth(1)">›</button>
+    </div>
+    <div class="cal-grid" id="calDow"></div>
+    <div class="cal-grid" id="calGrid" style="margin-top:3px;"></div>
+    <div class="cal-legend">
+      <span><i style="background:var(--ok)"></i>기록 있음</span>
+      <span><i style="background:var(--soon)"></i>화상통화</span>
+    </div>
+  </div>
+
+  <div class="chart-box" id="chartBox" style="display:none;">
+    <div style="display:flex;gap:6px;padding:2px 4px 8px;">
+      <button class="btn btn-outline" id="measureBtnHeight" style="font-size:11px;padding:6px 10px;" onclick="setChartMeasure('height')">키</button>
+      <button class="btn btn-outline" id="measureBtnWeight" style="font-size:11px;padding:6px 10px;" onclick="setChartMeasure('weight')">몸무게</button>
+      <button class="btn btn-outline" id="measureBtnBmi" style="font-size:11px;padding:6px 10px;" onclick="setChartMeasure('bmi')">BMI</button>
+      <div style="flex:1;"></div>
+      <span id="latestPctlBadge" style="font-size:11px;color:var(--secondary);align-self:center;"></span>
+    </div>
+    <canvas id="growthCanvas"></canvas>
+    <div class="chart-legend">
+      <span><i style="background:var(--primary)"></i>실측치</span>
+      <span><i style="background:var(--accent)"></i>50th 백분위</span>
+      <span><i style="background:var(--border)"></i>3rd/97th</span>
+    </div>
+    <div id="predictedHeightNote" style="font-size:11.5px;color:var(--accent);font-weight:700;padding:0 4px 8px;"></div>
+  </div>
+  <div class="section-title"><h2>기록</h2><span id="recCount"></span></div>
+  <button class="btn btn-primary btn-block" style="margin-bottom:14px;" onclick="openRecordModal()">+ 방문/화상통화 기록 추가</button>
+  <div id="recordList"></div>
+</div>
+
+<nav class="tabbar">
+  <button class="active" data-tab="dashboard" onclick="showView('dashboard')"><span class="ic">🏠</span>홈</button>
+  <button data-tab="patients" onclick="showView('patients')"><span class="ic">👶</span>환아목록</button>
+</nav>
+
+<!-- 환자 등록/수정 모달 -->
+<div class="modal-ov" id="patientModalOv">
+  <div class="modal">
+    <div class="modal-head"><h3 id="patientModalTitle">환아 등록</h3><button class="modal-close" onclick="closeModal('patientModalOv')">✕</button></div>
+    <input type="hidden" id="p_id">
+    <div class="field"><label>이름</label><input type="text" id="p_name" placeholder="환아 이름"></div>
+    <div class="field">
+      <label>생년월일</label>
+      <input type="text" inputmode="numeric" id="p_dob_quick" placeholder="숫자만 쭉 입력 (예: 20250525)" maxlength="10" style="margin-bottom:8px;">
+      <div class="field-row3">
+        <select id="p_dob_y"><option value="">년</option></select>
+        <select id="p_dob_m"><option value="">월</option></select>
+        <select id="p_dob_d"><option value="">일</option></select>
+      </div>
+      <input type="hidden" id="p_dob">
+    </div>
+    <div class="field"><label>성별</label>
+      <select id="p_sex" onchange="togglePSSexBoxes()"><option value="F">여아</option><option value="M">남아</option></select>
+    </div>
+    <div class="field"><label>진단명</label><input type="text" id="p_diagnosis" placeholder="예: 성조숙증, 특발성 저신장 등"></div>
+    <div class="field">
+      <label>구분</label>
+      <div class="choice-row" id="p_location">
+        <button type="button" class="choice-btn" data-val="overseas">해외</button>
+        <button type="button" class="choice-btn" data-val="domestic">국내</button>
+      </div>
+    </div>
+    <div class="field"><label>거주 국가/지역</label><input type="text" id="p_country" placeholder="예: 캐나다 토론토 (국내면 비워두거나 지역명)"></div>
+    <div class="field-row">
+      <div class="field"><label>보호자 성함</label><input type="text" id="p_guardian" placeholder="보호자 이름"></div>
+      <div class="field"><label>연락처(전화/카카오)</label><input type="text" id="p_phone" placeholder="+1-..."></div>
+    </div>
+    <div class="field"><label>이메일</label><input type="email" id="p_email" placeholder="선택"></div>
+    <div class="field">
+      <label>치료 시작일</label>
+      <input type="text" inputmode="numeric" id="p_start_quick" placeholder="숫자만 쭉 입력 (예: 20260701)" maxlength="10" style="margin-bottom:6px;">
+      <input type="date" id="p_start">
+    </div>
+    <div class="field-row">
+      <div class="field"><label>치료 시작 시 키(cm)</label><input type="number" step="0.1" id="p_startHeight" placeholder="예: 130.5"></div>
+      <div class="field"><label>치료 시작 시 몸무게(kg)</label><input type="number" step="0.1" id="p_startWeight" placeholder="예: 28.0"></div>
+    </div>
+    <div style="font-size:11px;color:var(--secondary);margin:-6px 0 12px;">입력하면 치료 시작일 기록으로 자동 저장되어 성장 차트에 바로 반영돼요. (환아 앱은 보통 3개월 뒤부터 입력이 들어오니, 시작 시점 기준값은 여기서 남겨주세요.)</div>
+
+    <div class="subhead">치료 시작 시 골연령 · 예측성인키 (선택)</div>
+    <div class="field">
+      <label>수골(손목) 골연령</label>
+      <div class="field-row">
+        <div class="stepper-row">
+          <button type="button" class="stepper-btn" onclick="stepPS('boneage_wrist_y',-1)">−</button>
+          <input type="number" step="1" min="0" id="ps_boneage_wrist_y" placeholder="0">
+          <button type="button" class="stepper-btn" onclick="stepPS('boneage_wrist_y',1)">+</button>
+          <span style="font-size:12px;color:var(--secondary);">세</span>
+        </div>
+        <div class="stepper-row">
+          <button type="button" class="stepper-btn" onclick="stepPS('boneage_wrist_m',-1)">−</button>
+          <input type="number" step="1" min="0" max="11" id="ps_boneage_wrist_m" placeholder="0">
+          <button type="button" class="stepper-btn" onclick="stepPS('boneage_wrist_m',1)">+</button>
+          <span style="font-size:12px;color:var(--secondary);">개월</span>
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <label>팔꿈치 골연령</label>
+      <div class="field-row">
+        <div class="stepper-row">
+          <button type="button" class="stepper-btn" onclick="stepPS('boneage_elbow_y',-1)">−</button>
+          <input type="number" step="1" min="0" id="ps_boneage_elbow_y" placeholder="0">
+          <button type="button" class="stepper-btn" onclick="stepPS('boneage_elbow_y',1)">+</button>
+          <span style="font-size:12px;color:var(--secondary);">세</span>
+        </div>
+        <div class="stepper-row">
+          <button type="button" class="stepper-btn" onclick="stepPS('boneage_elbow_m',-1)">−</button>
+          <input type="number" step="1" min="0" max="11" id="ps_boneage_elbow_m" placeholder="0">
+          <button type="button" class="stepper-btn" onclick="stepPS('boneage_elbow_m',1)">+</button>
+          <span style="font-size:12px;color:var(--secondary);">개월</span>
+        </div>
+      </div>
+    </div>
+    <div class="field"><label>병원 안내 예측 성인키(cm)</label><input type="number" step="0.1" id="ps_predictedheight" placeholder="비우면 골연령 백분위로 자동 추정"></div>
+
+    <div class="subhead">치료 시작 시 검사 결과 (선택)</div>
+    <div class="field-row">
+      <div class="field"><label>IGF-1</label><input type="text" id="ps_igf1" placeholder="예: 484.2 (50-75th)"></div>
+      <div class="field"><label>IGFBP-3</label><input type="text" id="ps_igfbp3"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>AST</label><input type="text" id="ps_ast"></div>
+      <div class="field"><label>ALT</label><input type="text" id="ps_alt"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>TSH</label><input type="text" id="ps_tsh"></div>
+      <div class="field"><label>fT4</label><input type="text" id="ps_ft4"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>HbA1c</label><input type="text" id="ps_hba1c"></div>
+      <div class="field"><label>Hb</label><input type="text" id="ps_hb"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Vitamin D</label><input type="text" id="ps_vitd"></div>
+      <div class="field"><label>LH / FSH</label><input type="text" id="ps_lhfsh"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>E2 / Testo</label><input type="text" id="ps_hormone"></div>
+      <div class="field"><label>기타 검사</label><input type="text" id="ps_other"></div>
+    </div>
+
+    <div class="subhead">치료 시작 시 사춘기 발달 평가 (선택, 내부용)</div>
+    <div class="field" id="ps_tannerFemaleBox">
+      <label>유방 발달 (Tanner)</label>
+      <div class="choice-row" id="ps_tannerBreast">
+        <button type="button" class="choice-btn" data-val="B1">B1</button>
+        <button type="button" class="choice-btn" data-val="B2">B2</button>
+        <button type="button" class="choice-btn" data-val="B3">B3</button>
+        <button type="button" class="choice-btn" data-val="B4">B4</button>
+        <button type="button" class="choice-btn" data-val="B5">B5</button>
+      </div>
+      <div class="check-row" style="margin-top:10px;">
+        <input type="checkbox" id="ps_menarche" onchange="togglePSMenarcheDate()">
+        <label for="ps_menarche">초경(menarche) 있음</label>
+      </div>
+      <div class="field" id="ps_menarcheDateBox" style="display:none;margin-top:8px;">
+        <label>초경일</label>
+        <input type="date" id="ps_menarcheDate">
+      </div>
+    </div>
+    <div class="field" id="ps_tannerMaleBox">
+      <label>고환 크기 (mL)</label>
+      <div class="field-row">
+        <div class="stepper-row">
+          <button type="button" class="stepper-btn" onclick="stepPSTestesVol('L',-1)">−</button>
+          <input type="number" step="1" min="0" id="ps_testesVolL" placeholder="0">
+          <button type="button" class="stepper-btn" onclick="stepPSTestesVol('L',1)">+</button>
+          <span style="font-size:12px;color:var(--secondary);">좌</span>
+        </div>
+        <div class="stepper-row">
+          <button type="button" class="stepper-btn" onclick="stepPSTestesVol('R',-1)">−</button>
+          <input type="number" step="1" min="0" id="ps_testesVolR" placeholder="0">
+          <button type="button" class="stepper-btn" onclick="stepPSTestesVol('R',1)">+</button>
+          <span style="font-size:12px;color:var(--secondary);">우</span>
+        </div>
+      </div>
+    </div>
+    <div class="subhead">현재 처방</div>
+    <div class="field">
+      <label>성장호르몬 제제</label>
+      <div class="choice-row" id="p_ghType">
+        <button type="button" class="choice-btn" data-val="그로트로핀">그로트로핀</button>
+        <button type="button" class="choice-btn" data-val="지노트로핀 고퀵">지노트로핀 고퀵</button>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>용량(단위)</label>
+        <div class="stepper-row">
+          <button type="button" class="stepper-btn" onclick="stepGhDose(-0.1)">−</button>
+          <input type="number" step="0.1" min="0" id="p_ghDose" value="0">
+          <button type="button" class="stepper-btn" onclick="stepGhDose(0.1)">+</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>주당 투여 횟수</label>
+        <div class="choice-row" id="p_ghFreq">
+          <button type="button" class="choice-btn" data-val="6">6/wk</button>
+          <button type="button" class="choice-btn" data-val="7">7/wk</button>
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <label>성호르몬 억제제</label>
+      <div class="choice-row wrap" id="p_suppType">
+        <button type="button" class="choice-btn" data-val="로렐린">로렐린</button>
+        <button type="button" class="choice-btn" data-val="루프린">루프린</button>
+        <button type="button" class="choice-btn" data-val="루피어">루피어</button>
+        <button type="button" class="choice-btn" data-val="디페렐린">디페렐린</button>
+        <button type="button" class="choice-btn" data-val="엘리가드">엘리가드</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>용량</label>
+      <div class="choice-row wrap" id="p_suppDose">
+        <button type="button" class="choice-btn" data-val="3.75mg">3.75mg</button>
+        <button type="button" class="choice-btn" data-val="11.25mg">11.25mg</button>
+        <button type="button" class="choice-btn" data-val="22.5mg">22.5mg</button>
+        <button type="button" class="choice-btn" data-val="45mg">45mg</button>
+      </div>
+    </div>
+    <div class="field"><label>화상통화 주기(개월)</label><input type="number" id="p_interval" value="3" min="1" max="12"></div>
+    <div class="field"><label>화상통화 링크 (Zoom 등 고정 개인 회의실)</label><input type="text" id="p_zoom" placeholder="https://zoom.us/j/xxxxxxxxxx"></div>
+    <div class="field">
+      <label>보호자 선호 언어 (환아용 링크·안내 메시지에 사용)</label>
+      <select id="p_lang">
+        <option value="ko">한국어</option>
+        <option value="en">English</option>
+        <option value="zh">简体中文</option>
+        <option value="zt">繁體中文</option>
+        <option value="vi">Tiếng Việt</option>
+        <option value="ja">日本語</option>
+        <option value="es">Español</option>
+        <option value="th">ภาษาไทย</option>
+        <option value="id">Bahasa Indonesia</option>
+        <option value="ar">العربية</option>
+        <option value="mn">Монгол</option>
+      </select>
+    </div>
+    <div class="field"><label>메모</label><textarea id="p_notes" placeholder="특이사항, 알레르기 등"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-danger-ghost" id="patientDeleteBtn" style="display:none;" onclick="deleteCurrentPatient()">환아 삭제</button>
+      <button class="btn btn-primary" onclick="savePatient()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 기록 등록 모달 -->
+<div class="modal-ov" id="recordModalOv">
+  <div class="modal">
+    <div class="modal-head"><h3 id="recordModalTitle">기록 추가</h3><button class="modal-close" onclick="pendingInboxApplyId=null; closeModal('recordModalOv')">✕</button></div>
+    <input type="hidden" id="r_id">
+    <div class="field"><label>날짜</label><input type="date" id="r_date"></div>
+    <div class="check-row"><input type="checkbox" id="r_callDone"><label for="r_callDone">이 기록에 화상통화 포함</label></div>
+
+    <div class="field">
+      <label>이 방문에서 한 것 (해당하는 것 모두 선택)</label>
+      <div class="choice-row" id="r_visitType">
+        <button type="button" class="choice-btn" data-multi="1" data-val="boneage">🦴 골연령</button>
+        <button type="button" class="choice-btn" data-multi="1" data-val="bloodtest">🩸 혈액검사</button>
+        <button type="button" class="choice-btn" data-multi="1" data-val="general">🩺 일반진료</button>
+      </div>
+    </div>
+
+    <div class="subhead">성장 지표</div>
+    <div class="field-row">
+      <div class="field"><label>키(cm)</label><input type="number" step="0.1" id="r_height"></div>
+      <div class="field"><label>몸무게(kg)</label><input type="number" step="0.1" id="r_weight"></div>
+    </div>
+    <div class="field">
+      <label>수골(손목) 골연령</label>
+      <div class="field-row">
+        <div class="stepper-row">
+          <button type="button" class="stepper-btn" onclick="stepBoneAge('wrist_y',-1)">−</button>
+          <input type="number" step="1" min="0" id="r_boneage_wrist_y" placeholder="0">
+          <button type="button" class="stepper-btn" onclick="stepBoneAge('wrist_y',1)">+</button>
+          <span style="font-size:12px;color:var(--secondary);">세</span>
+        </div>
+        <div class="stepper-row">
+          <button type="button" class="stepper-btn" onclick="stepBoneAge('wrist_m',-1)">−</button>
+          <input type="number" step="1" min="0" max="11" id="r_boneage_wrist_m" placeholder="0">
+          <button type="button" class="stepper-btn" onclick="stepBoneAge('wrist_m',1)">+</button>
+          <span style="font-size:12px;color:var(--secondary);">개월</span>
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <label>팔꿈치 골연령</label>
+      <div class="field-row">
+        <div class="stepper-row">
+          <button type="button" class="stepper-btn" onclick="stepBoneAge('elbow_y',-1)">−</button>
+          <input type="number" step="1" min="0" id="r_boneage_elbow_y" placeholder="0">
+          <button type="button" class="stepper-btn" onclick="stepBoneAge('elbow_y',1)">+</button>
+          <span style="font-size:12px;color:var(--secondary);">세</span>
+        </div>
+        <div class="stepper-row">
+          <button type="button" class="stepper-btn" onclick="stepBoneAge('elbow_m',-1)">−</button>
+          <input type="number" step="1" min="0" max="11" id="r_boneage_elbow_m" placeholder="0">
+          <button type="button" class="stepper-btn" onclick="stepBoneAge('elbow_m',1)">+</button>
+          <span style="font-size:12px;color:var(--secondary);">개월</span>
+        </div>
+      </div>
+    </div>
+    <div class="field"><label>병원 안내 예측 성인키(cm) — 직접 입력 시 자동계산 대신 사용</label><input type="number" step="0.1" id="r_predictedheight" placeholder="비우면 골연령 백분위로 자동 추정"></div>
+
+    <div class="subhead">용량 조정</div>
+    <div class="field">
+      <label>성장호르몬 종류</label>
+      <div class="choice-row" id="r_ghType">
+        <button type="button" class="choice-btn" data-val="그로트로핀">그로트로핀</button>
+        <button type="button" class="choice-btn" data-val="지노트로핀 고퀵">지노트로핀 고퀵</button>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>용량(단위)</label>
+        <div class="stepper-row">
+          <button type="button" class="stepper-btn" onclick="stepRecordGhDose(-0.1)">−</button>
+          <input type="number" step="0.1" min="0" id="r_ghDoseVal" value="0">
+          <button type="button" class="stepper-btn" onclick="stepRecordGhDose(0.1)">+</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>주당 투여 횟수</label>
+        <div class="choice-row" id="r_ghFreq">
+          <button type="button" class="choice-btn" data-val="6">6/wk</button>
+          <button type="button" class="choice-btn" data-val="7">7/wk</button>
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <label>성호르몬억제제 종류</label>
+      <div class="choice-row wrap" id="r_suppType">
+        <button type="button" class="choice-btn" data-val="로렐린">로렐린</button>
+        <button type="button" class="choice-btn" data-val="루프린">루프린</button>
+        <button type="button" class="choice-btn" data-val="루피어">루피어</button>
+        <button type="button" class="choice-btn" data-val="디페렐린">디페렐린</button>
+        <button type="button" class="choice-btn" data-val="엘리가드">엘리가드</button>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>억제제 용량</label>
+        <div class="choice-row wrap" id="r_suppDose">
+          <button type="button" class="choice-btn" data-val="3.75mg">3.75mg</button>
+          <button type="button" class="choice-btn" data-val="11.25mg">11.25mg</button>
+          <button type="button" class="choice-btn" data-val="22.5mg">22.5mg</button>
+          <button type="button" class="choice-btn" data-val="45mg">45mg</button>
+        </div>
+      </div>
+      <div class="field"><label>다음 투여 예정일</label><input type="date" id="r_suppnext"></div>
+    </div>
+
+    <div class="subhead">검사 결과</div>
+    <div class="field-row">
+      <div class="field"><label>IGF-1</label><input type="text" id="r_igf1" placeholder="예: 484.2 (50-75th)"></div>
+      <div class="field"><label>IGFBP-3</label><input type="text" id="r_igfbp3"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>AST</label><input type="text" id="r_ast"></div>
+      <div class="field"><label>ALT</label><input type="text" id="r_alt"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>TSH</label><input type="text" id="r_tsh"></div>
+      <div class="field"><label>fT4</label><input type="text" id="r_ft4"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>HbA1c</label><input type="text" id="r_hba1c"></div>
+      <div class="field"><label>Hb</label><input type="text" id="r_hb" placeholder="예: 13.2"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Vitamin D</label><input type="text" id="r_vitd" placeholder="예: 12.94 -> 2000IU rec."></div>
+      <div class="field"><label>LH / FSH</label><input type="text" id="r_lhfsh" placeholder="예: LH 0.8 / FSH 2.1"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>E2 / Testo</label><input type="text" id="r_hormone"></div>
+      <div class="field"><label>기타 검사</label><input type="text" id="r_other"></div>
+    </div>
+
+    <div class="subhead">사춘기 발달 평가 (내부용 — 환아 앱에 표시 안 됨)</div>
+    <div class="field" id="r_tannerFemaleBox">
+      <label>유방 발달 (Tanner)</label>
+      <div class="choice-row" id="r_tannerBreast">
+        <button type="button" class="choice-btn" data-val="B1">B1</button>
+        <button type="button" class="choice-btn" data-val="B2">B2</button>
+        <button type="button" class="choice-btn" data-val="B3">B3</button>
+        <button type="button" class="choice-btn" data-val="B4">B4</button>
+        <button type="button" class="choice-btn" data-val="B5">B5</button>
+      </div>
+      <div class="check-row" style="margin-top:10px;">
+        <input type="checkbox" id="r_menarche" onchange="toggleMenarcheDate()">
+        <label for="r_menarche">초경(menarche) 있음</label>
+      </div>
+      <div class="field" id="r_menarcheDateBox" style="display:none;margin-top:8px;">
+        <label>초경일</label>
+        <input type="date" id="r_menarcheDate">
+      </div>
+    </div>
+    <div class="field" id="r_tannerMaleBox">
+      <label>고환 크기 (mL)</label>
+      <div class="field-row">
+        <div class="stepper-row">
+          <button type="button" class="stepper-btn" onclick="stepTestesVol('L',-1)">−</button>
+          <input type="number" step="1" min="0" id="r_testesVolL" placeholder="0">
+          <button type="button" class="stepper-btn" onclick="stepTestesVol('L',1)">+</button>
+          <span style="font-size:12px;color:var(--secondary);">좌</span>
+        </div>
+        <div class="stepper-row">
+          <button type="button" class="stepper-btn" onclick="stepTestesVol('R',-1)">−</button>
+          <input type="number" step="1" min="0" id="r_testesVolR" placeholder="0">
+          <button type="button" class="stepper-btn" onclick="stepTestesVol('R',1)">+</button>
+          <span style="font-size:12px;color:var(--secondary);">우</span>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--secondary);margin-top:4px;" id="r_tannerGHint"></div>
+    </div>
+
+    <div class="subhead" id="r_nextcallSubhead">화상통화 다음 예정일</div>
+    <div class="field"><label id="r_nextcallLabel">다음 화상통화 예정일 (비우면 자동 계산)</label><input type="date" id="r_nextcall"></div>
+    <div class="field">
+      <label>다음 방문 예정 항목 (해당하는 것 모두 선택)</label>
+      <div class="choice-row" id="r_nextVisitPlan">
+        <button type="button" class="choice-btn" data-multi="1" data-val="bloodtest">🩸 혈액검사</button>
+        <button type="button" class="choice-btn" data-multi="1" data-val="boneage">🦴 골연령검사</button>
+        <button type="button" class="choice-btn" data-multi="1" data-val="general">🩺 진료</button>
+      </div>
+      <div class="check-row" style="margin-top:8px;">
+        <input type="checkbox" id="r_nextVisitFasting">
+        <label for="r_nextVisitFasting">공복 필요</label>
+      </div>
+    </div>
+    <div class="field"><label>메모</label><textarea id="r_memo" placeholder="화상통화 소견, 보호자 전달사항 등"></textarea></div>
+
+    <div class="modal-actions">
+      <button class="btn btn-danger-ghost" id="recordDeleteBtn" style="display:none;" onclick="deleteCurrentRecord()">삭제</button>
+      <button class="btn btn-primary" onclick="saveRecord()">저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+
+/* ---------------- 성장 백분위 엔진 (2017 질병관리청 소아청소년 성장도표 LMS 계수) ---------------- */
+const GROWTH_LMS = {
+  // [만개월, L, M, S] 형식. 출처: 2017 질병관리청(당시 질병관리본부) 소아청소년 성장도표 공식 LMS 계수
+  height: {
+    M: [[0.0,1.0,49.8842,0.038],[1.0,1.0,54.7244,0.0356],[2.0,1.0,58.4249,0.0342],[3.0,1.0,61.4292,0.0333],[4.0,1.0,63.886,0.0326],[5.0,1.0,65.9026,0.032],[6.0,1.0,67.6236,0.0317],[7.0,1.0,69.1645,0.0314],[8.0,1.0,70.5994,0.0312],[9.0,1.0,71.9687,0.0312],[10.0,1.0,73.2812,0.0312],[11.0,1.0,74.5388,0.0313],[12.0,1.0,75.7488,0.0314],[13.0,1.0,76.9186,0.0315],[14.0,1.0,78.0497,0.0317],[15.0,1.0,79.1458,0.032],[16.0,1.0,80.2113,0.0322],[17.0,1.0,81.2487,0.0325],[18.0,1.0,82.2587,0.0328],[19.0,1.0,83.2418,0.0331],[20.0,1.0,84.1996,0.0334],[21.0,1.0,85.1348,0.0338],[22.0,1.0,86.0477,0.0341],[23.0,1.0,86.941,0.0345],[24.0,1.0,87.1161,0.0351],[25.0,1.0,87.972,0.0354],[26.0,1.0,88.8065,0.0358],[27.0,1.0,89.6197,0.0361],[28.0,1.0,90.412,0.0364],[29.0,1.0,91.1828,0.0367],[30.0,1.0,91.9327,0.037],[31.0,1.0,92.6631,0.0373],[32.0,1.0,93.3753,0.0376],[33.0,1.0,94.0711,0.0379],[34.0,1.0,94.7532,0.0381],[35.0,1.0,95.4236,0.0384],[36.0,-1.0915,96.4961,0.0403],[37.0,-1.0011,97.0464,0.0403],[38.0,-0.9126,97.5965,0.0402],[39.0,-0.8262,98.1463,0.0402],[40.0,-0.7418,98.6959,0.0402],[41.0,-0.6592,99.2452,0.0402],[42.0,-0.5827,99.793,0.0401],[43.0,-0.5077,100.3406,0.0401],[44.0,-0.4343,100.8881,0.0401],[45.0,-0.3625,101.4353,0.0401],[46.0,-0.2921,101.9824,0.0401],[47.0,-0.2232,102.5294,0.04],[48.0,-0.1597,103.0749,0.04],[49.0,-0.0975,103.6204,0.04],[50.0,-0.0364,104.1657,0.04],[51.0,0.0234,104.7109,0.0399],[52.0,0.0822,105.256,0.0399],[53.0,0.1398,105.8009,0.0399],[54.0,0.1897,106.344,0.0399],[55.0,0.2387,106.8869,0.0399],[56.0,0.2868,107.4298,0.0398],[57.0,0.3341,107.9726,0.0398],[58.0,0.3805,108.5153,0.0398],[59.0,0.4261,109.0579,0.0398],[60.0,0.4242,109.5896,0.0398],[61.0,0.4223,110.1212,0.0399],[62.0,0.4205,110.6529,0.0399],[63.0,0.4187,111.1846,0.0399],[64.0,0.4169,111.7162,0.04],[65.0,0.4151,112.2479,0.04],[66.0,0.3787,112.7735,0.04],[67.0,0.3429,113.299,0.0401],[68.0,0.3074,113.8245,0.0401],[69.0,0.2724,114.3501,0.0402],[70.0,0.2378,114.8756,0.0402],[71.0,0.2036,115.401,0.0403],[72.0,0.1783,115.9183,0.0403],[73.0,0.1533,116.4356,0.0404],[74.0,0.1287,116.9528,0.0404],[75.0,0.1044,117.4701,0.0405],[76.0,0.0805,117.9874,0.0405],[77.0,0.0569,118.5047,0.0406],[78.0,0.0563,119.0136,0.0406],[79.0,0.0557,119.5225,0.0406],[80.0,0.0552,120.0314,0.0406],[81.0,0.0546,120.5404,0.0406],[82.0,0.0541,121.0493,0.0406],[83.0,0.0536,121.5582,0.0406],[84.0,0.0492,122.0537,0.0406],[85.0,0.0448,122.5492,0.0406],[86.0,0.0405,123.0447,0.0406],[87.0,0.0363,123.5402,0.0406],[88.0,0.0321,124.0357,0.0406],[89.0,0.028,124.5313,0.0406],[90.0,0.0397,125.0114,0.0406],[91.0,0.0514,125.4914,0.0405],[92.0,0.0628,125.9715,0.0405],[93.0,0.0741,126.4515,0.0405],[94.0,0.0853,126.9316,0.0405],[95.0,0.0964,127.4116,0.0405],[96.0,0.1205,127.8793,0.0405],[97.0,0.1443,128.3469,0.0404],[98.0,0.1679,128.8145,0.0404],[99.0,0.1912,129.2821,0.0404],[100.0,0.2142,129.7497,0.0404],[101.0,0.237,130.2172,0.0404],[102.0,0.2339,130.6754,0.0404],[103.0,0.2308,131.1336,0.0404],[104.0,0.2278,131.5919,0.0404],[105.0,0.2248,132.0501,0.0404],[106.0,0.2218,132.5084,0.0404],[107.0,0.2188,132.9666,0.0404],[108.0,0.1885,133.4136,0.0405],[109.0,0.1585,133.8606,0.0406],[110.0,0.1288,134.3076,0.0406],[111.0,0.0994,134.7545,0.0407],[112.0,0.0704,135.2014,0.0408],[113.0,0.0416,135.6482,0.0409],[114.0,0.021,136.1026,0.041],[115.0,0.0008,136.5569,0.0411],[116.0,-0.0191,137.0113,0.0412],[117.0,-0.0386,137.4656,0.0414],[118.0,-0.0579,137.9199,0.0415],[119.0,-0.0768,138.3742,0.0416],[120.0,-0.0752,138.8473,0.0417],[121.0,-0.0736,139.3205,0.0419],[122.0,-0.072,139.7936,0.042],[123.0,-0.0705,140.2667,0.0422],[124.0,-0.0689,140.7398,0.0423],[125.0,-0.0674,141.213,0.0424],[126.0,-0.0489,141.7059,0.0426],[127.0,-0.0308,142.1987,0.0428],[128.0,-0.0131,142.6916,0.043],[129.0,0.0041,143.1844,0.0432],[130.0,0.0209,143.6773,0.0434],[131.0,0.0373,144.1701,0.0436],[132.0,0.0886,144.701,0.0438],[133.0,0.1383,145.2319,0.0441],[134.0,0.1864,145.7627,0.0443],[135.0,0.2331,146.2935,0.0445],[136.0,0.2784,146.8242,0.0448],[137.0,0.3223,147.3549,0.045],[138.0,0.4064,147.9321,0.0453],[139.0,0.4882,148.5094,0.0455],[140.0,0.5676,149.0866,0.0457],[141.0,0.6448,149.6638,0.0459],[142.0,0.7199,150.2409,0.0462],[143.0,0.7929,150.818,0.0464],[144.0,0.8928,151.4223,0.0465],[145.0,0.991,152.0268,0.0466],[146.0,1.0877,152.6312,0.0467],[147.0,1.1829,153.2358,0.0468],[148.0,1.2764,153.8404,0.0469],[149.0,1.3684,154.445,0.047],[150.0,1.458,155.0459,0.0469],[151.0,1.5475,155.6468,0.0469],[152.0,1.637,156.2477,0.0468],[153.0,1.7263,156.8487,0.0467],[154.0,1.8155,157.4497,0.0466],[155.0,1.9045,158.0507,0.0465],[156.0,2.0111,158.6245,0.0463],[157.0,2.1194,159.1984,0.046],[158.0,2.2294,159.7724,0.0457],[159.0,2.341,160.3465,0.0454],[160.0,2.4544,160.9207,0.0452],[161.0,2.5694,161.4949,0.0449],[162.0,2.6754,162.0038,0.0445],[163.0,2.7844,162.5128,0.044],[164.0,2.8966,163.0218,0.0436],[165.0,3.0121,163.5308,0.0431],[166.0,3.1309,164.0398,0.0427],[167.0,3.2531,164.5488,0.0423],[168.0,3.3119,164.965,0.0417],[169.0,3.3725,165.3813,0.0412],[170.0,3.4351,165.7975,0.0407],[171.0,3.4998,166.2138,0.0402],[172.0,3.5666,166.6301,0.0397],[173.0,3.6357,167.0464,0.0392],[174.0,3.6315,167.3647,0.0388],[175.0,3.6262,167.6831,0.0384],[176.0,3.6198,168.0013,0.0379],[177.0,3.6121,168.3195,0.0375],[178.0,3.6031,168.6377,0.037],[179.0,3.5927,168.9558,0.0366],[180.0,3.5208,169.1812,0.0363],[181.0,3.4457,169.4066,0.036],[182.0,3.3672,169.6319,0.0357],[183.0,3.2853,169.8571,0.0353],[184.0,3.1997,170.0824,0.035],[185.0,3.1104,170.3076,0.0347],[186.0,2.9809,170.4684,0.0345],[187.0,2.8483,170.6294,0.0342],[188.0,2.7127,170.7906,0.034],[189.0,2.574,170.952,0.0338],[190.0,2.4321,171.1137,0.0335],[191.0,2.2872,171.2756,0.0333],[192.0,2.154,171.3949,0.0332],[193.0,2.0196,171.5145,0.033],[194.0,1.8841,171.6344,0.0328],[195.0,1.7474,171.7546,0.0327],[196.0,1.6096,171.8752,0.0325],[197.0,1.4707,171.996,0.0324],[198.0,1.3966,172.0897,0.0323],[199.0,1.3226,172.1836,0.0323],[200.0,1.2488,172.2775,0.0322],[201.0,1.1751,172.3716,0.0322],[202.0,1.1016,172.4658,0.0321],[203.0,1.0282,172.56,0.0321],[204.0,0.9751,172.6404,0.0321],[205.0,0.9218,172.7207,0.0321],[206.0,0.8685,172.8009,0.0321],[207.0,0.815,172.8812,0.0321],[208.0,0.7614,172.9614,0.0321],[209.0,0.7077,173.0416,0.0321],[210.0,0.6595,173.1222,0.0321],[211.0,0.611,173.2027,0.0321],[212.0,0.5623,173.2832,0.0321],[213.0,0.5134,173.3636,0.032],[214.0,0.4642,173.444,0.032],[215.0,0.4148,173.5244,0.032],[216.0,0.3638,173.6037,0.032],[217.0,0.3126,173.683,0.032],[218.0,0.2611,173.7622,0.032],[219.0,0.2094,173.8413,0.032],[220.0,0.1573,173.9204,0.032],[221.0,0.105,173.9995,0.032],[222.0,0.0449,174.0764,0.032],[223.0,-0.0155,174.1532,0.032],[224.0,-0.0764,174.23,0.032],[225.0,-0.1377,174.3067,0.0319],[226.0,-0.1994,174.3833,0.0319],[227.0,-0.2615,174.4598,0.0319]],
+    F: [[0.0,1.0,49.1477,0.0379],[1.0,1.0,53.6872,0.0364],[2.0,1.0,57.0673,0.0357],[3.0,1.0,59.8029,0.0352],[4.0,1.0,62.0899,0.0349],[5.0,1.0,64.0301,0.0346],[6.0,1.0,65.7311,0.0345],[7.0,1.0,67.2873,0.0344],[8.0,1.0,68.7498,0.0344],[9.0,1.0,70.1435,0.0344],[10.0,1.0,71.4818,0.0345],[11.0,1.0,72.771,0.0346],[12.0,1.0,74.015,0.0348],[13.0,1.0,75.2176,0.035],[14.0,1.0,76.3817,0.0351],[15.0,1.0,77.5099,0.0353],[16.0,1.0,78.6055,0.0356],[17.0,1.0,79.671,0.0358],[18.0,1.0,80.7079,0.036],[19.0,1.0,81.7182,0.0362],[20.0,1.0,82.7036,0.0364],[21.0,1.0,83.6654,0.0367],[22.0,1.0,84.604,0.0369],[23.0,1.0,85.5202,0.0371],[24.0,1.0,85.7153,0.0376],[25.0,1.0,86.5904,0.0379],[26.0,1.0,87.4462,0.0381],[27.0,1.0,88.283,0.0383],[28.0,1.0,89.1004,0.0385],[29.0,1.0,89.8991,0.0387],[30.0,1.0,90.6797,0.0389],[31.0,1.0,91.443,0.0391],[32.0,1.0,92.1906,0.0393],[33.0,1.0,92.9239,0.0395],[34.0,1.0,93.6444,0.0397],[35.0,1.0,94.3533,0.0399],[36.0,0.5472,95.4078,0.0413],[37.0,0.4997,95.9472,0.0412],[38.0,0.4525,96.4867,0.0411],[39.0,0.4056,97.0262,0.041],[40.0,0.359,97.5658,0.0409],[41.0,0.3126,98.1054,0.0408],[42.0,0.2825,98.6465,0.0407],[43.0,0.2526,99.1877,0.0406],[44.0,0.2229,99.7288,0.0405],[45.0,0.1934,100.27,0.0404],[46.0,0.164,100.8113,0.0403],[47.0,0.1348,101.3525,0.0402],[48.0,0.1129,101.8943,0.0401],[49.0,0.0912,102.4361,0.04],[50.0,0.0695,102.9779,0.0399],[51.0,0.048,103.5197,0.0398],[52.0,0.0267,104.0616,0.0397],[53.0,0.0054,104.6034,0.0396],[54.0,-0.0216,105.1425,0.0395],[55.0,-0.0484,105.6816,0.0395],[56.0,-0.0751,106.2208,0.0394],[57.0,-0.1016,106.76,0.0393],[58.0,-0.128,107.2992,0.0392],[59.0,-0.1543,107.8384,0.0391],[60.0,-0.1404,108.3714,0.039],[61.0,-0.1266,108.9045,0.039],[62.0,-0.113,109.4375,0.0389],[63.0,-0.0994,109.9706,0.0389],[64.0,-0.086,110.5036,0.0388],[65.0,-0.0726,111.0366,0.0388],[66.0,-0.0272,111.5656,0.0388],[67.0,0.0175,112.0946,0.0388],[68.0,0.0614,112.6235,0.0388],[69.0,0.1047,113.1523,0.0388],[70.0,0.1472,113.6811,0.0388],[71.0,0.1891,114.2098,0.0388],[72.0,0.2115,114.7289,0.0388],[73.0,0.2335,115.2479,0.0388],[74.0,0.255,115.767,0.0389],[75.0,0.2762,116.286,0.0389],[76.0,0.297,116.805,0.039],[77.0,0.3174,117.324,0.039],[78.0,0.2769,117.8257,0.0391],[79.0,0.2373,118.3274,0.0391],[80.0,0.1986,118.8292,0.0392],[81.0,0.1606,119.331,0.0393],[82.0,0.1235,119.8329,0.0394],[83.0,0.0872,120.3348,0.0394],[84.0,0.0163,120.8229,0.0396],[85.0,-0.0528,121.311,0.0397],[86.0,-0.1201,121.7993,0.0398],[87.0,-0.1857,122.2876,0.0399],[88.0,-0.2496,122.7761,0.04],[89.0,-0.3119,123.2646,0.0401],[90.0,-0.3571,123.7505,0.0402],[91.0,-0.4012,124.2364,0.0404],[92.0,-0.4442,124.7224,0.0405],[93.0,-0.4862,125.2084,0.0406],[94.0,-0.5271,125.6944,0.0407],[95.0,-0.567,126.1805,0.0408],[96.0,-0.5993,126.6703,0.041],[97.0,-0.6308,127.1601,0.0411],[98.0,-0.6616,127.65,0.0412],[99.0,-0.6918,128.1399,0.0413],[100.0,-0.7213,128.6297,0.0414],[101.0,-0.7502,129.1197,0.0415],[102.0,-0.779,129.6197,0.0416],[103.0,-0.807,130.1199,0.0417],[104.0,-0.8342,130.62,0.0418],[105.0,-0.8608,131.1202,0.042],[106.0,-0.8868,131.6204,0.0421],[107.0,-0.9121,132.1207,0.0422],[108.0,-0.8812,132.6442,0.0423],[109.0,-0.851,133.1677,0.0425],[110.0,-0.8214,133.6912,0.0426],[111.0,-0.7924,134.2147,0.0428],[112.0,-0.764,134.7382,0.0429],[113.0,-0.7362,135.2617,0.043],[114.0,-0.6545,135.8116,0.0432],[115.0,-0.574,136.3617,0.0433],[116.0,-0.4946,136.9119,0.0434],[117.0,-0.4162,137.4622,0.0435],[118.0,-0.3389,138.0126,0.0436],[119.0,-0.2627,138.5631,0.0438],[120.0,-0.1573,139.1218,0.0438],[121.0,-0.0528,139.6805,0.0439],[122.0,0.0509,140.2395,0.0439],[123.0,0.1538,140.7986,0.044],[124.0,0.2558,141.3578,0.044],[125.0,0.3569,141.9172,0.0441],[126.0,0.4653,142.4689,0.044],[127.0,0.5738,143.0207,0.044],[128.0,0.6821,143.5726,0.0439],[129.0,0.7904,144.1246,0.0438],[130.0,0.8986,144.6765,0.0438],[131.0,1.0066,145.2285,0.0437],[132.0,1.1242,145.7568,0.0435],[133.0,1.2433,146.2852,0.0433],[134.0,1.3638,146.8136,0.0431],[135.0,1.4857,147.3421,0.0429],[136.0,1.609,147.8706,0.0427],[137.0,1.7336,148.399,0.0425],[138.0,1.8239,148.8746,0.0421],[139.0,1.9161,149.3501,0.0418],[140.0,2.0103,149.8256,0.0415],[141.0,2.1065,150.3011,0.0412],[142.0,2.2047,150.7766,0.0409],[143.0,2.3049,151.2521,0.0406],[144.0,2.3447,151.6571,0.0402],[145.0,2.3855,152.0621,0.0399],[146.0,2.4272,152.4672,0.0395],[147.0,2.4699,152.8722,0.0392],[148.0,2.5136,153.2772,0.0388],[149.0,2.5584,153.6821,0.0385],[150.0,2.5648,154.0138,0.0382],[151.0,2.5712,154.3455,0.0378],[152.0,2.5775,154.6772,0.0375],[153.0,2.5837,155.0089,0.0372],[154.0,2.5899,155.3405,0.0368],[155.0,2.5959,155.6722,0.0365],[156.0,2.5607,155.9198,0.0362],[157.0,2.5239,156.1672,0.036],[158.0,2.4856,156.4146,0.0357],[159.0,2.4458,156.6619,0.0355],[160.0,2.4042,156.9091,0.0352],[161.0,2.3609,157.1562,0.035],[162.0,2.3149,157.3292,0.0348],[163.0,2.2677,157.5021,0.0346],[164.0,2.2195,157.675,0.0345],[165.0,2.1701,157.8478,0.0343],[166.0,2.1196,158.0205,0.0342],[167.0,2.0679,158.1932,0.034],[168.0,2.0549,158.3159,0.0339],[169.0,2.0417,158.4387,0.0338],[170.0,2.0284,158.5614,0.0337],[171.0,2.015,158.6842,0.0336],[172.0,2.0014,158.8069,0.0335],[173.0,1.9877,158.9297,0.0335],[174.0,1.967,159.0139,0.0334],[175.0,1.9462,159.0981,0.0333],[176.0,1.9254,159.1823,0.0332],[177.0,1.9045,159.2666,0.0332],[178.0,1.8835,159.3508,0.0331],[179.0,1.8625,159.4351,0.033],[180.0,1.79,159.4917,0.033],[181.0,1.7178,159.5483,0.033],[182.0,1.6457,159.6051,0.0329],[183.0,1.5739,159.6619,0.0329],[184.0,1.5022,159.7189,0.0328],[185.0,1.4308,159.776,0.0328],[186.0,1.3515,159.8149,0.0328],[187.0,1.2721,159.8539,0.0327],[188.0,1.1928,159.893,0.0327],[189.0,1.1134,159.9321,0.0326],[190.0,1.034,159.9714,0.0326],[191.0,0.9547,160.0107,0.0325],[192.0,0.8678,160.0286,0.0325],[193.0,0.7803,160.0465,0.0324],[194.0,0.6921,160.0644,0.0323],[195.0,0.6032,160.0823,0.0322],[196.0,0.5137,160.1002,0.0322],[197.0,0.4236,160.1182,0.0321],[198.0,0.332,160.1342,0.032],[199.0,0.2396,160.1502,0.032],[200.0,0.1464,160.1661,0.0319],[201.0,0.0522,160.1821,0.0318],[202.0,-0.0428,160.198,0.0317],[203.0,-0.1387,160.214,0.0317],[204.0,-0.164,160.2483,0.0316],[205.0,-0.1896,160.2827,0.0316],[206.0,-0.2154,160.317,0.0315],[207.0,-0.2414,160.3514,0.0315],[208.0,-0.2675,160.3857,0.0314],[209.0,-0.294,160.42,0.0314],[210.0,-0.311,160.4524,0.0313],[211.0,-0.3282,160.4847,0.0313],[212.0,-0.3456,160.5171,0.0313],[213.0,-0.3631,160.5494,0.0312],[214.0,-0.3808,160.5817,0.0312],[215.0,-0.3985,160.614,0.0311],[216.0,-0.4107,160.6484,0.0311],[217.0,-0.4229,160.6827,0.031],[218.0,-0.4352,160.7171,0.031],[219.0,-0.4476,160.7514,0.031],[220.0,-0.4601,160.7857,0.0309],[221.0,-0.4727,160.82,0.0309],[222.0,-0.4804,160.8591,0.0309],[223.0,-0.4881,160.8981,0.0308],[224.0,-0.4959,160.9372,0.0308],[225.0,-0.5037,160.9762,0.0307],[226.0,-0.5116,161.0153,0.0307],[227.0,-0.5195,161.0543,0.0307]]
+  },
+  weight: {
+    M: [[0.0,0.3487,3.3464,0.146],[1.0,0.2297,4.4709,0.134],[2.0,0.197,5.5675,0.1239],[3.0,0.1738,6.3762,0.1173],[4.0,0.1553,7.0023,0.1132],[5.0,0.1395,7.5105,0.1108],[6.0,0.1257,7.934,0.1096],[7.0,0.1134,8.297,0.109],[8.0,0.1021,8.6151,0.1088],[9.0,0.0917,8.9014,0.1088],[10.0,0.082,9.1649,0.1089],[11.0,0.073,9.4122,0.1091],[12.0,0.0644,9.6479,0.1093],[13.0,0.0563,9.8749,0.1095],[14.0,0.0487,10.0953,0.1098],[15.0,0.0413,10.3108,0.1101],[16.0,0.0343,10.5228,0.1104],[17.0,0.0275,10.7319,0.1108],[18.0,0.0211,10.9385,0.1112],[19.0,0.0148,11.143,0.1116],[20.0,0.0087,11.3462,0.1121],[21.0,0.0029,11.5486,0.1126],[22.0,-0.0028,11.7504,0.1131],[23.0,-0.0083,11.9514,0.1137],[24.0,-0.0137,12.1515,0.1143],[25.0,-0.0189,12.3502,0.1149],[26.0,-0.024,12.5466,0.1154],[27.0,-0.0289,12.7401,0.116],[28.0,-0.0337,12.9303,0.1166],[29.0,-0.0385,13.1169,0.1172],[30.0,-0.0431,13.3,0.1178],[31.0,-0.0476,13.4798,0.1184],[32.0,-0.052,13.6567,0.119],[33.0,-0.0564,13.8309,0.1195],[34.0,-0.0606,14.0031,0.1201],[35.0,-0.0648,14.1736,0.1206],[36.0,0.0567,14.7381,0.0969],[37.0,-0.0147,14.911,0.0981],[38.0,-0.0804,15.0839,0.0993],[39.0,-0.1409,15.2569,0.1005],[40.0,-0.1966,15.4299,0.1016],[41.0,-0.248,15.603,0.1027],[42.0,-0.299,15.7775,0.1038],[43.0,-0.3461,15.9521,0.1049],[44.0,-0.3895,16.1268,0.106],[45.0,-0.4297,16.3015,0.107],[46.0,-0.4669,16.4763,0.108],[47.0,-0.5013,16.6512,0.1089],[48.0,-0.5361,16.8276,0.1099],[49.0,-0.5684,17.0041,0.1108],[50.0,-0.5983,17.1807,0.1118],[51.0,-0.6261,17.3573,0.1127],[52.0,-0.6518,17.534,0.1136],[53.0,-0.6758,17.7108,0.1144],[54.0,-0.6998,17.8888,0.1153],[55.0,-0.7222,18.067,0.1161],[56.0,-0.743,18.2452,0.117],[57.0,-0.7623,18.4235,0.1178],[58.0,-0.7803,18.6018,0.1186],[59.0,-0.7971,18.7802,0.1194],[60.0,-0.8162,18.9625,0.1202],[61.0,-0.8339,19.1449,0.1211],[62.0,-0.8503,19.3274,0.1219],[63.0,-0.8655,19.51,0.1227],[64.0,-0.8797,19.6926,0.1235],[65.0,-0.893,19.8753,0.1242],[66.0,-0.9106,20.0814,0.1254],[67.0,-0.9264,20.2877,0.1265],[68.0,-0.9407,20.4941,0.1275],[69.0,-0.9536,20.7007,0.1286],[70.0,-0.9653,20.9073,0.1296],[71.0,-0.9757,21.1141,0.1306],[72.0,-0.9753,21.3417,0.1318],[73.0,-0.9743,21.5693,0.133],[74.0,-0.973,21.797,0.1342],[75.0,-0.9714,22.0247,0.1353],[76.0,-0.9694,22.2524,0.1364],[77.0,-0.9672,22.4802,0.1375],[78.0,-0.9576,22.7267,0.1388],[79.0,-0.9481,22.9732,0.14],[80.0,-0.9388,23.2196,0.1412],[81.0,-0.9298,23.4661,0.1424],[82.0,-0.921,23.7126,0.1435],[83.0,-0.9124,23.9591,0.1447],[84.0,-0.8993,24.2214,0.146],[85.0,-0.8867,24.4837,0.1474],[86.0,-0.8745,24.7461,0.1486],[87.0,-0.8628,25.0084,0.1499],[88.0,-0.8514,25.2707,0.1511],[89.0,-0.8404,25.5329,0.1524],[90.0,-0.8208,25.8155,0.1537],[91.0,-0.802,26.0979,0.155],[92.0,-0.7841,26.3804,0.1563],[93.0,-0.7669,26.6629,0.1576],[94.0,-0.7503,26.9453,0.1588],[95.0,-0.7344,27.2277,0.16],[96.0,-0.7076,27.5321,0.1613],[97.0,-0.682,27.8365,0.1625],[98.0,-0.6574,28.1409,0.1638],[99.0,-0.6339,28.4453,0.165],[100.0,-0.6113,28.7497,0.1661],[101.0,-0.5896,29.054,0.1673],[102.0,-0.5621,29.3761,0.1685],[103.0,-0.5357,29.6982,0.1698],[104.0,-0.5103,30.0203,0.171],[105.0,-0.486,30.3424,0.1721],[106.0,-0.4627,30.6645,0.1733],[107.0,-0.4402,30.9867,0.1744],[108.0,-0.416,31.3251,0.1756],[109.0,-0.3928,31.6635,0.1768],[110.0,-0.3705,32.0019,0.1779],[111.0,-0.3491,32.3404,0.179],[112.0,-0.3284,32.6788,0.1801],[113.0,-0.3085,33.0173,0.1812],[114.0,-0.2869,33.3742,0.1823],[115.0,-0.2661,33.7312,0.1833],[116.0,-0.2461,34.0882,0.1844],[117.0,-0.2267,34.4452,0.1854],[118.0,-0.2081,34.8022,0.1864],[119.0,-0.1902,35.1592,0.1873],[120.0,-0.17,35.5349,0.1882],[121.0,-0.1505,35.9105,0.189],[122.0,-0.1317,36.2862,0.1899],[123.0,-0.1134,36.6619,0.1907],[124.0,-0.0958,37.0376,0.1914],[125.0,-0.0788,37.4134,0.1922],[126.0,-0.0612,37.8103,0.1929],[127.0,-0.0441,38.2074,0.1936],[128.0,-0.0275,38.6045,0.1942],[129.0,-0.0113,39.0017,0.1949],[130.0,0.0043,39.3989,0.1955],[131.0,0.0195,39.7961,0.1961],[132.0,0.0333,40.2146,0.1966],[133.0,0.0467,40.6331,0.1971],[134.0,0.0599,41.0518,0.1976],[135.0,0.0726,41.4706,0.1981],[136.0,0.0851,41.8894,0.1986],[137.0,0.0973,42.3083,0.1991],[138.0,0.1071,42.7515,0.1992],[139.0,0.1168,43.1947,0.1994],[140.0,0.1263,43.638,0.1996],[141.0,0.1356,44.0813,0.1997],[142.0,0.1448,44.5248,0.1999],[143.0,0.1538,44.9684,0.2],[144.0,0.1618,45.4253,0.1998],[145.0,0.1698,45.8824,0.1995],[146.0,0.1777,46.3396,0.1993],[147.0,0.1855,46.7968,0.1991],[148.0,0.1932,47.2542,0.1988],[149.0,0.2009,47.7116,0.1986],[150.0,0.2081,48.1693,0.198],[151.0,0.2154,48.6271,0.1974],[152.0,0.2226,49.085,0.1969],[153.0,0.2299,49.5431,0.1963],[154.0,0.2372,50.0012,0.1957],[155.0,0.2445,50.4595,0.1952],[156.0,0.2503,50.9021,0.1942],[157.0,0.2562,51.3448,0.1932],[158.0,0.2622,51.7875,0.1923],[159.0,0.2683,52.2304,0.1914],[160.0,0.2745,52.6733,0.1904],[161.0,0.2808,53.1164,0.1895],[162.0,0.2841,53.5329,0.1882],[163.0,0.2876,53.9495,0.1869],[164.0,0.2911,54.366,0.1856],[165.0,0.2948,54.7826,0.1843],[166.0,0.2986,55.1993,0.183],[167.0,0.3026,55.6159,0.1818],[168.0,0.3023,55.9927,0.1802],[169.0,0.302,56.3694,0.1787],[170.0,0.3019,56.7462,0.1772],[171.0,0.3019,57.1229,0.1757],[172.0,0.3019,57.4995,0.1742],[173.0,0.3021,57.8762,0.1727],[174.0,0.2993,58.2029,0.1711],[175.0,0.2965,58.5296,0.1696],[176.0,0.2938,58.8563,0.168],[177.0,0.2911,59.1829,0.1665],[178.0,0.2885,59.5096,0.165],[179.0,0.2859,59.8362,0.1635],[180.0,0.2818,60.1106,0.162],[181.0,0.2777,60.385,0.1606],[182.0,0.2736,60.6594,0.1591],[183.0,0.2695,60.9338,0.1577],[184.0,0.2654,61.2081,0.1563],[185.0,0.2613,61.4825,0.1549],[186.0,0.2514,61.7129,0.1537],[187.0,0.2412,61.9434,0.1525],[188.0,0.231,62.1739,0.1513],[189.0,0.2207,62.4045,0.1501],[190.0,0.2102,62.6351,0.1489],[191.0,0.1996,62.8658,0.1477],[192.0,0.1829,63.055,0.1468],[193.0,0.166,63.2442,0.1459],[194.0,0.1489,63.4335,0.145],[195.0,0.1316,63.6229,0.1441],[196.0,0.1141,63.8123,0.1432],[197.0,0.0964,64.0018,0.1424],[198.0,0.0862,64.1526,0.1418],[199.0,0.0759,64.3033,0.1413],[200.0,0.0655,64.4539,0.1407],[201.0,0.055,64.6045,0.1402],[202.0,0.0444,64.7551,0.1397],[203.0,0.0337,64.9057,0.1391],[204.0,0.0282,65.0469,0.1387],[205.0,0.0226,65.188,0.1382],[206.0,0.0169,65.3291,0.1377],[207.0,0.0113,65.4702,0.1373],[208.0,0.0055,65.6113,0.1368],[209.0,-0.0003,65.7523,0.1364],[210.0,-0.0068,65.8907,0.1359],[211.0,-0.0134,66.0291,0.1355],[212.0,-0.02,66.1674,0.1351],[213.0,-0.0267,66.3057,0.1346],[214.0,-0.0335,66.4439,0.1342],[215.0,-0.0403,66.5821,0.1338],[216.0,-0.0469,66.7186,0.1334],[217.0,-0.0535,66.8551,0.133],[218.0,-0.0602,66.9915,0.1326],[219.0,-0.0669,67.1278,0.1322],[220.0,-0.0738,67.2641,0.1318],[221.0,-0.0807,67.4004,0.1314],[222.0,-0.0859,67.5362,0.1311],[223.0,-0.0911,67.6719,0.1307],[224.0,-0.0965,67.8077,0.1303],[225.0,-0.1018,67.9434,0.1299],[226.0,-0.1072,68.079,0.1296],[227.0,-0.1127,68.2146,0.1292]],
+    F: [[0.0,0.3809,3.2322,0.1417],[1.0,0.1714,4.1873,0.1372],[2.0,0.0962,5.1282,0.13],[3.0,0.0402,5.8458,0.1262],[4.0,-0.005,6.4237,0.124],[5.0,-0.043,6.8985,0.1227],[6.0,-0.0756,7.297,0.122],[7.0,-0.1039,7.6422,0.1218],[8.0,-0.1288,7.9487,0.1218],[9.0,-0.1507,8.2254,0.122],[10.0,-0.17,8.48,0.1222],[11.0,-0.1872,8.7192,0.1225],[12.0,-0.2024,8.9481,0.1227],[13.0,-0.2158,9.1699,0.1228],[14.0,-0.2278,9.387,0.1229],[15.0,-0.2384,9.6008,0.123],[16.0,-0.2478,9.8124,0.123],[17.0,-0.2562,10.0226,0.1231],[18.0,-0.2637,10.2315,0.1231],[19.0,-0.2703,10.4393,0.1232],[20.0,-0.2762,10.6464,0.1232],[21.0,-0.2815,10.8534,0.1234],[22.0,-0.2862,11.0608,0.1235],[23.0,-0.2903,11.2688,0.1237],[24.0,-0.2941,11.4775,0.1239],[25.0,-0.2975,11.6864,0.1241],[26.0,-0.3005,11.8947,0.1244],[27.0,-0.3032,12.1015,0.1247],[28.0,-0.3057,12.3059,0.1251],[29.0,-0.308,12.5073,0.1255],[30.0,-0.3101,12.7055,0.1259],[31.0,-0.312,12.9006,0.1263],[32.0,-0.3138,13.093,0.1268],[33.0,-0.3155,13.2837,0.1274],[34.0,-0.3171,13.4731,0.1279],[35.0,-0.3186,13.6618,0.1286],[36.0,0.5656,14.1998,0.0991],[37.0,0.4441,14.3701,0.1004],[38.0,0.3317,14.5405,0.1017],[39.0,0.2276,14.7108,0.103],[40.0,0.1312,14.8813,0.1042],[41.0,0.0419,15.0518,0.1053],[42.0,-0.0428,15.2236,0.1064],[43.0,-0.1212,15.3956,0.1075],[44.0,-0.1938,15.5676,0.1085],[45.0,-0.2611,15.7399,0.1095],[46.0,-0.3236,15.9123,0.1105],[47.0,-0.3816,16.0848,0.1114],[48.0,-0.4372,16.2585,0.1124],[49.0,-0.4888,16.4324,0.1133],[50.0,-0.5367,16.6064,0.1142],[51.0,-0.5812,16.7806,0.115],[52.0,-0.6227,16.9549,0.1159],[53.0,-0.6613,17.1294,0.1167],[54.0,-0.6987,17.3046,0.1175],[55.0,-0.7335,17.48,0.1183],[56.0,-0.766,17.6555,0.119],[57.0,-0.7962,17.8311,0.1198],[58.0,-0.8245,18.0069,0.1205],[59.0,-0.8509,18.1827,0.1212],[60.0,-0.876,18.3616,0.122],[61.0,-0.8993,18.5405,0.1228],[62.0,-0.921,18.7196,0.1236],[63.0,-0.9412,18.8988,0.1243],[64.0,-0.96,19.078,0.125],[65.0,-0.9776,19.2574,0.1257],[66.0,-0.984,19.4555,0.127],[67.0,-0.9894,19.6537,0.1281],[68.0,-0.9941,19.8519,0.1293],[69.0,-0.9981,20.0502,0.1304],[70.0,-1.0014,20.2485,0.1315],[71.0,-1.0041,20.4468,0.1326],[72.0,-0.9954,20.6619,0.134],[73.0,-0.9868,20.8769,0.1353],[74.0,-0.9784,21.092,0.1367],[75.0,-0.97,21.3071,0.138],[76.0,-0.9618,21.5221,0.1392],[77.0,-0.9537,21.7372,0.1405],[78.0,-0.9411,21.9702,0.1418],[79.0,-0.9288,22.2032,0.1432],[80.0,-0.9169,22.4363,0.1445],[81.0,-0.9054,22.6693,0.1458],[82.0,-0.8942,22.9023,0.1471],[83.0,-0.8833,23.1353,0.1484],[84.0,-0.8685,23.387,0.1497],[85.0,-0.8541,23.6386,0.1511],[86.0,-0.8403,23.8903,0.1524],[87.0,-0.8271,24.1419,0.1536],[88.0,-0.8142,24.3935,0.1549],[89.0,-0.8019,24.6451,0.1561],[90.0,-0.7852,24.9161,0.1574],[91.0,-0.7693,25.1871,0.1586],[92.0,-0.7539,25.4581,0.1598],[93.0,-0.7392,25.7291,0.1609],[94.0,-0.725,26.0001,0.1621],[95.0,-0.7114,26.271,0.1632],[96.0,-0.6971,26.5602,0.1643],[97.0,-0.6834,26.8493,0.1654],[98.0,-0.6702,27.1385,0.1665],[99.0,-0.6574,27.4276,0.1675],[100.0,-0.6451,27.7167,0.1685],[101.0,-0.6333,28.0058,0.1695],[102.0,-0.6214,28.3163,0.1705],[103.0,-0.6098,28.6269,0.1714],[104.0,-0.5987,28.9374,0.1723],[105.0,-0.5879,29.248,0.1732],[106.0,-0.5775,29.5585,0.1741],[107.0,-0.5675,29.869,0.1749],[108.0,-0.5521,30.2033,0.1758],[109.0,-0.5373,30.5375,0.1766],[110.0,-0.5229,30.8718,0.1774],[111.0,-0.509,31.2061,0.1782],[112.0,-0.4956,31.5404,0.179],[113.0,-0.4825,31.8748,0.1798],[114.0,-0.4623,32.2323,0.1806],[115.0,-0.4427,32.59,0.1815],[116.0,-0.4237,32.9478,0.1823],[117.0,-0.4052,33.3056,0.1831],[118.0,-0.3874,33.6636,0.1838],[119.0,-0.37,34.0216,0.1846],[120.0,-0.3496,34.4014,0.1852],[121.0,-0.3297,34.7815,0.1858],[122.0,-0.3103,35.1617,0.1864],[123.0,-0.2914,35.5421,0.1869],[124.0,-0.2729,35.9226,0.1875],[125.0,-0.2548,36.3033,0.188],[126.0,-0.2377,36.7011,0.1882],[127.0,-0.2209,37.0992,0.1883],[128.0,-0.2043,37.4974,0.1884],[129.0,-0.188,37.8958,0.1885],[130.0,-0.1719,38.2944,0.1886],[131.0,-0.156,38.6931,0.1887],[132.0,-0.1419,39.0908,0.1884],[133.0,-0.1278,39.4887,0.1881],[134.0,-0.1138,39.8868,0.1878],[135.0,-0.0998,40.2851,0.1875],[136.0,-0.0859,40.6835,0.1872],[137.0,-0.072,41.0821,0.1869],[138.0,-0.0641,41.4657,0.1862],[139.0,-0.0562,41.8495,0.1855],[140.0,-0.0481,42.2333,0.1848],[141.0,-0.04,42.6173,0.1842],[142.0,-0.0318,43.0013,0.1835],[143.0,-0.0235,43.3855,0.1829],[144.0,-0.0241,43.74,0.1818],[145.0,-0.0246,44.0946,0.1808],[146.0,-0.0251,44.4491,0.1798],[147.0,-0.0255,44.8037,0.1788],[148.0,-0.0258,45.1584,0.1778],[149.0,-0.026,45.513,0.1769],[150.0,-0.0326,45.8261,0.1756],[151.0,-0.0391,46.1391,0.1743],[152.0,-0.0457,46.4522,0.173],[153.0,-0.0523,46.7652,0.1717],[154.0,-0.0589,47.0782,0.1705],[155.0,-0.0655,47.3912,0.1693],[156.0,-0.0745,47.6564,0.1679],[157.0,-0.0837,47.9216,0.1666],[158.0,-0.0929,48.1868,0.1653],[159.0,-0.1021,48.4519,0.164],[160.0,-0.1115,48.7171,0.1627],[161.0,-0.1208,48.9822,0.1614],[162.0,-0.129,49.2069,0.1603],[163.0,-0.1372,49.4315,0.1591],[164.0,-0.1455,49.6562,0.158],[165.0,-0.1538,49.8809,0.1568],[166.0,-0.1621,50.1055,0.1557],[167.0,-0.1705,50.3302,0.1546],[168.0,-0.1734,50.5233,0.1536],[169.0,-0.1763,50.7164,0.1525],[170.0,-0.1791,50.9095,0.1515],[171.0,-0.1819,51.1026,0.1505],[172.0,-0.1846,51.2957,0.1495],[173.0,-0.1873,51.4888,0.1485],[174.0,-0.1869,51.6479,0.1476],[175.0,-0.1865,51.807,0.1467],[176.0,-0.186,51.966,0.1458],[177.0,-0.1854,52.125,0.1449],[178.0,-0.1847,52.284,0.144],[179.0,-0.1839,52.443,0.1431],[180.0,-0.1846,52.5631,0.1424],[181.0,-0.1852,52.6832,0.1417],[182.0,-0.1857,52.8033,0.1409],[183.0,-0.1862,52.9233,0.1402],[184.0,-0.1867,53.0434,0.1395],[185.0,-0.1871,53.1634,0.1388],[186.0,-0.1901,53.2482,0.1382],[187.0,-0.193,53.3331,0.1377],[188.0,-0.196,53.4179,0.1371],[189.0,-0.199,53.5027,0.1366],[190.0,-0.2019,53.5875,0.1361],[191.0,-0.2049,53.6723,0.1355],[192.0,-0.21,53.7253,0.1351],[193.0,-0.2151,53.7783,0.1346],[194.0,-0.2202,53.8313,0.1342],[195.0,-0.2253,53.8843,0.1338],[196.0,-0.2305,53.9373,0.1334],[197.0,-0.2357,53.9903,0.1329],[198.0,-0.2499,54.0055,0.1326],[199.0,-0.2643,54.0208,0.1323],[200.0,-0.2788,54.036,0.1319],[201.0,-0.2934,54.0512,0.1316],[202.0,-0.3081,54.0663,0.1312],[203.0,-0.323,54.0815,0.1309],[204.0,-0.3423,54.0797,0.1306],[205.0,-0.3619,54.0778,0.1303],[206.0,-0.3816,54.0759,0.13],[207.0,-0.4016,54.0739,0.1298],[208.0,-0.4217,54.0719,0.1295],[209.0,-0.4421,54.0698,0.1292],[210.0,-0.4627,54.0634,0.1289],[211.0,-0.4836,54.057,0.1286],[212.0,-0.5046,54.0505,0.1284],[213.0,-0.5259,54.0439,0.1281],[214.0,-0.5474,54.0373,0.1278],[215.0,-0.5691,54.0306,0.1275],[216.0,-0.5908,54.0217,0.1273],[217.0,-0.6128,54.0126,0.127],[218.0,-0.6351,54.0036,0.1267],[219.0,-0.6575,53.9944,0.1264],[220.0,-0.6801,53.9852,0.1261],[221.0,-0.703,53.976,0.1258],[222.0,-0.7262,53.9649,0.1256],[223.0,-0.7497,53.9539,0.1253],[224.0,-0.7734,53.9427,0.125],[225.0,-0.7973,53.9315,0.1247],[226.0,-0.8215,53.9203,0.1244],[227.0,-0.8458,53.909,0.1241]]
+  },
+  bmi: {
+    M: [[24.0,-0.6187,16.0189,0.0779],[25.0,-0.584,15.98,0.0779],[26.0,-0.5497,15.9414,0.078],[27.0,-0.5166,15.9036,0.0781],[28.0,-0.485,15.8667,0.0782],[29.0,-0.4552,15.8306,0.0783],[30.0,-0.4274,15.7953,0.0784],[31.0,-0.4016,15.7606,0.0785],[32.0,-0.3782,15.7267,0.0787],[33.0,-0.3572,15.6934,0.0788],[34.0,-0.3388,15.661,0.079],[35.0,-0.3231,15.6294,0.0791],[36.0,1.8637,15.9455,0.0665],[37.0,1.7284,15.9431,0.0672],[38.0,1.5969,15.9406,0.0679],[39.0,1.4694,15.9381,0.0686],[40.0,1.3456,15.9355,0.0692],[41.0,1.2257,15.9328,0.0699],[42.0,1.1096,15.9302,0.0706],[43.0,0.9972,15.9275,0.0712],[44.0,0.8886,15.9248,0.0719],[45.0,0.7835,15.9222,0.0725],[46.0,0.6821,15.9195,0.0731],[47.0,0.5841,15.9169,0.0737],[48.0,0.4885,15.9165,0.0744],[49.0,0.3966,15.9162,0.075],[50.0,0.3084,15.916,0.0757],[51.0,0.2237,15.9158,0.0763],[52.0,0.1425,15.9156,0.0769],[53.0,0.0647,15.9156,0.0775],[54.0,-0.01,15.9156,0.0781],[55.0,-0.0815,15.9156,0.0788],[56.0,-0.15,15.9158,0.0793],[57.0,-0.2156,15.916,0.0799],[58.0,-0.2784,15.9163,0.0805],[59.0,-0.3385,15.9167,0.0811],[60.0,-0.3931,15.9217,0.0818],[61.0,-0.4449,15.9268,0.0824],[62.0,-0.4942,15.932,0.0831],[63.0,-0.5409,15.9373,0.0838],[64.0,-0.5853,15.9426,0.0844],[65.0,-0.6274,15.948,0.0851],[66.0,-0.6673,15.9535,0.0857],[67.0,-0.7053,15.9591,0.0863],[68.0,-0.7413,15.9647,0.087],[69.0,-0.7754,15.9704,0.0876],[70.0,-0.8078,15.9762,0.0883],[71.0,-0.8385,15.982,0.0889],[72.0,-0.8494,16.01,0.0899],[73.0,-0.859,16.038,0.0909],[74.0,-0.8675,16.0661,0.0919],[75.0,-0.8749,16.0942,0.0929],[76.0,-0.8814,16.1223,0.0939],[77.0,-0.8869,16.1504,0.0948],[78.0,-0.8916,16.1786,0.0958],[79.0,-0.8955,16.2068,0.0968],[80.0,-0.8987,16.235,0.0978],[81.0,-0.9013,16.2633,0.0987],[82.0,-0.9032,16.2916,0.0997],[83.0,-0.9046,16.3199,0.1007],[84.0,-0.8944,16.3645,0.1018],[85.0,-0.8842,16.4092,0.1029],[86.0,-0.8741,16.4538,0.104],[87.0,-0.8639,16.4985,0.1051],[88.0,-0.8538,16.5431,0.1062],[89.0,-0.8438,16.5878,0.1073],[90.0,-0.8339,16.6324,0.1084],[91.0,-0.824,16.6771,0.1095],[92.0,-0.8142,16.7218,0.1105],[93.0,-0.8044,16.7664,0.1116],[94.0,-0.7948,16.8111,0.1127],[95.0,-0.7852,16.8558,0.1137],[96.0,-0.7555,16.9147,0.1148],[97.0,-0.7269,16.9736,0.1159],[98.0,-0.6992,17.0325,0.117],[99.0,-0.6725,17.0914,0.118],[100.0,-0.6466,17.1503,0.1191],[101.0,-0.6216,17.2092,0.1201],[102.0,-0.5974,17.268,0.1212],[103.0,-0.574,17.3268,0.1222],[104.0,-0.5513,17.3856,0.1232],[105.0,-0.5293,17.4444,0.1242],[106.0,-0.508,17.5032,0.1252],[107.0,-0.4874,17.562,0.1262],[108.0,-0.4597,17.6255,0.1271],[109.0,-0.4327,17.689,0.128],[110.0,-0.4066,17.7524,0.1289],[111.0,-0.3812,17.8159,0.1297],[112.0,-0.3566,17.8793,0.1306],[113.0,-0.3326,17.9428,0.1314],[114.0,-0.3093,18.0062,0.1323],[115.0,-0.2867,18.0696,0.1331],[116.0,-0.2647,18.133,0.1339],[117.0,-0.2433,18.1964,0.1348],[118.0,-0.2225,18.2598,0.1356],[119.0,-0.2022,18.3231,0.1364],[120.0,-0.1828,18.3862,0.137],[121.0,-0.1638,18.4493,0.1375],[122.0,-0.1452,18.5123,0.1381],[123.0,-0.127,18.5754,0.1387],[124.0,-0.1092,18.6385,0.1392],[125.0,-0.0918,18.7015,0.1398],[126.0,-0.0747,18.7645,0.1403],[127.0,-0.058,18.8276,0.1409],[128.0,-0.0416,18.8906,0.1414],[129.0,-0.0256,18.9536,0.142],[130.0,-0.0099,19.0166,0.1425],[131.0,0.0055,19.0796,0.143],[132.0,0.014,19.1356,0.1432],[133.0,0.0224,19.1917,0.1435],[134.0,0.0307,19.2478,0.1437],[135.0,0.039,19.3039,0.1439],[136.0,0.0471,19.3599,0.1441],[137.0,0.0552,19.416,0.1443],[138.0,0.0631,19.4721,0.1445],[139.0,0.071,19.5282,0.1447],[140.0,0.0789,19.5842,0.1449],[141.0,0.0866,19.6403,0.1451],[142.0,0.0942,19.6964,0.1453],[143.0,0.1018,19.7525,0.1455],[144.0,0.1009,19.7966,0.1454],[145.0,0.1,19.8408,0.1453],[146.0,0.0991,19.8849,0.1451],[147.0,0.0981,19.9291,0.145],[148.0,0.0972,19.9732,0.1449],[149.0,0.0963,20.0173,0.1447],[150.0,0.0954,20.0615,0.1446],[151.0,0.0945,20.1056,0.1445],[152.0,0.0936,20.1498,0.1443],[153.0,0.0927,20.1939,0.1442],[154.0,0.0918,20.2381,0.1441],[155.0,0.0909,20.2822,0.1439],[156.0,0.0879,20.3193,0.1435],[157.0,0.0849,20.3564,0.143],[158.0,0.0819,20.3934,0.1426],[159.0,0.0789,20.4305,0.1422],[160.0,0.0759,20.4676,0.1417],[161.0,0.0729,20.5047,0.1413],[162.0,0.0698,20.5417,0.1408],[163.0,0.0668,20.5788,0.1404],[164.0,0.0637,20.6159,0.14],[165.0,0.0607,20.6529,0.1395],[166.0,0.0576,20.69,0.1391],[167.0,0.0545,20.7271,0.1387],[168.0,0.0551,20.7616,0.1381],[169.0,0.0558,20.7961,0.1375],[170.0,0.0564,20.8306,0.1369],[171.0,0.0572,20.865,0.1363],[172.0,0.0579,20.8995,0.1357],[173.0,0.0587,20.934,0.1351],[174.0,0.0596,20.9685,0.1345],[175.0,0.0605,21.003,0.1339],[176.0,0.0614,21.0375,0.1333],[177.0,0.0624,21.0719,0.1327],[178.0,0.0635,21.1064,0.1321],[179.0,0.0645,21.1409,0.1315],[180.0,0.0686,21.174,0.131],[181.0,0.0728,21.2071,0.1305],[182.0,0.077,21.2402,0.1299],[183.0,0.0814,21.2733,0.1294],[184.0,0.0858,21.3064,0.1289],[185.0,0.0904,21.3395,0.1284],[186.0,0.095,21.3726,0.1279],[187.0,0.0997,21.4057,0.1274],[188.0,0.1046,21.4389,0.1269],[189.0,0.1095,21.472,0.1263],[190.0,0.1146,21.5051,0.1258],[191.0,0.1198,21.5383,0.1253],[192.0,0.1283,21.5696,0.125],[193.0,0.1369,21.6009,0.1246],[194.0,0.1457,21.6322,0.1242],[195.0,0.1546,21.6636,0.1239],[196.0,0.1637,21.6949,0.1235],[197.0,0.1729,21.7263,0.1232],[198.0,0.1822,21.7577,0.1228],[199.0,0.1916,21.7891,0.1225],[200.0,0.2013,21.8205,0.1221],[201.0,0.211,21.852,0.1217],[202.0,0.2209,21.8834,0.1214],[203.0,0.2309,21.9149,0.121],[204.0,0.2417,21.9445,0.1207],[205.0,0.2526,21.9741,0.1204],[206.0,0.2637,22.0038,0.1201],[207.0,0.2749,22.0334,0.1198],[208.0,0.2863,22.0631,0.1195],[209.0,0.2978,22.0928,0.1192],[210.0,0.3095,22.1225,0.1189],[211.0,0.3213,22.1523,0.1186],[212.0,0.3334,22.1821,0.1183],[213.0,0.3455,22.2119,0.1179],[214.0,0.3579,22.2417,0.1176],[215.0,0.3704,22.2715,0.1173],[216.0,0.3824,22.3005,0.117],[217.0,0.3944,22.3295,0.1168],[218.0,0.4067,22.3585,0.1165],[219.0,0.4191,22.3875,0.1162],[220.0,0.4317,22.4166,0.1159],[221.0,0.4445,22.4457,0.1156],[222.0,0.4574,22.4748,0.1153],[223.0,0.4705,22.5039,0.115],[224.0,0.4837,22.533,0.1147],[225.0,0.4971,22.5622,0.1144],[226.0,0.5107,22.5914,0.1142],[227.0,0.5245,22.6206,0.1139]],
+    F: [[24.0,-0.5684,15.6881,0.0845],[25.0,-0.5684,15.659,0.0845],[26.0,-0.5684,15.6308,0.0845],[27.0,-0.5684,15.6037,0.0845],[28.0,-0.5684,15.5777,0.0844],[29.0,-0.5684,15.5523,0.0844],[30.0,-0.5684,15.5276,0.0844],[31.0,-0.5684,15.5034,0.0845],[32.0,-0.5684,15.4798,0.0846],[33.0,-0.5684,15.4572,0.0847],[34.0,-0.5684,15.4356,0.0848],[35.0,-0.5684,15.4155,0.0851],[36.0,1.7658,15.7543,0.0677],[37.0,1.6248,15.7529,0.0685],[38.0,1.4878,15.7514,0.0694],[39.0,1.3549,15.7497,0.0702],[40.0,1.2261,15.7478,0.071],[41.0,1.1013,15.7459,0.0718],[42.0,0.9805,15.7438,0.0726],[43.0,0.8636,15.7417,0.0734],[44.0,0.7507,15.7395,0.0741],[45.0,0.6416,15.7373,0.0749],[46.0,0.5363,15.735,0.0757],[47.0,0.4348,15.7327,0.0764],[48.0,0.3375,15.7321,0.0772],[49.0,0.2441,15.7315,0.0779],[50.0,0.1545,15.7309,0.0787],[51.0,0.0685,15.7303,0.0794],[52.0,-0.0139,15.7298,0.0801],[53.0,-0.0928,15.7293,0.0808],[54.0,-0.1684,15.7288,0.0815],[55.0,-0.2408,15.7284,0.0822],[56.0,-0.31,15.728,0.0829],[57.0,-0.3762,15.7277,0.0836],[58.0,-0.4395,15.7275,0.0843],[59.0,-0.5,15.7273,0.085],[60.0,-0.5537,15.7308,0.0857],[61.0,-0.6047,15.7343,0.0865],[62.0,-0.6531,15.7379,0.0872],[63.0,-0.699,15.7416,0.0879],[64.0,-0.7425,15.7453,0.0886],[65.0,-0.7838,15.7491,0.0894],[66.0,-0.8229,15.753,0.0901],[67.0,-0.86,15.757,0.0908],[68.0,-0.8951,15.761,0.0915],[69.0,-0.9283,15.7651,0.0922],[70.0,-0.9598,15.7692,0.0929],[71.0,-0.9896,15.7734,0.0936],[72.0,-0.9929,15.7972,0.0946],[73.0,-0.9953,15.8211,0.0956],[74.0,-0.997,15.845,0.0966],[75.0,-0.998,15.8689,0.0976],[76.0,-0.9984,15.8928,0.0986],[77.0,-0.9983,15.9168,0.0995],[78.0,-0.9976,15.9408,0.1005],[79.0,-0.9964,15.9648,0.1015],[80.0,-0.9948,15.9888,0.1025],[81.0,-0.9927,16.0129,0.1034],[82.0,-0.9903,16.0369,0.1044],[83.0,-0.9876,16.061,0.1054],[84.0,-0.9677,16.1003,0.1064],[85.0,-0.9484,16.1396,0.1073],[86.0,-0.9296,16.1788,0.1083],[87.0,-0.9112,16.2181,0.1093],[88.0,-0.8933,16.2573,0.1103],[89.0,-0.8759,16.2966,0.1113],[90.0,-0.8589,16.3358,0.1122],[91.0,-0.8423,16.375,0.1132],[92.0,-0.8261,16.4142,0.1142],[93.0,-0.8103,16.4534,0.1151],[94.0,-0.7948,16.4926,0.1161],[95.0,-0.7797,16.5318,0.117],[96.0,-0.7556,16.5815,0.1179],[97.0,-0.7322,16.6312,0.1187],[98.0,-0.7095,16.6809,0.1196],[99.0,-0.6873,16.7305,0.1204],[100.0,-0.6657,16.7802,0.1212],[101.0,-0.6447,16.8298,0.1221],[102.0,-0.6242,16.8795,0.1229],[103.0,-0.6042,16.9291,0.1237],[104.0,-0.5848,16.9787,0.1245],[105.0,-0.5658,17.0283,0.1253],[106.0,-0.5474,17.0779,0.1261],[107.0,-0.5293,17.1275,0.1269],[108.0,-0.5108,17.1807,0.1276],[109.0,-0.4927,17.2339,0.1282],[110.0,-0.4749,17.287,0.1289],[111.0,-0.4575,17.3402,0.1295],[112.0,-0.4405,17.3934,0.1302],[113.0,-0.4238,17.4466,0.1308],[114.0,-0.4075,17.4998,0.1314],[115.0,-0.3915,17.5529,0.1321],[116.0,-0.3758,17.6061,0.1327],[117.0,-0.3604,17.6593,0.1333],[118.0,-0.3453,17.7125,0.1339],[119.0,-0.3305,17.7657,0.1346],[120.0,-0.3196,17.8202,0.1349],[121.0,-0.3087,17.8747,0.1353],[122.0,-0.2981,17.9293,0.1356],[123.0,-0.2875,17.9838,0.136],[124.0,-0.2771,18.0383,0.1363],[125.0,-0.2668,18.0929,0.1367],[126.0,-0.2566,18.1475,0.137],[127.0,-0.2465,18.202,0.1374],[128.0,-0.2366,18.2566,0.1377],[129.0,-0.2268,18.3112,0.138],[130.0,-0.217,18.3658,0.1384],[131.0,-0.2074,18.4204,0.1387],[132.0,-0.2055,18.4741,0.1388],[133.0,-0.2036,18.5278,0.1388],[134.0,-0.2018,18.5815,0.1388],[135.0,-0.1999,18.6352,0.1388],[136.0,-0.198,18.6889,0.1389],[137.0,-0.1962,18.7426,0.1389],[138.0,-0.1943,18.7963,0.1389],[139.0,-0.1925,18.8499,0.139],[140.0,-0.1906,18.9036,0.139],[141.0,-0.1888,18.9573,0.139],[142.0,-0.187,19.011,0.1391],[143.0,-0.1852,19.0648,0.1391],[144.0,-0.1841,19.1168,0.1388],[145.0,-0.1829,19.1689,0.1386],[146.0,-0.1817,19.221,0.1383],[147.0,-0.1805,19.273,0.138],[148.0,-0.1793,19.3251,0.1378],[149.0,-0.1781,19.3772,0.1375],[150.0,-0.1769,19.4293,0.1372],[151.0,-0.1756,19.4814,0.137],[152.0,-0.1743,19.5335,0.1367],[153.0,-0.173,19.5856,0.1364],[154.0,-0.1717,19.6377,0.1362],[155.0,-0.1703,19.6898,0.1359],[156.0,-0.1641,19.7377,0.1355],[157.0,-0.1578,19.7856,0.135],[158.0,-0.1514,19.8335,0.1346],[159.0,-0.1449,19.8814,0.1341],[160.0,-0.1382,19.9293,0.1337],[161.0,-0.1314,19.9772,0.1332],[162.0,-0.1246,20.0252,0.1328],[163.0,-0.1176,20.0731,0.1323],[164.0,-0.1104,20.1211,0.1319],[165.0,-0.1032,20.1691,0.1314],[166.0,-0.0958,20.2171,0.131],[167.0,-0.0884,20.2651,0.1305],[168.0,-0.0802,20.3049,0.13],[169.0,-0.0719,20.3446,0.1295],[170.0,-0.0635,20.3844,0.1289],[171.0,-0.0549,20.4242,0.1284],[172.0,-0.0461,20.464,0.1278],[173.0,-0.0371,20.5038,0.1273],[174.0,-0.028,20.5436,0.1268],[175.0,-0.0187,20.5834,0.1262],[176.0,-0.0092,20.6232,0.1257],[177.0,0.0004,20.663,0.1252],[178.0,0.0102,20.7029,0.1246],[179.0,0.0202,20.7427,0.1241],[180.0,0.023,20.7675,0.1236],[181.0,0.0259,20.7923,0.1232],[182.0,0.0288,20.817,0.1227],[183.0,0.0318,20.8418,0.1222],[184.0,0.0349,20.8666,0.1218],[185.0,0.038,20.8914,0.1213],[186.0,0.0412,20.9162,0.1208],[187.0,0.0445,20.941,0.1204],[188.0,0.0478,20.9657,0.1199],[189.0,0.0512,20.9905,0.1195],[190.0,0.0547,21.0153,0.119],[191.0,0.0583,21.0401,0.1186],[192.0,0.045,21.0433,0.1183],[193.0,0.0315,21.0465,0.118],[194.0,0.018,21.0498,0.1177],[195.0,0.0043,21.053,0.1175],[196.0,-0.0095,21.0562,0.1172],[197.0,-0.0235,21.0593,0.1169],[198.0,-0.0375,21.0625,0.1166],[199.0,-0.0517,21.0657,0.1164],[200.0,-0.0661,21.0689,0.1161],[201.0,-0.0806,21.072,0.1158],[202.0,-0.0952,21.0752,0.1155],[203.0,-0.1099,21.0783,0.1152],[204.0,-0.1287,21.0754,0.115],[205.0,-0.1476,21.0724,0.1148],[206.0,-0.1667,21.0694,0.1146],[207.0,-0.1859,21.0664,0.1144],[208.0,-0.2054,21.0634,0.1142],[209.0,-0.225,21.0603,0.114],[210.0,-0.2448,21.0573,0.1138],[211.0,-0.2648,21.0542,0.1136],[212.0,-0.285,21.0511,0.1134],[213.0,-0.3053,21.048,0.1132],[214.0,-0.3258,21.0449,0.113],[215.0,-0.3465,21.0417,0.1128],[216.0,-0.368,21.0362,0.1126],[217.0,-0.3897,21.0307,0.1124],[218.0,-0.4115,21.0251,0.1122],[219.0,-0.4336,21.0196,0.112],[220.0,-0.4558,21.014,0.1119],[221.0,-0.4781,21.0084,0.1117],[222.0,-0.5007,21.0028,0.1115],[223.0,-0.5234,20.9972,0.1113],[224.0,-0.5463,20.9916,0.1111],[225.0,-0.5694,20.986,0.1109],[226.0,-0.5927,20.9803,0.1107],[227.0,-0.6161,20.9747,0.1105]]
+  }
+};
+
+const ADULT_HEIGHT_AGE_MONTHS = 227;
+
+function getLMS(measure, sex, ageMonths){
+  const table = GROWTH_LMS[measure] && GROWTH_LMS[measure][sex];
+  if(!table || !table.length) return null;
+  const clamped = Math.max(table[0][0], Math.min(table[table.length-1][0], ageMonths));
+  let lo = table[0], hi = table[table.length-1];
+  for(let i=0;i<table.length-1;i++){
+    if(clamped >= table[i][0] && clamped <= table[i+1][0]){ lo=table[i]; hi=table[i+1]; break; }
+  }
+  const span = hi[0]-lo[0];
+  const ratio = span===0?0:(clamped-lo[0])/span;
+  return { L: lo[1]+(hi[1]-lo[1])*ratio, M: lo[2]+(hi[2]-lo[2])*ratio, S: lo[3]+(hi[3]-lo[3])*ratio };
+}
+function erf(x){
+  const sign = x<0?-1:1; x=Math.abs(x);
+  const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
+  const t=1/(1+p*x);
+  const y=1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x);
+  return sign*y;
+}
+function normalCdf(z){ return 0.5*(1+erf(z/Math.SQRT2)); }
+function normalInv(p){
+  if(p<=0) return -Infinity; if(p>=1) return Infinity;
+  const a=[-3.969683028665376e+01,2.209460984245205e+02,-2.759285104469687e+02,1.383577518672690e+02,-3.066479806614716e+01,2.506628277459239e+00];
+  const b=[-5.447609879822406e+01,1.615858368580409e+02,-1.556989798598866e+02,6.680131188771972e+01,-1.328068155288572e+01];
+  const c=[-7.784894002430293e-03,-3.223964580411365e-01,-2.400758277161838e+00,-2.549732539343734e+00,4.374664141464968e+00,2.938163982698783e+00];
+  const d=[7.784695709041462e-03,3.224671290700398e-01,2.445134137142996e+00,3.754408661907416e+00];
+  const plow=0.02425, phigh=1-plow; let q,r;
+  if(p<plow){ q=Math.sqrt(-2*Math.log(p)); return (((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1); }
+  else if(p<=phigh){ q=p-0.5; r=q*q; return (((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q/(((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1); }
+  else { q=Math.sqrt(-2*Math.log(1-p)); return -(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1); }
+}
+function lmsPercentile(L,M,S,X){
+  let z;
+  if(Math.abs(L)<1e-8) z = Math.log(X/M)/S;
+  else z = (Math.pow(X/M,L)-1)/(L*S);
+  return normalCdf(z)*100;
+}
+function lmsValueAtPercentile(L,M,S,percentile){
+  const z = normalInv(percentile/100);
+  if(Math.abs(L)<1e-8) return M*Math.exp(S*z);
+  return M*Math.pow(1+L*S*z, 1/L);
+}
+function ageInMonths(dob, dateStr){
+  if(!dob || !dateStr) return null;
+  const b = new Date(dob+'T00:00:00'), t = new Date(dateStr+'T00:00:00');
+  if(isNaN(b)||isNaN(t)) return null;
+  return (t.getFullYear()-b.getFullYear())*12 + (t.getMonth()-b.getMonth()) + (t.getDate()-b.getDate())/30.4375;
+}
+function sexCode(sex){ return sex==='M' ? 'M' : 'F'; }
+
+// 골연령 기록을 바탕으로 예측 성인키 계산 (골연령 시점 백분위가 성인까지 유지된다는 가정) — 수골 우선, 없으면 팔꿈치 사용
+function recordBoneAgeMonths(r){
+  return r.boneAgeWristMonths!=null ? r.boneAgeWristMonths : (r.boneAgeElbowMonths!=null ? r.boneAgeElbowMonths : null);
+}
+function getPredictedHeight(p){
+  const recs = sortedRecords(p).slice().reverse(); // 날짜 오름차순
+  for(let i=recs.length-1;i>=0;i--){
+    const r = recs[i];
+    const ba = recordBoneAgeMonths(r);
+    if(ba!=null && r.height){
+      if(r.predictedHeight) return { date:r.date, value: parseFloat(r.predictedHeight), source:'manual' };
+      const boneLms = getLMS('height', sexCode(p.sex), ba);
+      const adultLms = getLMS('height', sexCode(p.sex), ADULT_HEIGHT_AGE_MONTHS);
+      if(boneLms && adultLms){
+        const pctl = lmsPercentile(boneLms.L, boneLms.M, boneLms.S, parseFloat(r.height));
+        const predicted = Math.round(lmsValueAtPercentile(adultLms.L, adultLms.M, adultLms.S, pctl)*10)/10;
+        return { date:r.date, value: predicted, source:'auto', pctl };
+      }
+    }
+  }
+  for(let i=recs.length-1;i>=0;i--){
+    if(recs[i].predictedHeight) return { date:recs[i].date, value: parseFloat(recs[i].predictedHeight), source:'manual' };
+  }
+  return null;
+}
+
+const STORE_KEY = 'jrd_remote_gh_patients_v1';
+let patients = [];
+let currentPatientId = null;
+let editingRecordId = null;
+let pendingInboxApplyId = null; // 제출함 사진(혈액검사/엑스레이)에서 "판독 결과 기록하기"로 열었을 때, 저장 후 그 항목을 반영 처리하기 위한 id
+
+function loadPatients(){
+  try{ patients = JSON.parse(localStorage.getItem(STORE_KEY)) || []; }
+  catch(e){ patients = []; }
+}
+function savePatients(){
+  localStorage.setItem(STORE_KEY, JSON.stringify(patients));
+  autoSyncToCloud();
+}
+let autoSyncTimer = null;
+function autoSyncToCloud(){
+  const api = localStorage.getItem('jrd_api_url');
+  const key = localStorage.getItem('jrd_sync_key');
+  if(!api || !key) return; // 연동 설정 안 했으면 자동 동기화도 안 함
+  clearTimeout(autoSyncTimer);
+  autoSyncTimer = setTimeout(()=>{
+    fetch(api, { method:'POST', body: JSON.stringify({ action:'savedoctordata', key, data: JSON.stringify(patients) }) })
+      .then(()=>{ const s=document.getElementById('syncStatus'); if(s) s.textContent = `자동 동기화됨 (${new Date().toLocaleTimeString('ko-KR')})`, s.style.color='var(--ok)'; })
+      .catch(()=>{});
+  }, 1500);
+}
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+// 환아용 앱에서 저장한 주사 부위 키를 한국어 라벨로 표시
+const SITE_LABELS_KO = {
+  siteAbdomenL:'왼쪽 배', siteAbdomenR:'오른쪽 배',
+  siteThighL:'왼쪽 허벅지', siteThighR:'오른쪽 허벅지',
+  siteArmL:'왼쪽 팔', siteArmR:'오른쪽 팔',
+  siteHipL:'왼쪽 엉덩이', siteHipR:'오른쪽 엉덩이',
+};
+// 환아 접속 코드: 추측되기 어렵도록 충분히 긴 무작위 값 생성 (가능하면 암호학적 난수 사용)
+function genAccessCode(){
+  if(window.crypto && crypto.getRandomValues){
+    const bytes = new Uint8Array(12);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, b=>b.toString(16).padStart(2,'0')).join('');
+  }
+  return uid()+uid();
+}
+function escapeHtml(s){ return (s||'').toString().replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fmtDate(d){ if(!d) return ''; const dt=new Date(d+'T00:00:00'); if(isNaN(dt)) return '날짜 미상'; return `${dt.getFullYear()}.${String(dt.getMonth()+1).padStart(2,'0')}.${String(dt.getDate()).padStart(2,'0')}`; }
+function timeAgo(isoStr){
+  if(!isoStr) return '';
+  const then = new Date(isoStr);
+  if(isNaN(then)) return '';
+  const diffMs = Date.now() - then.getTime();
+  const min = Math.floor(diffMs/60000);
+  if(min < 1) return '방금 전';
+  if(min < 60) return `${min}분 전`;
+  const hr = Math.floor(min/60);
+  if(hr < 24) return `${hr}시간 전`;
+  const day = Math.floor(hr/24);
+  if(day < 7) return `${day}일 전`;
+  const wk = Math.floor(day/7);
+  if(wk < 5) return `${wk}주 전`;
+  const mo = Math.floor(day/30);
+  return `${mo}개월 전`;
+}
+
+// 전체 시트를 한 번만 가져와 환아별 "답변 대기 질문 수"를 계산 (목록/대시보드 배지용)
+let pendingQMapCache = null;
+async function fetchPendingQuestionMap(){
+  const api = getApiUrl();
+  if(!api) return new Map();
+  try{
+    const res = await fetch(api);
+    const rows = await res.json();
+    const answeredIds = new Set(rows.filter(r=>r.type==='answer').map(r=>r.refId));
+    const map = new Map(); // accessCode -> {count, latestTs}
+    rows.filter(r=>r.type==='question' && !answeredIds.has(r.id)).forEach(r=>{
+      const cur = map.get(r.pid) || {count:0, latestTs:''};
+      cur.count++;
+      if(r.timestamp > cur.latestTs) cur.latestTs = r.timestamp;
+      map.set(r.pid, cur);
+    });
+    pendingQMapCache = map;
+    return map;
+  }catch(err){ return pendingQMapCache || new Map(); }
+}
+function todayStr(){ const t=new Date(); return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`; }
+function addMonths(dateStr, months){
+  const d = new Date(dateStr+'T00:00:00');
+  d.setMonth(d.getMonth()+months);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function daysUntil(dateStr){
+  const today = new Date(todayStr()+'T00:00:00');
+  const target = new Date(dateStr+'T00:00:00');
+  return Math.round((target-today)/86400000);
+}
+function visitLabel(p){ return (p && p.location==='domestic') ? '다음 내원' : '다음 화상통화'; }
+function calcAge(dob){
+  if(!dob) return '';
+  const b = new Date(dob+'T00:00:00'), t = new Date();
+  let y = t.getFullYear()-b.getFullYear(), m = t.getMonth()-b.getMonth();
+  if(t.getDate() < b.getDate()) m--;
+  if(m<0){ y--; m+=12; }
+  return `${y}세 ${m}개월`;
+}
+function calcBMI(h,w){
+  const hh = parseFloat(h), ww = parseFloat(w);
+  if(!hh || !ww) return null;
+  return (ww / ((hh/100)*(hh/100))).toFixed(1);
+}
+
+function getPatient(id){ return patients.find(p=>p.id===id); }
+function sortedRecords(p){ return [...(p.records||[])].sort((a,b)=> a.date < b.date ? 1 : -1); }
+
+function nextCallInfo(p){
+  const recs = [...(p.records||[])].sort((a,b)=> a.date < b.date ? -1 : 1);
+  let next = null;
+  for(let i=recs.length-1;i>=0;i--){
+    if(recs[i].nextCall){ next = recs[i].nextCall; break; }
+  }
+  if(!next && recs.length){
+    next = addMonths(recs[recs.length-1].date, p.interval || 3);
+  }
+  if(!next){
+    next = addMonths(p.startDate || todayStr(), p.interval || 3);
+  }
+  return next;
+}
+
+/* ---------------- Views ---------------- */
+function showView(name){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+name).classList.add('active');
+  document.querySelectorAll('.tabbar button').forEach(b=>b.classList.remove('active'));
+  const tabBtn = document.querySelector(`.tabbar button[data-tab="${name}"]`);
+  if(tabBtn) tabBtn.classList.add('active');
+  if(name==='dashboard') renderDashboard();
+  if(name==='patients') renderPatientList();
+}
+
+function renderDashboard(){
+  const list = document.getElementById('dashList');
+  const items = patients.map(p=>({p, next: nextCallInfo(p)}))
+    .sort((a,b)=> a.next < b.next ? -1 : 1);
+
+  if(!items.length){
+    list.innerHTML = `<div class="empty-note">등록된 환아가 없습니다. 환아목록 탭에서 추가해주세요.</div>`;
+  } else {
+    list.innerHTML = items.map(({p,next})=>{
+      const d = daysUntil(next);
+      let cls='', badge='';
+      if(d < 0){ cls='overdue'; badge=`${Math.abs(d)}일 지연`; }
+      else if(d <= 7){ cls='soon'; badge= d===0 ? '오늘' : `D-${d}`; }
+      else { badge = `D-${d}`; }
+      return `<div class="call-card ${cls}" onclick="openDetail('${p.id}')">
+        <div class="who">
+          <div class="name">${escapeHtml(p.name)} <span id="qbadge_${p.id}"></span> <span style="font-weight:400;color:var(--secondary);font-size:11.5px;">(${calcAge(p.dob)})</span></div>
+          <div class="meta">${escapeHtml(p.diagnosis||'')} · ${visitLabel(p)} 예정일 ${fmtDate(next)}</div>
+        </div>
+        <div class="badge">${badge}</div>
+      </div>`;
+    }).join('');
+    fetchPendingQuestionMap().then(map=>{
+      items.forEach(({p})=>{
+        const info = map.get(p.accessCode);
+        const el = document.getElementById('qbadge_'+p.id);
+        if(el && info && info.count){
+          el.innerHTML = `<span class="q-alert" title="답변 대기 질문 ${info.count}건">❓${info.count} · ${timeAgo(info.latestTs)}</span>`;
+        }
+      });
+    });
+  }
+  document.getElementById('dashCount').textContent = items.length ? `총 ${items.length}명` : '';
+
+  const recent = [];
+  patients.forEach(p=> (p.records||[]).forEach(r=> recent.push({p,r})));
+  recent.sort((a,b)=> a.r.date < b.r.date ? 1 : -1);
+  const recentEl = document.getElementById('recentList');
+  if(!recent.length){
+    recentEl.innerHTML = `<div class="empty-note">아직 등록된 기록이 없습니다.</div>`;
+  } else {
+    recentEl.innerHTML = recent.slice(0,6).map(({p,r})=>{
+      const bmi = calcBMI(r.height, r.weight);
+      return `<div class="record-item" onclick="openDetail('${p.id}')" style="cursor:pointer;">
+        <div class="rec-top"><div class="rec-date">${escapeHtml(p.name)} · ${fmtDate(r.date)}</div>
+          ${r.callDone ? '<span style="font-size:10px;color:var(--ok);font-weight:700;">📹 화상통화</span>' : ''}
+        </div>
+        <div class="rec-body">
+          ${r.height||r.weight ? `<div class="row"><b>성장</b>${r.height?`키 ${r.height}cm `:''}${r.weight?`몸무게 ${r.weight}kg `:''}${bmi?`(BMI ${bmi})`:''}</div>`:''}
+        </div>
+      </div>`;
+    }).join('');
+  }
+}
+
+function renderPatientList(){
+  const q = (document.getElementById('searchInput').value||'').toLowerCase();
+  const list = document.getElementById('patientList');
+  const filtered = patients
+    .filter(p => !q || (p.name||'').toLowerCase().includes(q) || (p.diagnosis||'').toLowerCase().includes(q))
+    .sort((a,b)=> (a.name||'').localeCompare(b.name||'', 'ko'));
+  if(!filtered.length){
+    list.innerHTML = `<div class="empty-note">${patients.length? '검색 결과가 없습니다.' : '등록된 환아가 없습니다.'}</div>`;
+    return;
+  }
+  const cardHtml = p=>{
+    const next = nextCallInfo(p);
+    return `<div class="patient-card" onclick="openDetail('${p.id}')">
+      <div>
+        <div class="name-row"><span class="name">${escapeHtml(p.name)}</span><span class="sex-tag">${p.sex==='M'?'남':'여'}</span><span id="qbadge_list_${p.id}"></span></div>
+        <div class="sub">${calcAge(p.dob)} · ${escapeHtml(p.diagnosis||'진단명 미입력')}</div>
+        <div class="sub">${visitLabel(p)} 예정일 ${fmtDate(next)}</div>
+      </div>
+      <div class="arrow">›</div>
+    </div>`;
+  };
+  const overseas = filtered.filter(p=>(p.location||'overseas')!=='domestic');
+  const domestic = filtered.filter(p=>p.location==='domestic');
+  let html = '';
+  html += `<div class="section-title" style="margin-top:0;"><h2>🌍 해외</h2><span>${overseas.length}명</span></div>`;
+  html += overseas.length ? overseas.map(cardHtml).join('') : `<div class="empty-note">해당 환아가 없습니다.</div>`;
+  html += `<div class="section-title"><h2>🏠 국내</h2><span>${domestic.length}명</span></div>`;
+  html += domestic.length ? domestic.map(cardHtml).join('') : `<div class="empty-note">해당 환아가 없습니다.</div>`;
+  list.innerHTML = html;
+  fetchPendingQuestionMap().then(map=>{
+    filtered.forEach(p=>{
+      const info = map.get(p.accessCode);
+      const el = document.getElementById('qbadge_list_'+p.id);
+      if(el && info && info.count){
+        el.innerHTML = `<span class="q-alert" title="답변 대기 질문 ${info.count}건">❓${info.count} · ${timeAgo(info.latestTs)}</span>`;
+      }
+    });
+  });
+}
+
+/* ---------------- Patient detail ---------------- */
+let calYear = null, calMonth = null; // calMonth: 0-11
+
+function openDetail(id){
+  currentPatientId = id;
+  const p = getPatient(id);
+  // 최근 기록이 있는 달로 초기 진입, 없으면 이번 달 (날짜가 비었거나 이상한 기록은 건너뜀)
+  const recs = sortedRecords(p).filter(r=>r.date && !isNaN(new Date(r.date+'T00:00:00')));
+  const anchor = recs.length ? new Date(recs[0].date+'T00:00:00') : new Date();
+  calYear = anchor.getFullYear();
+  calMonth = anchor.getMonth();
+  showView('detail');
+  renderDetail();
+}
+
+function changeCalMonth(delta){
+  calMonth += delta;
+  if(calMonth < 0){ calMonth = 11; calYear--; }
+  if(calMonth > 11){ calMonth = 0; calYear++; }
+  renderCalendar(getPatient(currentPatientId));
+}
+
+function renderCalendar(p){
+  if(!p) return;
+  if(calYear==null || calMonth==null || isNaN(calYear) || isNaN(calMonth)){
+    const t = new Date(); calYear = t.getFullYear(); calMonth = t.getMonth();
+  }
+  const dowNames = ['일','월','화','수','목','금','토'];
+  document.getElementById('calDow').innerHTML = dowNames.map(d=>`<div class="cal-dow">${d}</div>`).join('');
+  document.getElementById('calTitle').textContent = `${calYear}년 ${calMonth+1}월`;
+
+  const recMap = {};
+  (p.records||[]).forEach(r=>{ recMap[r.date] = r; });
+  const todayS = todayStr();
+
+  const firstDow = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+  let cells = '';
+  for(let i=0;i<firstDow;i++) cells += `<div class="cal-cell empty"></div>`;
+  for(let d=1; d<=daysInMonth; d++){
+    const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const rec = recMap[dateStr];
+    let cls = 'cal-cell';
+    if(dateStr === todayS) cls += ' today';
+    if(rec) cls += rec.callDone ? ' has-call' : ' has-record';
+    cells += `<div class="${cls}" onclick="onCalDayClick('${dateStr}')">
+      <span>${d}</span>${rec ? '<span class="dot"></span>' : ''}
+    </div>`;
+  }
+  document.getElementById('calGrid').innerHTML = cells;
+}
+
+function onCalDayClick(dateStr){
+  const p = getPatient(currentPatientId);
+  const rec = (p.records||[]).find(r=>r.date===dateStr);
+  openRecordModal(rec ? rec.id : null, dateStr);
+}
+
+// 제출함의 혈액검사/엑스레이 사진을 보고 판독 결과(골연령, IGF-1 등)를 그 날짜의 기록에 입력하기 위해 엽니다.
+// 저장하면 이 제출 항목도 "판독 기록됨"으로 표시됩니다.
+function openRecordFromInbox(inboxId, date){
+  const p = getPatient(currentPatientId);
+  const validDate = date && !isNaN(new Date(date+'T00:00:00')) ? date : todayStr();
+  const rec = (p.records||[]).find(r=>r.date===validDate);
+  pendingInboxApplyId = inboxId;
+  openRecordModal(rec ? rec.id : null, validDate);
+}
+
+function renderDetail(){
+  const p = getPatient(currentPatientId);
+  if(!p) return;
+  renderCalendar(p);
+  const next = nextCallInfo(p);
+  document.getElementById('profileCard').innerHTML = `
+    <div class="profile-head">
+      <div>
+        <div class="name">${escapeHtml(p.name)}</div>
+        <div class="age">${calcAge(p.dob)} · ${p.sex==='M'?'남아':'여아'} · ${escapeHtml(p.country||'')}</div>
+      </div>
+      <button class="btn btn-outline" style="font-size:11px;padding:7px 10px;" onclick="openPatientModal('${p.id}')">수정</button>
+    </div>
+    <div class="profile-grid">
+      <div class="item"><label>진단명</label><div class="val">${escapeHtml(p.diagnosis||'-')}</div></div>
+      <div class="item"><label>치료 시작일</label><div class="val">${fmtDate(p.startDate)||'-'}</div></div>
+      <div class="item full"><label>성장호르몬</label><div class="val">${escapeHtml(p.ghDrug||'-')}</div></div>
+      <div class="item full"><label>성호르몬억제제</label><div class="val">${escapeHtml(p.suppDrug||'-')}</div></div>
+      <div class="item"><label>보호자</label><div class="val">${escapeHtml(p.guardian||'-')}</div></div>
+      <div class="item"><label>${visitLabel(p)} 예정일</label><div class="val" style="color:var(--accent);">${fmtDate(next)}</div></div>
+      ${(()=>{ const pred = getPredictedHeight(p); return pred ? `<div class="item full"><label>예측 성인키</label><div class="val">${pred.value}cm <span style="font-weight:400;color:var(--secondary);font-size:11px;">(${pred.source==='manual'?'병원 안내값':'골연령 기준 자동추정'}, ${fmtDate(pred.date)})</span></div></div>` : ''; })()}
+    </div>
+    ${p.notes ? `<div class="item full" style="margin-top:10px;"><label>메모</label><div class="val" style="font-weight:400;white-space:pre-wrap;">${escapeHtml(p.notes)}</div></div>` : ''}
+    <div class="contact-row">
+      ${p.phone ? `<a class="btn btn-outline" href="tel:${escapeHtml(p.phone)}">📞 전화</a>` : ''}
+      ${p.phone ? `<a class="btn btn-outline" href="https://wa.me/${escapeHtml(p.phone.replace(/[^0-9]/g,''))}" target="_blank">💬 통화 연결</a>` : ''}
+      ${p.email ? `<a class="btn btn-outline" href="mailto:${escapeHtml(p.email)}">✉️ 이메일</a>` : ''}
+    </div>
+    <div class="contact-row">
+      ${p.zoomLink ? `<a class="btn btn-primary" href="${escapeHtml(p.zoomLink)}" target="_blank">🎥 화상통화 시작</a>` : ''}
+      <button class="btn btn-outline" onclick="sendPatientLink('${p.id}')">🔗 환아 링크 보내기</button>
+      <button class="btn btn-outline" onclick="openChatbot()">💬 챗봇 열기</button>
+    </div>
+  `;
+  renderInbox(p);
+  renderChartCaptures(p);
+
+  const recs = sortedRecords(p);
+  document.getElementById('recCount').textContent = recs.length ? `총 ${recs.length}건` : '';
+  const chartBox = document.getElementById('chartBox');
+  const growthRecs = recs.filter(r=>r.height||r.weight);
+  if(!p.dob){
+    chartBox.style.display='block';
+    chartBox.querySelector('#growthCanvas').style.display='none';
+    document.getElementById('predictedHeightNote').textContent='';
+    document.getElementById('latestPctlBadge').textContent='';
+    let noteEl = chartBox.querySelector('.empty-chart-note');
+    if(!noteEl){ noteEl = document.createElement('div'); noteEl.className='empty-chart-note'; chartBox.appendChild(noteEl); }
+    noteEl.textContent = '환아 정보에 생년월일을 입력하면 성장곡선이 표시됩니다.';
+  } else if(!growthRecs.length){
+    chartBox.style.display='block';
+    chartBox.querySelector('#growthCanvas').style.display='none';
+    document.getElementById('predictedHeightNote').textContent='';
+    document.getElementById('latestPctlBadge').textContent='';
+    let noteEl = chartBox.querySelector('.empty-chart-note');
+    if(!noteEl){ noteEl = document.createElement('div'); noteEl.className='empty-chart-note'; chartBox.appendChild(noteEl); }
+    noteEl.textContent = '키/몸무게 기록을 추가하면 성장곡선이 표시됩니다. 달력에서 날짜를 눌러 기록을 추가해주세요.';
+  } else {
+    chartBox.style.display='block';
+    const canvasEl = chartBox.querySelector('#growthCanvas');
+    canvasEl.style.display='block';
+    const noteEl = chartBox.querySelector('.empty-chart-note');
+    if(noteEl) noteEl.remove();
+    document.getElementById('measureBtnHeight').className = chartMeasure==='height' ? 'btn btn-primary' : 'btn btn-outline';
+    document.getElementById('measureBtnWeight').className = chartMeasure==='weight' ? 'btn btn-primary' : 'btn btn-outline';
+    document.getElementById('measureBtnBmi').className = chartMeasure==='bmi' ? 'btn btn-primary' : 'btn btn-outline';
+    Object.assign(document.getElementById('measureBtnHeight').style, {fontSize:'11px',padding:'6px 10px'});
+    Object.assign(document.getElementById('measureBtnWeight').style, {fontSize:'11px',padding:'6px 10px'});
+    Object.assign(document.getElementById('measureBtnBmi').style, {fontSize:'11px',padding:'6px 10px'});
+    drawPercentileChart(p, chartMeasure);
+  }
+
+  const recordList = document.getElementById('recordList');
+  if(!recs.length){
+    recordList.innerHTML = `<div class="empty-note">기록이 없습니다. 위 버튼으로 첫 방문/화상통화 기록을 추가하세요.</div>`;
+    return;
+  }
+  recordList.innerHTML = recs.map(r=>{
+    const bmi = calcBMI(r.height, r.weight);
+    let rows = '';
+    const fmtBA = m => m!=null ? `${Math.floor(m/12)}세 ${Math.round(m%12)}개월` : '';
+    const baWrist = fmtBA(r.boneAgeWristMonths);
+    const baElbow = fmtBA(r.boneAgeElbowMonths);
+    if(r.height || r.weight) rows += `<div class="row"><b>성장</b>${r.height?`키 ${r.height}cm `:''}${r.weight?`몸무게 ${r.weight}kg `:''}${bmi?`BMI ${bmi}`:''}</div>`;
+    if(baWrist) rows += `<div class="row"><b>수골 골연령</b>${baWrist}</div>`;
+    if(baElbow) rows += `<div class="row"><b>팔꿈치 골연령</b>${baElbow}</div>`;
+    if(r.ghType) rows += `<div class="row"><b>GH</b>${escapeHtml(r.ghType)} ${r.ghDose}단위${r.ghFreq?` ${r.ghFreq}/wk`:''}</div>`;
+    if(r.suppType || r.suppNext) rows += `<div class="row"><b>억제제</b>${escapeHtml(r.suppType||'')}${r.suppDose?` ${escapeHtml(r.suppDose)}`:''}${r.suppNext?` (다음 ${fmtDate(r.suppNext)})`:''}</div>`;
+    if(r.igf1 || r.igfbp3) rows += `<div class="row"><b>IGF</b>${escapeHtml(r.igf1||'')}${r.igfbp3?` / IGFBP-3 ${escapeHtml(r.igfbp3)}`:''}</div>`;
+    if(r.ast || r.alt) rows += `<div class="row"><b>간수치</b>${r.ast?`AST ${escapeHtml(r.ast)} `:''}${r.alt?`ALT ${escapeHtml(r.alt)}`:''}</div>`;
+    if(r.tsh || r.ft4) rows += `<div class="row"><b>갑상선</b>${r.tsh?`TSH ${escapeHtml(r.tsh)} `:''}${r.ft4?`fT4 ${escapeHtml(r.ft4)}`:''}</div>`;
+    if(r.hba1c) rows += `<div class="row"><b>HbA1c</b>${escapeHtml(r.hba1c)}</div>`;
+    if(r.hb) rows += `<div class="row"><b>Hb</b>${escapeHtml(r.hb)}</div>`;
+    if(r.vitd) rows += `<div class="row"><b>VitD</b>${escapeHtml(r.vitd)}</div>`;
+    if(r.lhfsh || r.hormone) rows += `<div class="row"><b>성호르몬</b>${escapeHtml(r.lhfsh||'')}${r.hormone?` · ${escapeHtml(r.hormone)}`:''}</div>`;
+
+    if(r.other) rows += `<div class="row"><b>기타검사</b>${escapeHtml(r.other)}</div>`;
+    if(r.tannerBreast) rows += `<div class="row"><b>유방발달</b>${escapeHtml(r.tannerBreast)} (Tanner)</div>`;
+    if(r.menarche) rows += `<div class="row"><b>초경</b>있음${r.menarcheDate?` (${fmtDate(r.menarcheDate)})`:''}</div>`;
+    if(r.testesVolL!=null || r.testesVolR!=null){
+      const gMax = tannerGStage(Math.max(r.testesVolL||0, r.testesVolR||0));
+      rows += `<div class="row"><b>고환크기</b>좌${r.testesVolL!=null?r.testesVolL+'mL':'-'} 우${r.testesVolR!=null?r.testesVolR+'mL':'-'}${gMax?` (약 ${gMax})`:''}</div>`;
+    }
+    return `<div class="record-item">
+      <div class="rec-top">
+        <div class="rec-date">${fmtDate(r.date)||'날짜 미상'}</div>
+        <div class="rec-badges">
+          ${r.callDone?'<span>📹 화상통화</span>':''}
+          ${(r.visitType||[]).includes('boneage')?'<span>🦴 골연령</span>':''}
+          ${(r.visitType||[]).includes('bloodtest')?'<span>🩸 혈액검사</span>':''}
+          ${(r.visitType||[]).includes('general')?'<span>🩺 일반진료</span>':''}
+        </div>
+      </div>
+      <div class="rec-body">${rows}</div>
+      ${r.memo?`<div class="rec-memo">${escapeHtml(r.memo)}</div>`:''}
+      ${r.nextCall?`<div class="rec-memo" style="border-top:none;padding-top:0;color:var(--accent);font-weight:600;">${visitLabel(p)} 예정일: ${fmtDate(r.nextCall)}</div>`:''}
+      ${(r.nextVisitPlan&&r.nextVisitPlan.length) || r.nextVisitFasting ? `<div class="rec-memo" style="border-top:none;padding-top:0;color:var(--secondary);">다음 방문:
+        ${(r.nextVisitPlan||[]).includes('bloodtest')?'🩸혈액검사 ':''}${(r.nextVisitPlan||[]).includes('boneage')?'🦴골연령 ':''}${(r.nextVisitPlan||[]).includes('general')?'🩺진료 ':''}
+        ${r.nextVisitFasting?'<b style="color:var(--danger);">· 공복 필요</b>':''}
+      </div>` : ''}
+      <div class="rec-actions">
+        <button class="btn btn-outline" onclick="openRecordModal('${r.id}')">수정</button>
+        <button class="btn btn-danger-ghost" onclick="deleteRecordDirect('${r.id}')">삭제</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+let chartMeasure = 'height';
+function setChartMeasure(m){
+  chartMeasure = m;
+  renderDetail();
+}
+
+// 라벨끼리 겹치지 않도록 위/아래로 자리를 찾아 배치 (성장달력과 동일한 방식)
+function placeGrowthLabel(ctx, text, x, markerY, color, boxes){
+  const w = ctx.measureText(text).width;
+  const h = 12, pad = 2;
+  const candidates = [-9, 15, -23, 29, -37, 43];
+  let chosen = candidates[0];
+  for(const off of candidates){
+    const top = markerY+off-h+3, bottom = markerY+off+3;
+    const left = x-w/2-pad, right = x+w/2+pad;
+    const overlaps = boxes.some(b => left<b.right && right>b.left && top<b.bottom && bottom>b.top);
+    if(!overlaps){ chosen = off; break; }
+  }
+  ctx.fillStyle = color; ctx.textAlign = 'center';
+  ctx.fillText(text, x, markerY+chosen);
+  boxes.push({ left:x-w/2-pad, right:x+w/2+pad, top:markerY+chosen-h+3, bottom:markerY+chosen+3 });
+}
+
+// 2017 질병관리청 성장도표 백분위 곡선 위에 환아의 실측 키/몸무게를 표시하고,
+// 골연령 기록이 있으면 예측 성인키를 함께 보여줍니다. (성장달력과 동일한 시각 품질)
+function drawPercentileChart(p, measure){
+  const canvas = document.getElementById('growthCanvas');
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = canvas.clientWidth || 320, cssH = 230;
+  canvas.width = cssW*dpr; canvas.height = cssH*dpr;
+  canvas.style.width = cssW+'px'; canvas.style.height = cssH+'px';
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,cssW,cssH);
+
+  const sex = sexCode(p.sex);
+  const recs = sortedRecords(p).slice().reverse().filter(r=> measure==='bmi' ? (r.height && r.weight) : r[measure]); // 날짜 오름차순
+  const points = recs.map(r=>{
+    let value;
+    if(measure==='bmi'){
+      const hM = parseFloat(r.height)/100;
+      value = hM ? parseFloat(r.weight)/(hM*hM) : NaN;
+    } else {
+      value = parseFloat(r[measure]);
+    }
+    return { ageM: ageInMonths(p.dob, r.date), value, date:r.date };
+  }).filter(pt=>pt.ageM!=null && !isNaN(pt.ageM) && !isNaN(pt.value));
+  if(!points.length) return;
+
+  const predicted = measure==='height' ? getPredictedHeight(p) : null;
+  const note = document.getElementById('predictedHeightNote');
+  note.textContent = predicted ? `예측 성인키 ${predicted.value}cm (${predicted.source==='manual'?'병원 안내값':'골연령 기준 자동 추정'})` : '';
+
+  const boneAgeEntries = measure==='height'
+    ? sortedRecords(p).slice().reverse().filter(r=>recordBoneAgeMonths(r)!=null && r.height)
+        .map(r=>({ date:r.date, boneAgeMonths:recordBoneAgeMonths(r), height:parseFloat(r.height), predictedHeight:r.predictedHeight?parseFloat(r.predictedHeight):null }))
+    : [];
+
+  let minAgeM = Math.max(0, Math.floor(Math.min(...points.map(pt=>pt.ageM))/12 - 1)*12);
+  let maxAgeM = Math.ceil(Math.max(...points.map(pt=>pt.ageM))/12 + 1)*12;
+  if(boneAgeEntries.length){
+    const maxBone = Math.max(...boneAgeEntries.map(b=>b.boneAgeMonths));
+    if(maxBone > maxAgeM) maxAgeM = Math.min(ADULT_HEIGHT_AGE_MONTHS, Math.ceil(maxBone/12+1)*12);
+  }
+  maxAgeM = Math.max(maxAgeM, minAgeM+24);
+  maxAgeM = Math.min(maxAgeM, ADULT_HEIGHT_AGE_MONTHS);
+
+  const padL=34, padR=26, padT=10, padB=20;
+  const w = cssW-padL-padR, h = cssH-padT-padB;
+  const xForAge = m => padL + ((m-minAgeM)/(maxAgeM-minAgeM))*w;
+
+  const percentiles = [3,10,25,50,75,90,97];
+  const curveAges = [];
+  const step = Math.max(1, Math.round((maxAgeM-minAgeM)/40));
+  for(let m=minAgeM; m<=maxAgeM; m+=step) curveAges.push(m);
+  if(curveAges[curveAges.length-1] !== maxAgeM) curveAges.push(maxAgeM);
+  const curves = {};
+  percentiles.forEach(pc=>{
+    curves[pc] = curveAges.map(m=>{
+      const lms = getLMS(measure, sex, m);
+      return lms ? lmsValueAtPercentile(lms.L, lms.M, lms.S, pc) : null;
+    });
+  });
+
+  const childValues = points.map(pt=>pt.value);
+  const curveValues = percentiles.flatMap(pc=>curves[pc].filter(v=>v!==null));
+  const allValues = [...childValues, ...curveValues];
+  if(predicted && measure==='height') allValues.push(predicted.value);
+  const vMinRaw = Math.min(...allValues), vMaxRaw = Math.max(...allValues);
+  const vPad = (vMaxRaw-vMinRaw)*0.08 || 5;
+  const minV = Math.floor(vMinRaw-vPad), maxV = Math.ceil(vMaxRaw+vPad);
+  const yForV = v => padT + h - ((v-minV)/(maxV-minV))*h;
+
+  // 그리드 + 축 라벨
+  ctx.strokeStyle = '#DED5C6'; ctx.fillStyle = '#43555F';
+  ctx.font = '9px "Noto Sans KR", sans-serif'; ctx.lineWidth = 1;
+  const vStep = (maxV-minV)/4;
+  for(let i=0;i<=4;i++){
+    const v = minV+vStep*i, y = yForV(v);
+    ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(padL+w,y); ctx.stroke();
+    ctx.textAlign='right'; ctx.fillText(Math.round(v*10)/10+'', padL-4, y+3);
+  }
+  ctx.textAlign='center';
+  const ageYearStep = Math.max(1, Math.round((maxAgeM-minAgeM)/12/5));
+  for(let y=Math.round(minAgeM/12); y<=Math.round(maxAgeM/12); y+=ageYearStep){
+    ctx.fillText(y+'세', xForAge(y*12), cssH-5);
+  }
+
+  // 백분위 기준 곡선 (실제 LMS 데이터)
+  const curveColors = { 3:'#E0C9A6', 10:'#D9BB8E', 25:'#CBB07A', 50:'#9B9B9B', 75:'#CBB07A', 90:'#D9BB8E', 97:'#E0C9A6' };
+  percentiles.forEach(pc=>{
+    ctx.strokeStyle = curveColors[pc]; ctx.lineWidth = pc===50?1.6:1;
+    ctx.setLineDash(pc===50?[5,3]:[2,3]);
+    ctx.beginPath();
+    curveAges.forEach((m,i)=>{
+      const v = curves[pc][i]; if(v===null) return;
+      const x=xForAge(m), y=yForV(v);
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+  });
+  ctx.setLineDash([]);
+
+  // 백분위 라벨 (오른쪽 끝)
+  ctx.font = '8px "Noto Sans KR", sans-serif'; ctx.textAlign='left';
+  percentiles.forEach(pc=>{
+    const lastV = curves[pc][curves[pc].length-1]; if(lastV===null) return;
+    ctx.fillStyle = pc===50 ? '#6B6B6B' : '#B7A688';
+    ctx.fillText(pc+'%', Math.min(cssW-16, xForAge(maxAgeM)+2), yForV(lastV)+3);
+  });
+
+  // 실측 데이터 라인
+  ctx.strokeStyle = '#4A6B86'; ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  points.forEach((pt,i)=>{
+    const x=xForAge(pt.ageM), y=yForV(pt.value);
+    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+
+  // 골연령 ↔ 역연령 연결선 (같은 날짜)
+  const BONE_COLOR = '#2E6FD9';
+  if(boneAgeEntries.length){
+    ctx.strokeStyle = BONE_COLOR; ctx.lineWidth = 1; ctx.setLineDash([3,2]);
+    boneAgeEntries.forEach(b=>{
+      const chrono = points.find(pt=>pt.date===b.date);
+      if(!chrono) return;
+      ctx.beginPath();
+      ctx.moveTo(xForAge(chrono.ageM), yForV(chrono.value));
+      ctx.lineTo(xForAge(b.boneAgeMonths), yForV(b.height));
+      ctx.stroke();
+    });
+    ctx.setLineDash([]);
+  }
+
+  // 실측 데이터 점 + 값(백분위%) 라벨
+  ctx.font = '10px "Noto Sans KR", sans-serif';
+  const labelBoxes = [];
+  points.forEach(pt=>{
+    const x=xForAge(pt.ageM), y=yForV(pt.value);
+    ctx.fillStyle = '#C0902C';
+    ctx.beginPath(); ctx.arc(x,y,3.5,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='white'; ctx.lineWidth=1; ctx.stroke();
+    const lms = getLMS(measure, sex, pt.ageM);
+    if(lms){
+      const pctl = lmsPercentile(lms.L, lms.M, lms.S, pt.value);
+      placeGrowthLabel(ctx, `${pt.value}(${Math.round(pctl)}%)`, x, y, '#8A6A1F', labelBoxes);
+    }
+  });
+
+  // 골연령 점 (파란 사각형) + 값(백분위%) 라벨
+  if(boneAgeEntries.length){
+    boneAgeEntries.forEach(b=>{
+      if(b.boneAgeMonths<minAgeM || b.boneAgeMonths>maxAgeM) return;
+      const x=xForAge(b.boneAgeMonths), y=yForV(b.height);
+      ctx.fillStyle = BONE_COLOR;
+      ctx.beginPath(); ctx.rect(x-3.5,y-3.5,7,7); ctx.fill();
+      ctx.strokeStyle='white'; ctx.lineWidth=1; ctx.stroke();
+      const blms = getLMS('height', sex, b.boneAgeMonths);
+      if(blms){
+        const pctl = lmsPercentile(blms.L, blms.M, blms.S, b.height);
+        placeGrowthLabel(ctx, `${b.height}(${Math.round(pctl)}%)`, x, y, BONE_COLOR, labelBoxes);
+      }
+    });
+    // 골연령 기록마다 예측 성인키 화살표 표시
+    boneAgeEntries.forEach(b=>{
+      if(b.boneAgeMonths<minAgeM || b.boneAgeMonths>maxAgeM) return;
+      let predVal = b.predictedHeight;
+      if(predVal==null){
+        const boneLms = getLMS('height', sex, b.boneAgeMonths);
+        const adultLms = getLMS('height', sex, ADULT_HEIGHT_AGE_MONTHS);
+        if(boneLms && adultLms){
+          const pctl = lmsPercentile(boneLms.L, boneLms.M, boneLms.S, b.height);
+          predVal = Math.round(lmsValueAtPercentile(adultLms.L, adultLms.M, adultLms.S, pctl)*10)/10;
+        }
+      }
+      if(predVal==null) return;
+      const x=xForAge(b.boneAgeMonths), y=yForV(b.height);
+      const arrowTop=y+9, arrowBottom=y+17;
+      ctx.strokeStyle='#B2452F'; ctx.fillStyle='#B2452F'; ctx.lineWidth=1.4;
+      ctx.beginPath(); ctx.moveTo(x,arrowTop); ctx.lineTo(x,arrowBottom); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x,arrowBottom+4); ctx.lineTo(x-3,arrowBottom-1); ctx.lineTo(x+3,arrowBottom-1); ctx.closePath(); ctx.fill();
+      ctx.font='bold 9px "Noto Sans KR", sans-serif'; ctx.textAlign='center';
+      ctx.fillText(`${predVal}cm`, x, arrowBottom+16);
+    });
+  } else if(predicted && measure==='height'){
+    // 골연령 기록 없이 병원 안내 예측키만 있는 경우 — 수평 기준선으로 표시
+    const py = yForV(predicted.value);
+    ctx.strokeStyle='#B2452F'; ctx.lineWidth=1.6; ctx.setLineDash([6,3]);
+    ctx.beginPath(); ctx.moveTo(padL,py); ctx.lineTo(padL+w,py); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='#B2452F'; ctx.font='bold 9px "Noto Sans KR", sans-serif'; ctx.textAlign='left';
+    ctx.fillText(`예측 ${predicted.value}cm`, padL+4, py-4);
+  }
+
+  // 최근 실측치 백분위 요약
+  const last = points[points.length-1];
+  const lastLms = getLMS(measure, sex, last.ageM);
+  const badge = document.getElementById('latestPctlBadge');
+  if(lastLms){
+    const pctl = lmsPercentile(lastLms.L, lastLms.M, lastLms.S, last.value);
+    badge.textContent = `최근 ${pctl.toFixed(1)}th 백분위 (${fmtDate(last.date)})`;
+  } else badge.textContent='';
+}
+
+
+/* ---------------- Birthdate Y/M/D select ---------------- */
+(function initBirthSelects(){
+  const ySel = document.getElementById('p_dob_y');
+  const nowY = new Date().getFullYear();
+  for(let y=nowY; y>=nowY-20; y--){
+    const opt = document.createElement('option');
+    opt.value = String(y); opt.textContent = y+'년';
+    ySel.appendChild(opt);
+  }
+  const mSel = document.getElementById('p_dob_m');
+  for(let m=1;m<=12;m++){
+    const opt = document.createElement('option');
+    opt.value = String(m).padStart(2,'0'); opt.textContent = m+'월';
+    mSel.appendChild(opt);
+  }
+  fillBirthDaySelect(31);
+  ySel.addEventListener('change', syncBirthdateFromSelects);
+  mSel.addEventListener('change', syncBirthdateFromSelects);
+  document.getElementById('p_dob_d').addEventListener('change', syncBirthdateFromSelects);
+})();
+function fillBirthDaySelect(maxDay, keepValue){
+  const dSel = document.getElementById('p_dob_d');
+  const cur = keepValue!==undefined ? keepValue : dSel.value;
+  dSel.innerHTML = '<option value="">일</option>';
+  for(let d=1; d<=maxDay; d++){
+    const opt = document.createElement('option');
+    opt.value = String(d).padStart(2,'0'); opt.textContent = d+'일';
+    if(opt.value===cur) opt.selected = true;
+    dSel.appendChild(opt);
+  }
+}
+function syncBirthdateFromSelects(){
+  const y = document.getElementById('p_dob_y').value;
+  const m = document.getElementById('p_dob_m').value;
+  const dSelEl = document.getElementById('p_dob_d');
+  if(y && m){
+    const maxDay = new Date(Number(y), Number(m), 0).getDate();
+    fillBirthDaySelect(maxDay, dSelEl.value);
+  }
+  const d = document.getElementById('p_dob_d').value;
+  document.getElementById('p_dob').value = (y&&m&&d) ? `${y}-${m}-${d}` : '';
+}
+function setBirthdateUI(value){
+  document.getElementById('p_dob').value = value || '';
+  const ySel = document.getElementById('p_dob_y'), mSel = document.getElementById('p_dob_m'), dSel = document.getElementById('p_dob_d');
+  const quick = document.getElementById('p_dob_quick');
+  if(value && /^\d{4}-\d{2}-\d{2}$/.test(value)){
+    const [y,m,d] = value.split('-');
+    const maxDay = new Date(Number(y), Number(m), 0).getDate();
+    fillBirthDaySelect(maxDay, d);
+    ySel.value=y; mSel.value=m; dSel.value=d;
+    if(quick) quick.value = `${y}-${m}-${d}`;
+  } else {
+    ySel.value=''; mSel.value=''; dSel.value='';
+    fillBirthDaySelect(31,'');
+    if(quick) quick.value = '';
+  }
+}
+
+// 생년월일 빠른 입력: 숫자만 쭉 입력하면(예: 20250525) 자동으로 년/월/일을 채워줍니다.
+function handleQuickDobInput(){
+  const input = document.getElementById('p_dob_quick');
+  const digits = input.value.replace(/\D/g,'').slice(0,8);
+  let formatted = digits;
+  if(digits.length > 4) formatted = digits.slice(0,4) + '-' + digits.slice(4,6) + (digits.length>6 ? '-'+digits.slice(6,8) : '');
+  input.value = formatted;
+  if(digits.length === 8){
+    const y = digits.slice(0,4), m = digits.slice(4,6), d = digits.slice(6,8);
+    const test = new Date(`${y}-${m}-${d}T00:00:00`);
+    if(!isNaN(test) && Number(m)>=1 && Number(m)<=12 && Number(d)>=1 && Number(d)<=31){
+      const ySel = document.getElementById('p_dob_y'), mSel = document.getElementById('p_dob_m'), dSel = document.getElementById('p_dob_d');
+      const maxDay = new Date(Number(y), Number(m), 0).getDate();
+      fillBirthDaySelect(maxDay, d);
+      ySel.value=y; mSel.value=m; dSel.value=d;
+      document.getElementById('p_dob').value = `${y}-${m}-${d}`;
+    }
+  }
+}
+document.getElementById('p_dob_quick').addEventListener('input', handleQuickDobInput);
+
+// 일반 날짜 입력을 숫자로 빠르게 채우는 범용 도우미 (예: 치료 시작일 등)
+function attachQuickDateInput(quickId, targetId){
+  const quick = document.getElementById(quickId);
+  if(!quick) return;
+  quick.addEventListener('input', ()=>{
+    const digits = quick.value.replace(/\D/g,'').slice(0,8);
+    let formatted = digits;
+    if(digits.length > 4) formatted = digits.slice(0,4) + '-' + digits.slice(4,6) + (digits.length>6 ? '-'+digits.slice(6,8) : '');
+    quick.value = formatted;
+    if(digits.length === 8){
+      const y = digits.slice(0,4), m = digits.slice(4,6), d = digits.slice(6,8);
+      const test = new Date(`${y}-${m}-${d}T00:00:00`);
+      if(!isNaN(test) && Number(m)>=1 && Number(m)<=12 && Number(d)>=1 && Number(d)<=31){
+        document.getElementById(targetId).value = `${y}-${m}-${d}`;
+      }
+    }
+  });
+}
+function syncQuickDateFromTarget(quickId, targetId){
+  const quick = document.getElementById(quickId);
+  const val = document.getElementById(targetId).value;
+  if(quick) quick.value = val || '';
+}
+attachQuickDateInput('p_start_quick', 'p_start');
+
+/* ---------------- Patient modal ---------------- */
+function openPatientModal(id){
+  const isEdit = !!id;
+  document.getElementById('patientModalTitle').textContent = isEdit ? '환아 정보 수정' : '환아 등록';
+  document.getElementById('patientDeleteBtn').style.display = isEdit ? 'inline-flex' : 'none';
+  const p = isEdit ? getPatient(id) : {};
+  document.getElementById('p_id').value = id||'';
+  document.getElementById('p_name').value = p.name||'';
+  setBirthdateUI(p.dob||'');
+  document.getElementById('p_sex').value = p.sex||'F';
+  document.getElementById('p_diagnosis').value = p.diagnosis||'';
+  document.getElementById('p_country').value = p.country||'';
+  setChoiceGroup('p_location', p.location||'overseas');
+  document.getElementById('p_guardian').value = p.guardian||'';
+  document.getElementById('p_phone').value = p.phone||'';
+  document.getElementById('p_email').value = p.email||'';
+  document.getElementById('p_start').value = p.startDate||'';
+  syncQuickDateFromTarget('p_start_quick', 'p_start');
+  const startRec = p.startDate && (p.records||[]).find(r=>r.date===p.startDate);
+  document.getElementById('p_startHeight').value = startRec ? (startRec.height||'') : '';
+  document.getElementById('p_startWeight').value = startRec ? (startRec.weight||'') : '';
+  document.getElementById('ps_boneage_wrist_y').value = startRec && startRec.boneAgeWristMonths!=null ? Math.floor(startRec.boneAgeWristMonths/12) : '';
+  document.getElementById('ps_boneage_wrist_m').value = startRec && startRec.boneAgeWristMonths!=null ? Math.round(startRec.boneAgeWristMonths%12) : '';
+  document.getElementById('ps_boneage_elbow_y').value = startRec && startRec.boneAgeElbowMonths!=null ? Math.floor(startRec.boneAgeElbowMonths/12) : '';
+  document.getElementById('ps_boneage_elbow_m').value = startRec && startRec.boneAgeElbowMonths!=null ? Math.round(startRec.boneAgeElbowMonths%12) : '';
+  document.getElementById('ps_predictedheight').value = startRec ? (startRec.predictedHeight||'') : '';
+  document.getElementById('ps_igf1').value = startRec ? (startRec.igf1||'') : '';
+  document.getElementById('ps_igfbp3').value = startRec ? (startRec.igfbp3||'') : '';
+  document.getElementById('ps_ast').value = startRec ? (startRec.ast||'') : '';
+  document.getElementById('ps_alt').value = startRec ? (startRec.alt||'') : '';
+  document.getElementById('ps_tsh').value = startRec ? (startRec.tsh||'') : '';
+  document.getElementById('ps_ft4').value = startRec ? (startRec.ft4||'') : '';
+  document.getElementById('ps_hba1c').value = startRec ? (startRec.hba1c||'') : '';
+  document.getElementById('ps_hb').value = startRec ? (startRec.hb||'') : '';
+  document.getElementById('ps_vitd').value = startRec ? (startRec.vitd||'') : '';
+  document.getElementById('ps_lhfsh').value = startRec ? (startRec.lhfsh||'') : '';
+  document.getElementById('ps_hormone').value = startRec ? (startRec.hormone||'') : '';
+  document.getElementById('ps_other').value = startRec ? (startRec.other||'') : '';
+  setChoiceGroup('ps_tannerBreast', startRec ? (startRec.tannerBreast||'') : '');
+  document.getElementById('ps_menarche').checked = !!(startRec && startRec.menarche);
+  document.getElementById('ps_menarcheDate').value = startRec ? (startRec.menarcheDate||'') : '';
+  togglePSMenarcheDate();
+  document.getElementById('ps_testesVolL').value = startRec && startRec.testesVolL!=null ? startRec.testesVolL : '';
+  document.getElementById('ps_testesVolR').value = startRec && startRec.testesVolR!=null ? startRec.testesVolR : '';
+  togglePSSexBoxes();
+  setChoiceGroup('p_ghType', p.ghType||'');
+  document.getElementById('p_ghDose').value = p.ghDose!=null ? p.ghDose : 0;
+  setChoiceGroup('p_ghFreq', p.ghFreq!=null ? String(p.ghFreq) : '');
+  setChoiceGroup('p_suppType', p.suppType||'');
+  setChoiceGroup('p_suppDose', p.suppDose||'');
+  document.getElementById('p_interval').value = p.interval||3;
+  document.getElementById('p_zoom').value = p.zoomLink||'';
+  document.getElementById('p_lang').value = p.lang||'ko';
+  document.getElementById('p_notes').value = p.notes||'';
+  openModal('patientModalOv');
+}
+
+/* ---------------- 선택형 버튼 그룹 (성장호르몬 종류/투여횟수) ---------------- */
+function setChoiceGroup(groupId, val){
+  const group = document.getElementById(groupId);
+  group.querySelectorAll('.choice-btn').forEach(btn=>{
+    btn.classList.toggle('active', btn.dataset.val === val);
+  });
+}
+function getChoiceGroup(groupId){
+  const group = document.getElementById(groupId);
+  const btn = group.querySelector('.choice-btn.active');
+  return btn ? btn.dataset.val : '';
+}
+function setMultiChoiceGroup(groupId, vals){
+  const group = document.getElementById(groupId);
+  const set = new Set(vals||[]);
+  group.querySelectorAll('.choice-btn').forEach(btn=>{
+    btn.classList.toggle('active', set.has(btn.dataset.val));
+  });
+}
+function getMultiChoiceGroup(groupId){
+  const group = document.getElementById(groupId);
+  return Array.from(group.querySelectorAll('.choice-btn.active')).map(b=>b.dataset.val);
+}
+document.addEventListener('click', function(e){
+  const btn = e.target.closest('.choice-row .choice-btn');
+  if(!btn) return;
+  const group = btn.closest('.choice-row');
+  if(btn.dataset.multi === '1'){
+    btn.classList.toggle('active'); // 다중 선택 그룹(예: 방문 유형)은 각 버튼이 독립적으로 토글됨
+    return;
+  }
+  group.querySelectorAll('.choice-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+});
+function stepGhDose(delta){
+  const input = document.getElementById('p_ghDose');
+  let v = Math.round(((parseFloat(input.value)||0) + delta) * 10) / 10;
+  if(v < 0) v = 0;
+  input.value = v;
+}
+function stepRecordGhDose(delta){
+  const input = document.getElementById('r_ghDoseVal');
+  let v = Math.round(((parseFloat(input.value)||0) + delta) * 10) / 10;
+  if(v < 0) v = 0;
+  input.value = v;
+}
+
+function stepBoneAge(unit, delta){
+  const input = document.getElementById('r_boneage_'+unit);
+  let v = (parseInt(input.value)||0) + delta;
+  if(v < 0) v = 0;
+  if(unit.endsWith('_m') && v > 11) v = 11;
+  input.value = v;
+}
+
+function stepTestesVol(side, delta){
+  const input = document.getElementById(side==='L' ? 'r_testesVolL' : 'r_testesVolR');
+  let v = (parseInt(input.value)||0) + delta;
+  if(v < 0) v = 0;
+  input.value = v;
+  updateTannerGHint();
+}
+function tannerGStage(vol){
+  if(vol==null || isNaN(vol)) return null;
+  if(vol < 4) return 'G1';
+  if(vol < 8) return 'G2';
+  if(vol < 12) return 'G3';
+  if(vol < 16) return 'G4';
+  return 'G5';
+}
+function updateTannerGHint(){
+  const l = parseFloat(document.getElementById('r_testesVolL').value);
+  const r = parseFloat(document.getElementById('r_testesVolR').value);
+  const vals = [l,r].filter(v=>!isNaN(v));
+  const hint = document.getElementById('r_tannerGHint');
+  if(!vals.length){ hint.textContent=''; return; }
+  const maxV = Math.max(...vals);
+  const g = tannerGStage(maxV);
+  hint.textContent = g ? `참고: 최대값 ${maxV}mL 기준 약 ${g}` : '';
+}
+document.getElementById('r_testesVolL').addEventListener('input', updateTannerGHint);
+function toggleMenarcheDate(){
+  const checked = document.getElementById('r_menarche').checked;
+  document.getElementById('r_menarcheDateBox').style.display = checked ? 'block' : 'none';
+}
+document.getElementById('r_testesVolR').addEventListener('input', updateTannerGHint);
+
+// ---- 환아 등록/수정 모달 내 "치료 시작 시" 사춘기·골연령 보조 함수 ----
+function stepPS(field, delta){
+  const input = document.getElementById('ps_'+field);
+  let v = (parseInt(input.value)||0) + delta;
+  if(v < 0) v = 0;
+  if(field.endsWith('_m') && v > 11) v = 11;
+  input.value = v;
+}
+function stepPSTestesVol(side, delta){
+  const input = document.getElementById(side==='L' ? 'ps_testesVolL' : 'ps_testesVolR');
+  let v = (parseInt(input.value)||0) + delta;
+  if(v < 0) v = 0;
+  input.value = v;
+}
+function togglePSMenarcheDate(){
+  const checked = document.getElementById('ps_menarche').checked;
+  document.getElementById('ps_menarcheDateBox').style.display = checked ? 'block' : 'none';
+}
+function togglePSSexBoxes(){
+  const isFemale = document.getElementById('p_sex').value !== 'M';
+  document.getElementById('ps_tannerFemaleBox').style.display = isFemale ? 'block' : 'none';
+  document.getElementById('ps_tannerMaleBox').style.display = isFemale ? 'none' : 'block';
+}
+
+function savePatient(){
+  const id = document.getElementById('p_id').value;
+  const name = document.getElementById('p_name').value.trim();
+  if(!name){ alert('환아 이름을 입력해주세요.'); return; }
+  const ghType = getChoiceGroup('p_ghType');
+  const ghDose = parseFloat(document.getElementById('p_ghDose').value) || 0;
+  const ghFreqStr = getChoiceGroup('p_ghFreq');
+  const ghFreq = ghFreqStr ? parseInt(ghFreqStr) : null;
+  const ghDrug = ghType ? `${ghType} ${ghDose}단위${ghFreq?` ${ghFreq}/wk`:''}` : '';
+  const suppType = getChoiceGroup('p_suppType');
+  const suppDose = getChoiceGroup('p_suppDose');
+  const suppDrug = suppType ? `${suppType}${suppDose?` ${suppDose}`:''}` : '';
+  const data = {
+    name,
+    dob: document.getElementById('p_dob').value,
+    sex: document.getElementById('p_sex').value,
+    diagnosis: document.getElementById('p_diagnosis').value.trim(),
+    country: document.getElementById('p_country').value.trim(),
+    location: getChoiceGroup('p_location') || 'overseas',
+    guardian: document.getElementById('p_guardian').value.trim(),
+    phone: document.getElementById('p_phone').value.trim(),
+    email: document.getElementById('p_email').value.trim(),
+    startDate: document.getElementById('p_start').value,
+    ghType, ghDose, ghFreq, ghDrug,
+    suppType, suppDose, suppDrug,
+    interval: parseInt(document.getElementById('p_interval').value)||3,
+    lang: document.getElementById('p_lang').value,
+    zoomLink: document.getElementById('p_zoom').value.trim(),
+    notes: document.getElementById('p_notes').value.trim(),
+  };
+  if(id){
+    const p = getPatient(id);
+    Object.assign(p, data);
+    applyStartRecord(p);
+  } else {
+    const p = { id: uid(), records: [], accessCode: genAccessCode(), ...data };
+    patients.push(p);
+    applyStartRecord(p);
+  }
+  savePatients();
+  closeModal('patientModalOv');
+  if(id && currentPatientId===id) renderDetail();
+  renderPatientList();
+  renderDashboard();
+}
+
+// 치료 시작 시 키/몸무게를 입력했으면, 치료 시작일 기록으로 자동 반영합니다.
+// 치료 시작 시 키/몸무게 + 골연령·검사결과·사춘기 발달 평가를 치료 시작일 기록으로 자동 반영합니다.
+function applyStartRecord(p){
+  const h = document.getElementById('p_startHeight').value;
+  const w = document.getElementById('p_startWeight').value;
+  const wy = document.getElementById('ps_boneage_wrist_y').value;
+  const wm = document.getElementById('ps_boneage_wrist_m').value;
+  const boneAgeWristMonths = (wy!=='' || wm!=='') ? (parseInt(wy||0)*12 + parseInt(wm||0)) : null;
+  const ey = document.getElementById('ps_boneage_elbow_y').value;
+  const em = document.getElementById('ps_boneage_elbow_m').value;
+  const boneAgeElbowMonths = (ey!=='' || em!=='') ? (parseInt(ey||0)*12 + parseInt(em||0)) : null;
+  const predictedHeight = document.getElementById('ps_predictedheight').value;
+  const igf1 = document.getElementById('ps_igf1').value.trim();
+  const igfbp3 = document.getElementById('ps_igfbp3').value.trim();
+  const ast = document.getElementById('ps_ast').value.trim();
+  const alt = document.getElementById('ps_alt').value.trim();
+  const tsh = document.getElementById('ps_tsh').value.trim();
+  const ft4 = document.getElementById('ps_ft4').value.trim();
+  const hba1c = document.getElementById('ps_hba1c').value.trim();
+  const hb = document.getElementById('ps_hb').value.trim();
+  const vitd = document.getElementById('ps_vitd').value.trim();
+  const lhfsh = document.getElementById('ps_lhfsh').value.trim();
+  const hormone = document.getElementById('ps_hormone').value.trim();
+  const other = document.getElementById('ps_other').value.trim();
+  const tannerBreast = getChoiceGroup('ps_tannerBreast');
+  const menarche = document.getElementById('ps_menarche').checked;
+  const menarcheDate = menarche ? document.getElementById('ps_menarcheDate').value : '';
+  const testesVolL = document.getElementById('ps_testesVolL').value ? parseFloat(document.getElementById('ps_testesVolL').value) : null;
+  const testesVolR = document.getElementById('ps_testesVolR').value ? parseFloat(document.getElementById('ps_testesVolR').value) : null;
+
+  const hasAny = h || w || boneAgeWristMonths!=null || boneAgeElbowMonths!=null || predictedHeight ||
+    igf1 || igfbp3 || ast || alt || tsh || ft4 || hba1c || hb || vitd || lhfsh || hormone || other ||
+    tannerBreast || menarche || testesVolL!=null || testesVolR!=null;
+  if(!p.startDate || !hasAny) return;
+
+  const fields = { boneAgeWristMonths, boneAgeElbowMonths, predictedHeight, igf1, igfbp3, ast, alt, tsh, ft4,
+    hba1c, hb, vitd, lhfsh, hormone, other, tannerBreast, menarche, menarcheDate, testesVolL, testesVolR };
+  if(h) fields.height = h;
+  if(w) fields.weight = w;
+
+  if(!p.records) p.records = [];
+  const existing = p.records.find(r=>r.date===p.startDate);
+  if(existing){
+    Object.assign(existing, fields);
+  } else {
+    p.records.push({ id: uid(), date: p.startDate, callDone:false, ...fields });
+  }
+}
+
+function deleteCurrentPatient(){
+  const id = document.getElementById('p_id').value;
+  if(!id) return;
+  if(!confirm('이 환아의 모든 기록이 삭제됩니다. 계속할까요?')) return;
+  patients = patients.filter(p=>p.id!==id);
+  savePatients();
+  closeModal('patientModalOv');
+  showView('patients');
+}
+
+/* ---------------- Record modal ---------------- */
+function openRecordModal(recId, presetDate){
+  editingRecordId = recId || null;
+  const p = getPatient(currentPatientId);
+  const r = recId ? p.records.find(x=>x.id===recId) : {};
+  document.getElementById('r_nextcallSubhead').textContent = `${visitLabel(p)} 예정일`;
+  document.getElementById('r_nextcallLabel').textContent = `${visitLabel(p)} 예정일 (비우면 자동 계산)`;
+  document.getElementById('recordModalTitle').textContent = recId ? '기록 수정' : '기록 추가';
+  document.getElementById('recordDeleteBtn').style.display = recId ? 'inline-flex' : 'none';
+  document.getElementById('r_id').value = recId||'';
+  document.getElementById('r_date').value = r.date || presetDate || todayStr();
+  document.getElementById('r_callDone').checked = !!r.callDone;
+  setMultiChoiceGroup('r_visitType', r.visitType||[]);
+  setMultiChoiceGroup('r_nextVisitPlan', r.nextVisitPlan||[]);
+  document.getElementById('r_nextVisitFasting').checked = !!r.nextVisitFasting;
+  document.getElementById('r_height').value = r.height||'';
+  document.getElementById('r_weight').value = r.weight||'';
+  document.getElementById('r_boneage_wrist_y').value = r.boneAgeWristMonths!=null ? Math.floor(r.boneAgeWristMonths/12) : '';
+  document.getElementById('r_boneage_wrist_m').value = r.boneAgeWristMonths!=null ? Math.round(r.boneAgeWristMonths%12) : '';
+  document.getElementById('r_boneage_elbow_y').value = r.boneAgeElbowMonths!=null ? Math.floor(r.boneAgeElbowMonths/12) : '';
+  document.getElementById('r_boneage_elbow_m').value = r.boneAgeElbowMonths!=null ? Math.round(r.boneAgeElbowMonths%12) : '';
+  document.getElementById('r_predictedheight').value = r.predictedHeight||'';
+  setChoiceGroup('r_ghType', r.ghType||'');
+  document.getElementById('r_ghDoseVal').value = r.ghDose!=null ? r.ghDose : 0;
+  setChoiceGroup('r_ghFreq', r.ghFreq!=null ? String(r.ghFreq) : '');
+  setChoiceGroup('r_suppType', r.suppType||'');
+  setChoiceGroup('r_suppDose', r.suppDose||'');
+  document.getElementById('r_suppnext').value = r.suppNext||'';
+  document.getElementById('r_igf1').value = r.igf1||'';
+  document.getElementById('r_igfbp3').value = r.igfbp3||'';
+  document.getElementById('r_ast').value = r.ast||'';
+  document.getElementById('r_alt').value = r.alt||'';
+  document.getElementById('r_tsh').value = r.tsh||'';
+  document.getElementById('r_ft4').value = r.ft4||'';
+  document.getElementById('r_hba1c').value = r.hba1c||'';
+  document.getElementById('r_hb').value = r.hb||'';
+  document.getElementById('r_vitd').value = r.vitd||'';
+  document.getElementById('r_lhfsh').value = r.lhfsh||'';
+  document.getElementById('r_hormone').value = r.hormone||'';
+  document.getElementById('r_other').value = r.other||'';
+
+  // 사춘기 발달 평가: 환아 성별에 따라 유방발달(여아) / 고환크기(남아) 중 하나만 표시
+  const isFemale = p.sex !== 'M';
+  document.getElementById('r_tannerFemaleBox').style.display = isFemale ? 'block' : 'none';
+  document.getElementById('r_tannerMaleBox').style.display = isFemale ? 'none' : 'block';
+  setChoiceGroup('r_tannerBreast', r.tannerBreast||'');
+  document.getElementById('r_menarche').checked = !!r.menarche;
+  document.getElementById('r_menarcheDate').value = r.menarcheDate||'';
+  toggleMenarcheDate();
+  document.getElementById('r_testesVolL').value = r.testesVolL!=null ? r.testesVolL : '';
+  document.getElementById('r_testesVolR').value = r.testesVolR!=null ? r.testesVolR : '';
+  updateTannerGHint();
+
+  document.getElementById('r_nextcall').value = r.nextCall||'';
+  document.getElementById('r_memo').value = r.memo||'';
+  openModal('recordModalOv');
+}
+
+function saveRecord(){
+  const p = getPatient(currentPatientId);
+  if(!p) return;
+  const id = document.getElementById('r_id').value;
+  const date = document.getElementById('r_date').value;
+  if(!date){ alert('날짜를 입력해주세요.'); return; }
+  const wy = document.getElementById('r_boneage_wrist_y').value;
+  const wm = document.getElementById('r_boneage_wrist_m').value;
+  const boneAgeWristMonths = (wy!=='' || wm!=='') ? (parseInt(wy||0)*12 + parseInt(wm||0)) : null;
+  const ey = document.getElementById('r_boneage_elbow_y').value;
+  const em = document.getElementById('r_boneage_elbow_m').value;
+  const boneAgeElbowMonths = (ey!=='' || em!=='') ? (parseInt(ey||0)*12 + parseInt(em||0)) : null;
+  const ghType = getChoiceGroup('r_ghType');
+  const ghDose = parseFloat(document.getElementById('r_ghDoseVal').value) || 0;
+  const ghFreqStr = getChoiceGroup('r_ghFreq');
+  const ghFreq = ghFreqStr ? parseInt(ghFreqStr) : null;
+  const suppType = getChoiceGroup('r_suppType');
+  const suppDose = getChoiceGroup('r_suppDose');
+  const data = {
+    date,
+    callDone: document.getElementById('r_callDone').checked,
+    visitType: getMultiChoiceGroup('r_visitType'),
+    nextVisitPlan: getMultiChoiceGroup('r_nextVisitPlan'),
+    nextVisitFasting: document.getElementById('r_nextVisitFasting').checked,
+    height: document.getElementById('r_height').value,
+    weight: document.getElementById('r_weight').value,
+    boneAgeWristMonths, boneAgeElbowMonths,
+    predictedHeight: document.getElementById('r_predictedheight').value,
+    ghType, ghDose, ghFreq,
+    suppType, suppDose,
+    suppNext: document.getElementById('r_suppnext').value,
+    igf1: document.getElementById('r_igf1').value.trim(),
+    igfbp3: document.getElementById('r_igfbp3').value.trim(),
+    ast: document.getElementById('r_ast').value.trim(),
+    alt: document.getElementById('r_alt').value.trim(),
+    tsh: document.getElementById('r_tsh').value.trim(),
+    ft4: document.getElementById('r_ft4').value.trim(),
+    hba1c: document.getElementById('r_hba1c').value.trim(),
+    hb: document.getElementById('r_hb').value.trim(),
+    vitd: document.getElementById('r_vitd').value.trim(),
+    lhfsh: document.getElementById('r_lhfsh').value.trim(),
+    hormone: document.getElementById('r_hormone').value.trim(),
+    other: document.getElementById('r_other').value.trim(),
+    tannerBreast: getChoiceGroup('r_tannerBreast'),
+    menarche: document.getElementById('r_menarche').checked,
+    menarcheDate: document.getElementById('r_menarche').checked ? document.getElementById('r_menarcheDate').value : '',
+    testesVolL: document.getElementById('r_testesVolL').value ? parseFloat(document.getElementById('r_testesVolL').value) : null,
+    testesVolR: document.getElementById('r_testesVolR').value ? parseFloat(document.getElementById('r_testesVolR').value) : null,
+    nextCall: document.getElementById('r_nextcall').value || addMonths(date, p.interval||3),
+    memo: document.getElementById('r_memo').value.trim(),
+  };
+  if(!p.records) p.records=[];
+  if(id){
+    Object.assign(p.records.find(x=>x.id===id), data);
+  } else {
+    p.records.push({ id: uid(), ...data });
+  }
+  if(pendingInboxApplyId){
+    if(!p.appliedInboxIds) p.appliedInboxIds = [];
+    p.appliedInboxIds.push(pendingInboxApplyId);
+    pendingInboxApplyId = null;
+  }
+  savePatients();
+  closeModal('recordModalOv');
+  renderDetail();
+  renderPatientList();
+}
+
+function deleteCurrentRecord(){
+  const id = document.getElementById('r_id').value;
+  const p = getPatient(currentPatientId);
+  if(!id || !p) return;
+  if(!confirm('이 기록을 삭제할까요?')) return;
+  pendingInboxApplyId = null;
+  p.records = p.records.filter(x=>x.id!==id);
+  savePatients();
+  closeModal('recordModalOv');
+  renderDetail();
+}
+
+function deleteRecordDirect(id){
+  const p = getPatient(currentPatientId);
+  if(!id || !p) return;
+  if(!confirm('이 기록을 삭제할까요?')) return;
+  p.records = p.records.filter(x=>x.id!==id);
+  savePatients();
+  renderDetail();
+}
+
+/* ---------------- Modal helpers ---------------- */
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+
+/* ---------------- Backup ---------------- */
+function exportData(){
+  const blob = new Blob([JSON.stringify(patients,null,2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `자라다케어_원격환아백업_${todayStr()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+function importData(evt){
+  const file = evt.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e=>{
+    try{
+      const data = JSON.parse(e.target.result);
+      if(!Array.isArray(data)) throw new Error();
+      if(patients.length && !confirm('기존 데이터에 병합합니다. 계속할까요?')) return;
+      const existingIds = new Set(patients.map(p=>p.id));
+      data.forEach(p=>{ if(!existingIds.has(p.id)) patients.push(p); });
+      savePatients();
+      renderPatientList();
+      renderDashboard();
+      alert('백업을 불러왔습니다.');
+    }catch(err){ alert('올바른 백업 파일이 아닙니다.'); }
+  };
+  reader.readAsText(file);
+  evt.target.value = '';
+}
+
+/* ---------------- 연동 설정 (백엔드/챗봇) ---------------- */
+const DEFAULT_CHATBOT_URL = '자라다케어_챗봇.html';
+function getApiUrl(){ return localStorage.getItem('jrd_api_url') || ''; }
+function getChatbotUrl(){ return localStorage.getItem('jrd_chatbot_url') || DEFAULT_CHATBOT_URL; }
+function getSiteUrl(){ return localStorage.getItem('jrd_site_url') || ''; }
+function openSettingsModal(){
+  document.getElementById('s_apiUrl').value = getApiUrl();
+  document.getElementById('s_chatbotUrl').value = getChatbotUrl();
+  document.getElementById('s_siteUrl').value = getSiteUrl();
+  document.getElementById('s_syncKey').value = localStorage.getItem('jrd_sync_key') || '';
+  document.getElementById('syncStatus').textContent = '';
+  openModal('settingsModalOv');
+}
+function saveSettings(){
+  localStorage.setItem('jrd_api_url', document.getElementById('s_apiUrl').value.trim());
+  localStorage.setItem('jrd_chatbot_url', document.getElementById('s_chatbotUrl').value.trim() || DEFAULT_CHATBOT_URL);
+  localStorage.setItem('jrd_site_url', document.getElementById('s_siteUrl').value.trim());
+  localStorage.setItem('jrd_sync_key', document.getElementById('s_syncKey').value.trim());
+  closeModal('settingsModalOv');
+  if(currentPatientId) renderDetail();
+}
+function openChatbot(){ window.open(getChatbotUrl(), '_blank'); }
+
+/* ---------------- 기기 간 동기화 (모바일 ↔ PC) ---------------- */
+async function saveToCloud(){
+  const api = getApiUrl();
+  const key = document.getElementById('s_syncKey').value.trim();
+  const status = document.getElementById('syncStatus');
+  if(!api){ status.textContent = '백엔드 연동 URL을 먼저 입력해주세요.'; status.style.color='var(--danger)'; return; }
+  if(!key){ status.textContent = '동기화 키를 먼저 입력해주세요.'; status.style.color='var(--danger)'; return; }
+  status.textContent = '저장 중…'; status.style.color='var(--secondary)';
+  try{
+    await fetch(api, { method:'POST', body: JSON.stringify({ action:'savedoctordata', key, data: JSON.stringify(patients) }) });
+    localStorage.setItem('jrd_sync_key', key);
+    status.textContent = `저장되었습니다. (${patients.length}명, ${new Date().toLocaleTimeString('ko-KR')})`;
+    status.style.color='var(--ok)';
+  }catch(err){ status.textContent = '저장에 실패했습니다.'; status.style.color='var(--danger)'; }
+}
+async function loadFromCloud(){
+  const api = getApiUrl();
+  const key = document.getElementById('s_syncKey').value.trim();
+  const status = document.getElementById('syncStatus');
+  if(!api){ status.textContent = '백엔드 연동 URL을 먼저 입력해주세요.'; status.style.color='var(--danger)'; return; }
+  if(!key){ status.textContent = '동기화 키를 먼저 입력해주세요.'; status.style.color='var(--danger)'; return; }
+  if(!confirm('클라우드에 저장된 데이터로 이 기기의 환아 목록을 완전히 덮어씁니다. 계속할까요?')) return;
+  status.textContent = '불러오는 중…'; status.style.color='var(--secondary)';
+  try{
+    const res = await fetch(api);
+    const rows = await res.json();
+    const row = rows.find(r=>r.type==='doctordata' && r.pid===key);
+    if(!row || !row.question){ status.textContent = '해당 키로 저장된 데이터가 없습니다.'; status.style.color='var(--danger)'; return; }
+    const loaded = JSON.parse(row.question);
+    if(!Array.isArray(loaded)) throw new Error('invalid data');
+    patients = loaded;
+    savePatients();
+    localStorage.setItem('jrd_sync_key', key);
+    renderPatientList();
+    renderDashboard();
+    status.textContent = `불러왔습니다. (${patients.length}명)`;
+    status.style.color='var(--ok)';
+  }catch(err){ status.textContent = '불러오기에 실패했습니다.'; status.style.color='var(--danger)'; }
+}
+
+const INVITE_MSG = {
+  ko: '[자라다케어] {name} 환아 보호자님, 아래 링크에서 키/몸무게 기록, 화상통화 참여, 질문하기를 이용하실 수 있습니다.\n{link}',
+  en: '[Jarada Care] Dear guardian of {name}, you can log height/weight, join video calls, and ask questions at the link below.\n{link}',
+  zh: '[Jarada Care] {name}患儿监护人您好，您可以通过以下链接记录身高体重、参加视频通话、提问。\n{link}',
+  zt: '[Jarada Care] {name}患兒監護人您好，您可以透過以下連結記錄身高體重、參加視訊通話、提問。\n{link}',
+  vi: '[Jarada Care] Kính gửi người giám hộ của {name}, bạn có thể ghi chiều cao/cân nặng, tham gia gọi video và đặt câu hỏi tại liên kết bên dưới.\n{link}',
+  ja: '[Jarada Care] {name}様の保護者様、下記リンクから身長体重の記録、ビデオ通話参加、質問ができます。\n{link}',
+  es: '[Jarada Care] Estimado tutor de {name}, puede registrar altura/peso, unirse a videollamadas y hacer preguntas en el siguiente enlace.\n{link}',
+  th: '[Jarada Care] เรียนผู้ปกครองของ {name} ท่านสามารถบันทึกส่วนสูง/น้ำหนัก เข้าร่วมวิดีโอคอล และสอบถามได้ที่ลิงก์ด้านล่าง\n{link}',
+  id: '[Jarada Care] Kepada wali {name}, Anda dapat mencatat tinggi/berat, mengikuti panggilan video, dan mengajukan pertanyaan melalui tautan di bawah ini.\n{link}',
+  ar: '[Jarada Care] إلى ولي أمر {name}، يمكنكم تسجيل الطول/الوزن، الانضمام لمكالمات الفيديو، وطرح الأسئلة عبر الرابط أدناه.\n{link}',
+  mn: '[Jarada Care] {name}-ийн асран хамгаалагч танд, доорх линкээр өндөр/жин бүртгэх, видео дуудлагад нэгдэх, асуулт асуух боломжтой.\n{link}',
+};
+function sendPatientLink(id){
+  const p = getPatient(id);
+  if(!p.accessCode){ p.accessCode = genAccessCode(); savePatients(); }
+  const lang = p.lang || 'ko';
+  const params = new URLSearchParams({ pid: p.accessCode, lang });
+  if(p.dob) params.set('dob', p.dob);
+  if(p.sex) params.set('sex', p.sex);
+  if(p.zoomLink) params.set('zoom', p.zoomLink);
+  if(getApiUrl()) params.set('api', getApiUrl());
+  if(getChatbotUrl() !== DEFAULT_CHATBOT_URL) params.set('bot', getChatbotUrl());
+  params.set('nextcall', nextCallInfo(p));
+  const base = getSiteUrl() ? getSiteUrl().replace(/\/+$/,'') + '/' : '';
+  if(!base){
+    alert('⚙️ 연동 설정에 "사이트 주소"를 먼저 입력해주세요.\n입력하지 않으면 문자·카톡 등에서 링크가 열리지 않습니다.');
+  }
+  const link = `${base}자라다케어_환아용.html?${params.toString()}`;
+  const msgTpl = INVITE_MSG[lang] || INVITE_MSG.ko;
+  const msg = msgTpl.replace('{name}', p.name).replace('{link}', link);
+  if(p.phone){
+    window.open(`https://wa.me/${p.phone.replace(/[^0-9]/g,'')}?text=${encodeURIComponent(msg)}`, '_blank');
+  } else {
+    prompt('보호자에게 보낼 메시지를 복사하세요:', msg);
+  }
+}
+
+/* ---------------- 환아 제출함 ---------------- */
+function toggleInbox(){
+  const body = document.getElementById('inboxBody');
+  const btn = document.getElementById('inboxToggleBtn');
+  const hidden = body.style.display === 'none';
+  body.style.display = hidden ? '' : 'none';
+  btn.textContent = hidden ? '접기' : '펼치기';
+}
+async function refreshInbox(){ renderInbox(getPatient(currentPatientId), true); }
+
+async function renderInbox(p, forceFetch){
+  const box = document.getElementById('inboxBox');
+  const list = document.getElementById('inboxList');
+  const api = getApiUrl();
+  if(!api || !p){ box.style.display='none'; return; }
+  if(!p.accessCode){ p.accessCode = genAccessCode(); savePatients(); }
+  box.style.display='block';
+  list.innerHTML = `<div class="empty-note">불러오는 중…</div>`;
+  try{
+    const res = await fetch(api);
+    const rows = await res.json();
+    const dismissed = new Set(p.dismissedInboxIds||[]);
+    const mine = rows.filter(r=>r.pid===p.accessCode && !dismissed.has(r.id)).sort((a,b)=> a.timestamp < b.timestamp ? 1 : -1);
+    const answered = new Set(mine.filter(r=>r.type==='answer').map(r=>r.refId));
+    const answerText = {};
+    mine.filter(r=>r.type==='answer').forEach(r=>{ answerText[r.refId] = r.answer; });
+    const items = mine.filter(r=>r.type==='measurement' || r.type==='question' || r.type==='bloodtest' || r.type==='xray' || r.type==='consent' || r.type==='callmemo' || r.type==='injection');
+    const pendingMeasure = items.filter(r=>r.type==='measurement' && !(p.appliedInboxIds||[]).includes(r.id)).length;
+    const pendingQuestion = items.filter(r=>r.type==='question' && !answered.has(r.id)).length;
+    const pendingTotal = pendingMeasure + pendingQuestion;
+    document.getElementById('inboxPending').textContent = pendingTotal ? `⚠️ 확인 필요 ${pendingTotal}건 (측정값 반영 ${pendingMeasure}건, 답변 대기 ${pendingQuestion}건)` : '';
+    if(!items.length){ list.innerHTML = `<div class="empty-note">아직 제출된 내용이 없습니다.</div>`; return; }
+    const delBtn = (id)=>`<button class="btn btn-danger-ghost" style="font-size:11px;padding:6px 10px;" onclick="deleteInboxItem('${id}')">삭제</button>`;
+    list.innerHTML = items.map(r=>{
+      if(r.type==='injection'){
+        return `<div class="record-item" style="border-left:3px solid #2E8B57;">
+          <div class="rec-top"><div class="rec-date">${fmtDate(r.date)||'날짜 미상'} · 주사 부위 기록</div></div>
+          <div class="rec-body">${SITE_LABELS_KO[r.question] || escapeHtml(r.question||'')}</div>
+          ${r.answer ? `<div class="rec-memo">${escapeHtml(r.answer)}</div>` : ''}
+          <div class="rec-actions">${delBtn(r.id)}</div>
+        </div>`;
+      }
+      if(r.type==='callmemo'){
+        return `<div class="record-item" style="border-left:3px solid var(--accent);">
+          <div class="rec-top"><div class="rec-date">${fmtDate(r.date)||'날짜 미상'} · 보호자 이해도 메모</div></div>
+          <div class="rec-body" style="white-space:pre-wrap;">${escapeHtml(r.question||'')}</div>
+          <div class="rec-actions">${delBtn(r.id)}</div>
+        </div>`;
+      }
+      if(r.type==='consent'){
+        return `<div class="record-item" style="opacity:.75;">
+          <div class="rec-top"><div class="rec-date" style="font-size:12px;">${fmtDate(r.date)} · 보호자 이용 동의 확인</div></div>
+          <div class="rec-actions">${delBtn(r.id)}</div>
+        </div>`;
+      }
+      if(r.type==='measurement'){
+        const applied = (p.appliedInboxIds||[]).includes(r.id);
+        return `<div class="record-item">
+          <div class="rec-top"><div class="rec-date">${fmtDate(r.date)||'날짜 미상'} · 환아 제출</div><span style="font-size:10px;color:${applied?'var(--secondary)':'var(--ok)'};font-weight:700;">${applied?'반영됨':'측정값'}</span></div>
+          <div class="rec-body"><div class="row"><b>성장</b>${r.height?`키 ${r.height}cm `:''}${r.weight?`몸무게 ${r.weight}kg`:''}</div></div>
+          <div class="rec-actions">${applied ? '' : `<button class="btn btn-primary" onclick="applyInboxMeasurement('${r.id}','${r.date}','${r.height||''}','${r.weight||''}')">차트에 반영</button>`}${delBtn(r.id)}</div>
+        </div>`;
+      }
+      if(r.type==='bloodtest' || r.type==='xray'){
+        const label = r.type==='xray' ? '엑스레이' : '혈액검사 결과지';
+        const applied = (p.appliedInboxIds||[]).includes(r.id);
+        const thumbUrl = r.fileId ? `https://drive.google.com/thumbnail?id=${r.fileId}&sz=w1000` : '';
+        const fullUrl = r.fileId ? `https://drive.google.com/thumbnail?id=${r.fileId}&sz=w2000` : '';
+        return `<div class="record-item">
+          <div class="rec-top"><div class="rec-date">${fmtDate(r.date)||'날짜 미상'} · ${label}</div>${applied?'<span style="font-size:10px;color:var(--secondary);">판독 기록됨</span>':''}</div>
+          ${thumbUrl ? `<img src="${thumbUrl}" alt="${label}" style="width:100%;border-radius:8px;margin-top:8px;cursor:pointer;border:1px solid var(--border);" onclick="openLightbox('${fullUrl}')">` : `<div class="rec-body">${escapeHtml(r.fileName||'파일')}</div>`}
+          <div class="rec-actions">
+            <button class="btn btn-outline" onclick="openLightbox('${fullUrl}')">크게 보기</button>
+            <button class="btn btn-primary" onclick="openRecordFromInbox('${r.id}','${r.date||''}')">판독 결과 기록하기</button>
+            ${delBtn(r.id)}
+          </div>
+        </div>`;
+      }
+      const done = answered.has(r.id);
+      return `<div class="record-item">
+        <div class="rec-top"><div class="rec-date">${fmtDate(r.date)||'날짜 미상'} · 질문 <span style="font-weight:400;color:var(--secondary);font-size:11px;">(${timeAgo(r.timestamp)})</span></div>${done?'<span style="font-size:10px;color:var(--secondary);">답변완료</span>':'<span style="font-size:10px;color:var(--danger);font-weight:700;">답변대기</span>'}</div>
+        <div class="rec-body" style="white-space:pre-wrap;">${escapeHtml(r.question||'')}</div>
+        ${done ? `<div class="rec-memo">A. ${escapeHtml(answerText[r.id]||'')}</div>` : `<div class="field" style="margin-top:8px;"><textarea id="reply_${r.id}" placeholder="답변 입력"></textarea></div>`}
+        <div class="rec-actions">${done ? '' : `<button class="btn btn-primary" onclick="sendInboxReply('${r.id}')">답변 보내기</button>`}${delBtn(r.id)}</div>
+      </div>`;
+    }).join('');
+  } catch(err){
+    list.innerHTML = `<div class="empty-note">불러오지 못했습니다. 연동 설정의 URL을 확인해주세요.</div>`;
+  }
+}
+
+function deleteInboxItem(id){
+  const p = getPatient(currentPatientId);
+  if(!p || !id) return;
+  if(!confirm('이 항목을 제출함에서 삭제할까요?')) return;
+  if(!p.dismissedInboxIds) p.dismissedInboxIds = [];
+  p.dismissedInboxIds.push(id);
+  savePatients();
+  renderInbox(p, true); // 목록에서 즉시 감춤
+  const api = getApiUrl();
+  if(api){
+    fetch(api, { method:'POST', body: JSON.stringify({ action:'delete', id }) }).catch(()=>{});
+  }
+}
+
+/* ---------------- 차트 캡처 업로드 (의사 직접 업로드) ---------------- */
+function fileToDataUrl(file, maxDim=1600, quality=0.82){
+  return new Promise((resolve, reject)=>{
+    if(!file.type.startsWith('image/')){
+      const reader = new FileReader();
+      reader.onload = ()=>resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+      return;
+    }
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = ()=>{
+      let { width, height } = img;
+      if(width > maxDim || height > maxDim){
+        const scale = maxDim / Math.max(width, height);
+        width = Math.round(width*scale); height = Math.round(height*scale);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+function handleChartDrop(e){
+  e.preventDefault();
+  document.getElementById('chartDropZone').style.borderColor = 'var(--border)';
+  handleChartFiles(e.dataTransfer.files);
+}
+async function handleChartFiles(fileList){
+  const p = getPatient(currentPatientId);
+  if(!p) return;
+  if(!p.accessCode){ p.accessCode = genAccessCode(); savePatients(); }
+  const api = getApiUrl();
+  const status = document.getElementById('chartUploadStatus');
+  if(!api){ status.textContent = '⚙️ 연동 설정에서 백엔드 URL을 먼저 입력해주세요.'; status.style.color='var(--danger)'; return; }
+  const files = Array.from(fileList||[]);
+  if(!files.length) return;
+  let done = 0;
+  for(const file of files){
+    status.textContent = `업로드 중… (${done+1}/${files.length})`; status.style.color='var(--secondary)';
+    try{
+      const dataUrl = await fileToDataUrl(file);
+      await fetch(api, { method:'POST', body: JSON.stringify({ id: uid(), pid: p.accessCode, type:'doctorchart', date: todayStr(), dataUrl, fileName: file.name }) });
+      done++;
+    }catch(err){ /* 다음 파일 계속 진행 */ }
+  }
+  status.textContent = `${done}장 업로드 완료.`; status.style.color='var(--ok)';
+  document.getElementById('chartFileInput').value = '';
+  renderChartCaptures(p);
+}
+async function renderChartCaptures(p){
+  const grid = document.getElementById('chartCaptureGrid');
+  const api = getApiUrl();
+  if(!api || !p.accessCode){ grid.innerHTML=''; return; }
+  try{
+    const res = await fetch(api);
+    const rows = await res.json();
+    const mine = rows.filter(r=>r.pid===p.accessCode && r.type==='doctorchart').sort((a,b)=> a.timestamp < b.timestamp ? 1 : -1);
+    if(!mine.length){ grid.innerHTML=''; return; }
+    grid.innerHTML = mine.map(r=>{
+      const thumb = r.fileId ? `https://drive.google.com/thumbnail?id=${r.fileId}&sz=w400` : '';
+      const full = r.fileId ? `https://drive.google.com/thumbnail?id=${r.fileId}&sz=w2000` : '';
+      return `<div class="fitem">
+        ${thumb ? `<img src="${thumb}" onclick="openLightbox('${full}')">` : ''}
+        <div class="fdate">${fmtDate(r.date)||'날짜 미상'}</div>
+        <div class="facts">
+          <button onclick="openRecordFromInbox('${r.id}','${r.date}')">기록입력</button>
+          <button class="danger" onclick="deleteChartCapture('${r.id}')">삭제</button>
+        </div>
+      </div>`;
+    }).join('');
+  }catch(err){ /* 조용히 무시 */ }
+}
+async function deleteChartCapture(id){
+  if(!confirm('이 캡처를 삭제할까요?')) return;
+  const api = getApiUrl();
+  try{
+    await fetch(api, { method:'POST', body: JSON.stringify({ action:'delete', id }) });
+    renderChartCaptures(getPatient(currentPatientId));
+  }catch(err){ alert('삭제에 실패했습니다.'); }
+}
+
+function openLightbox(url){
+  if(!url) return;
+  const img = document.getElementById('lightboxImg');
+  img.src = url;
+  img.style.transform = 'scale(1)';
+  img.dataset.zoomed = '0';
+  document.getElementById('lightboxOv').classList.add('open');
+}
+function closeLightbox(){
+  document.getElementById('lightboxOv').classList.remove('open');
+  document.getElementById('lightboxImg').src = '';
+}
+function toggleLightboxZoom(e){
+  const img = e.target;
+  const zoomed = img.dataset.zoomed === '1';
+  if(zoomed){
+    img.style.transform = 'scale(1)';
+    img.style.cursor = 'zoom-in';
+    img.dataset.zoomed = '0';
+  } else {
+    img.style.transformOrigin = `${(e.offsetX/img.clientWidth)*100}% ${(e.offsetY/img.clientHeight)*100}%`;
+    img.style.transform = 'scale(2.5)';
+    img.style.cursor = 'zoom-out';
+    img.dataset.zoomed = '1';
+  }
+}
+
+function applyInboxMeasurement(id, date, height, weight){
+  const p = getPatient(currentPatientId);
+  if(!p.records) p.records=[];
+  if(!date || isNaN(new Date(date+'T00:00:00'))){
+    date = todayStr();
+    alert('제출된 날짜 정보가 없어 오늘 날짜(' + date + ')로 반영합니다. 필요하면 기록에서 날짜를 수정해주세요.');
+  }
+  const existing = p.records.find(r=>r.date===date);
+  if(existing){ if(height) existing.height=height; if(weight) existing.weight=weight; }
+  else { p.records.push({ id: uid(), date, height, weight, callDone:false }); }
+  if(!p.appliedInboxIds) p.appliedInboxIds = [];
+  p.appliedInboxIds.push(id);
+  savePatients();
+  renderDetail();
+}
+
+async function sendInboxReply(refId){
+  const api = getApiUrl();
+  const p = getPatient(currentPatientId);
+  const answer = document.getElementById('reply_'+refId).value.trim();
+  if(!answer) return;
+  try{
+    await fetch(api, { method:'POST', body: JSON.stringify({ id: uid(), pid: p.accessCode, type:'answer', refId, answer }) });
+    renderInbox(p, true);
+  } catch(err){ alert('답변 전송에 실패했습니다.'); }
+}
+
+/* ---------------- Init ---------------- */
+loadPatients();
+renderDashboard();
+</script>
+</body>
+</html>
