@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>성장 환자 필터링 + EMR 입력</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+        
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .upload-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px dashed #667eea;
+        }
+        
+        .upload-label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #333;
+        }
+        
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+        
+        input[type="file"] {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .file-input-label {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+        
+        .file-input-label:hover {
+            background: #764ba2;
+        }
+        
+        .file-name {
+            display: inline-block;
+            margin-left: 12px;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .info-box {
+            margin-top: 15px;
+            padding: 12px;
+            background: #e7f3ff;
+            border-left: 4px solid #667eea;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #555;
+        }
+        
+        .table-section {
+            margin-top: 30px;
+        }
+        
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .table-wrapper {
+            overflow-x: auto;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        
+        thead {
+            background: #f8f9fa;
+            border-bottom: 2px solid #ddd;
+        }
+        
+        th {
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            white-space: nowrap;
+        }
+        
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            color: #555;
+        }
+        
+        tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .emr-input {
+            width: 480px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            resize: vertical;
+            min-height: 220px;
+        }
+        
+        .emr-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .action-buttons {
+            margin-top: 30px;
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+        
+        button {
+            padding: 12px 32px;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.2);
+        }
+        
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .message {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+        
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .stat-box {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border-left: 4px solid #667eea;
+        }
+        
+        .stat-number {
+            font-size: 24px;
+            font-weight: 700;
+            color: #667eea;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .no-data {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+        }
+        
+        .btn-delete {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            width: 28px;
+            height: 28px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            padding: 0;
+        }
+        
+        .btn-delete:hover {
+            background: #ff5252;
+            transform: scale(1.1);
+        }
+        
+        .chart-num:hover {
+            background: #e0e7ff !important;
+            font-weight: 600;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                margin: 0;
+                border-radius: 0;
+            }
+            
+            .header {
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 20px;
+            }
+            
+            .emr-input {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏥 성장 환자 필터링 + EMR 입력</h1>
+            <p>성장 관련 환자 자동 필터링 → EMR 입력 → 엑셀 다운로드</p>
+        </div>
+        
+        <div class="content">
+            <!-- 업로드 섹션 -->
+            <div class="upload-section">
+                <label class="upload-label">📁 외래환자현황 엑셀 파일 업로드</label>
+                
+                <!-- 드래그 앤 드롭 영역 -->
+                <div id="dropZone" style="
+                    border: 2px dashed #667eea;
+                    border-radius: 8px;
+                    padding: 40px;
+                    text-align: center;
+                    background: white;
+                    margin-bottom: 15px;
+                    cursor: pointer;
+                    transition: all 0.3s;
+                ">
+                    <div style="font-size: 32px; margin-bottom: 10px;">📂</div>
+                    <p style="font-size: 16px; font-weight: 600; color: #333; margin-bottom: 5px;">
+                        엑셀 파일을 여기로 드래그하세요
+                    </p>
+                    <p style="font-size: 13px; color: #999; margin-bottom: 20px;">
+                        또는 아래 버튼으로 파일을 선택하세요
+                    </p>
+                </div>
+                
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <div class="file-input-wrapper">
+                        <input type="file" id="fileInput" accept=".xls,.xlsx" />
+                        <label for="fileInput" class="file-input-label">📋 파일 선택</label>
+                    </div>
+                    <span class="file-name" id="fileName">선택된 파일 없음</span>
+                </div>
+                
+                <div class="info-box">
+                    💡 지원 형식: .xls, .xlsx | 성장/조숙증/비만 등 성장 관련 환자만 자동으로 필터링됩니다.
+                </div>
+            </div>
+            
+            <!-- 통계 -->
+            <div class="stats" id="stats" style="display: none;">
+                <div class="stat-box">
+                    <div class="stat-number" id="totalCount">0</div>
+                    <div class="stat-label">전체 환자</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number" id="filteredCount">0</div>
+                    <div class="stat-label">성장 관련</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number" id="emrFilledCount">0</div>
+                    <div class="stat-label">EMR 입력 완료</div>
+                </div>
+            </div>
+            
+            <!-- 테이블 -->
+            <div class="table-section" id="tableSection" style="display: none;">
+                <div class="section-title">
+                    ✓ 필터링된 환자 목록
+                    <span class="badge" id="filterBadge">0명</span>
+                </div>
+                
+                <div class="table-wrapper">
+                    <table id="patientTable">
+                        <thead>
+                            <tr>
+                                <th width="30">삭제</th>
+                                <th>진료일자</th>
+                                <th>환자명</th>
+                                <th>차트번호</th>
+                                <th>성별</th>
+                                <th>진단명</th>
+                                <th>인적메모</th>
+                                <th>EMR</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- 메시지 -->
+            <div id="message"></div>
+            
+            <!-- 버튼 -->
+            <div class="action-buttons" id="actionButtons" style="display: none;">
+                <button class="btn-primary" onclick="downloadExcel()">✓ 완료 & 엑셀 다운로드</button>
+                <button class="btn-secondary" onclick="resetApp()">🔄 초기화</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let originalData = [];
+        let filteredData = [];
+        
+        const GROWTH_KEYWORDS = [
+            '성장', '신장', '체중', 'bmi', '비만', '저신장', '키',
+            '성숙', '사춘기', '조숙증', '성조숙증', '성장클리닉'
+        ];
+        
+        // 파일 입력 이벤트
+        document.getElementById('fileInput').addEventListener('change', handleFileUpload);
+        
+        // 드래그 앤 드롭 이벤트
+        const dropZone = document.getElementById('dropZone');
+        
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.style.background = '#f0f4ff';
+            dropZone.style.borderColor = '#764ba2';
+        });
+        
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.style.background = 'white';
+            dropZone.style.borderColor = '#667eea';
+        });
+        
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.style.background = 'white';
+            dropZone.style.borderColor = '#667eea';
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                const file = files[0];
+                if (file.name.match(/\.(xls|xlsx)$/i)) {
+                    processFileUpload(file);
+                } else {
+                    showMessage('🚫 엑셀 파일(.xls, .xlsx)만 지원합니다.', 'error');
+                }
+            }
+        });
+        
+        dropZone.addEventListener('click', () => {
+            document.getElementById('fileInput').click();
+        });
+        
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            processFileUpload(file);
+        }
+        
+        function processFileUpload(file) {
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('message').innerHTML = '';
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+                    
+                    processData(rows);
+                } catch (error) {
+                    showMessage('🚫 파일 읽기 오류: ' + error.message, 'error');
+                }
+            };
+            reader.onerror = function() {
+                showMessage('🚫 파일을 읽을 수 없습니다.', 'error');
+            };
+            reader.readAsArrayBuffer(file);
+        }
+        
+        function processData(rows) {
+            // 헤더 찾기
+            let headerRowIndex = -1;
+            for (let i = 0; i < Math.min(5, rows.length); i++) {
+                if (rows[i][0] === '진료일자' || rows[i][1] === '수진자명') {
+                    headerRowIndex = i;
+                    break;
+                }
+            }
+            
+            if (headerRowIndex === -1) {
+                showMessage('올바른 포멧의 파일이 아닙니다. (헤더를 찾을 수 없음)', 'error');
+                return;
+            }
+            
+            // 데이터 추출
+            originalData = [];
+            for (let i = headerRowIndex + 1; i < rows.length; i++) {
+                if (!rows[i][0] || !rows[i][1]) continue;
+                
+                originalData.push({
+                    raw: rows[i],
+                    visitDate: rows[i][0],
+                    name: rows[i][1],
+                    chartNum: rows[i][2],
+                    birthDate: rows[i][3],
+                    gender: rows[i][4],
+                    patientType: rows[i][5],
+                    phone: rows[i][6],
+                    mobile: rows[i][7],
+                    address: rows[i][8],
+                    email: rows[i][9],
+                    type: rows[i][10],
+                    dept: rows[i][11],
+                    room: rows[i][12],
+                    insurance: rows[i][13],
+                    time: rows[i][14],
+                    diagnosis: rows[i][15],
+                    symbol: rows[i][16],
+                    memo: rows[i][17],
+                    checkup: rows[i][18],
+                    receptor: rows[i][19],
+                    emr: ''
+                });
+            }
+            
+            // 필터링
+            filterPatients();
+        }
+        
+        function filterPatients() {
+            filteredData = originalData.filter(patient => {
+                const diagnosis = String(patient.diagnosis || '').toLowerCase();
+                const memo = String(patient.memo || '').toLowerCase();
+                
+                return GROWTH_KEYWORDS.some(kw => 
+                    diagnosis.includes(kw) || memo.includes(kw)
+                );
+            });
+            
+            if (filteredData.length === 0) {
+                showMessage('성장 관련 환자가 없습니다.', 'info');
+                document.getElementById('tableSection').style.display = 'none';
+                document.getElementById('actionButtons').style.display = 'none';
+                document.getElementById('stats').style.display = 'none';
+                return;
+            }
+            
+            displayTable();
+            updateStats();
+            document.getElementById('tableSection').style.display = 'block';
+            document.getElementById('actionButtons').style.display = 'flex';
+            document.getElementById('stats').style.display = 'grid';
+            
+            showMessage(`✓ ${filteredData.length}명의 성장 관련 환자를 찾았습니다. EMR을 입력해주세요.`, 'success');
+        }
+        
+        function displayTable() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            document.getElementById('filterBadge').textContent = filteredData.length + '명';
+            
+            filteredData.forEach((patient, index) => {
+                const row = tbody.insertRow();
+                row.id = `row-${index}`;
+                row.innerHTML = `
+                    <td style="text-align: center; padding: 8px;">
+                        <button class="btn-delete" onclick="deleteRow(${index})" title="이 환자 삭제">✕</button>
+                    </td>
+                    <td>${patient.visitDate}</td>
+                    <td><strong>${patient.name}</strong></td>
+                    <td>
+                        <span class="chart-num" id="chart-${index}" onclick="copyChartNum('${patient.chartNum}')" 
+                              style="cursor: pointer; padding: 4px 8px; background: #f0f4ff; border-radius: 4px; display: inline-block; user-select: none;"
+                              title="클릭하면 자동 복사됩니다">
+                            ${patient.chartNum}
+                        </span>
+                    </td>
+                    <td>${patient.gender}</td>
+                    <td>${patient.diagnosis}</td>
+                    <td>${patient.memo || '-'}</td>
+                    <td>
+                        <textarea class="emr-input" id="emr-${index}" placeholder="EMR을 여기에 붙여넣으세요&#10;(Ctrl+C → Ctrl+V)"></textarea>
+                    </td>
+                `;
+            });
+        }
+        
+        function updateStats() {
+            document.getElementById('totalCount').textContent = originalData.length;
+            document.getElementById('filteredCount').textContent = filteredData.length;
+            
+            let filledCount = 0;
+            for (let i = 0; i < filteredData.length; i++) {
+                const emrInput = document.getElementById(`emr-${i}`);
+                if (emrInput && emrInput.value.trim()) {
+                    filledCount++;
+                }
+            }
+            document.getElementById('emrFilledCount').textContent = filledCount;
+        }
+        
+        // 실시간 통계 업데이트
+        document.addEventListener('input', function(e) {
+            if (e.target.classList.contains('emr-input')) {
+                updateStats();
+            }
+        });
+        
+        // 차트번호 클릭 시 자동 복사
+        function copyChartNum(chartNum) {
+            // 텍스트를 클립보드에 복사
+            navigator.clipboard.writeText(chartNum).then(() => {
+                // 시각적 피드백
+                const el = event.target;
+                const originalText = el.textContent;
+                el.textContent = '✓ 복사됨!';
+                el.style.background = '#d4edda';
+                el.style.color = '#155724';
+                
+                setTimeout(() => {
+                    el.textContent = originalText;
+                    el.style.background = '#f0f4ff';
+                    el.style.color = 'inherit';
+                }, 1500);
+            }).catch(err => {
+                showMessage('복사 오류: ' + err, 'error');
+            });
+        }
+        
+        // 행 삭제 함수
+        function deleteRow(index) {
+            if (confirm(`${filteredData[index].name} 환자를 삭제하시겠습니까?`)) {
+                const row = document.getElementById(`row-${index}`);
+                if (row) {
+                    row.style.opacity = '0.5';
+                    row.style.textDecoration = 'line-through';
+                    row.style.pointerEvents = 'none';
+                    row.dataset.deleted = 'true';
+                }
+            }
+        }
+        
+        function downloadExcel() {
+            // EMR 데이터 수집 (삭제되지 않은 행만)
+            const rowsToExport = [];
+            filteredData.forEach((patient, index) => {
+                const row = document.getElementById(`row-${index}`);
+                
+                // 삭제 표시된 행은 제외
+                if (row && row.dataset.deleted === 'true') {
+                    return;
+                }
+                
+                const emrInput = document.getElementById(`emr-${index}`);
+                patient.emr = emrInput ? emrInput.value : '';
+                rowsToExport.push(patient);
+            });
+            
+            if (rowsToExport.length === 0) {
+                showMessage('🚫 내보낼 환자가 없습니다. 모든 행이 삭제되었습니다.', 'error');
+                return;
+            }
+            
+            // 원본 구조 유지하면서 필터링된 데이터 + EMR 추가
+            const headerRow = ['진료일자', '수진자명', '차트번호', '생년월일', '성별', '환자유형', 
+                             '전화번호', '이동전화', '주소', '이메일', '초/재진', '진료과', 
+                             '진료실', '보험', '접수시간', '상병명칭', '특정기호', '인적메모', 
+                             '건강검진', '접수자', 'EMR'];
+            
+            const dataRows = rowsToExport.map(patient => [
+                patient.visitDate,
+                patient.name,
+                patient.chartNum,
+                patient.birthDate,
+                patient.gender,
+                patient.patientType,
+                patient.phone,
+                patient.mobile,
+                patient.address,
+                patient.email,
+                patient.type,
+                patient.dept,
+                patient.room,
+                patient.insurance,
+                patient.time,
+                patient.diagnosis,
+                patient.symbol,
+                patient.memo,
+                patient.checkup,
+                patient.receptor,
+                patient.emr
+            ]);
+            
+            const ws = XLSX.utils.aoa_to_sheet([headerRow, ...dataRows]);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, '성장환자EMR');
+            
+            // 컬럼 너비 설정
+            ws['!cols'] = [
+                { wch: 12 }, // 진료일자
+                { wch: 10 }, // 환자명
+                { wch: 10 }, // 차트번호
+                { wch: 12 }, // 생년월일
+                { wch: 8 },  // 성별
+                { wch: 10 }, // 환자유형
+                { wch: 12 }, // 전화
+                { wch: 14 }, // 이동전화
+                { wch: 25 }, // 주소
+                { wch: 15 }, // 이메일
+                { wch: 8 },  // 초/재진
+                { wch: 8 },  // 진료과
+                { wch: 8 },  // 진료실
+                { wch: 8 },  // 보험
+                { wch: 10 }, // 접수시간
+                { wch: 20 }, // 진단명
+                { wch: 10 }, // 특정기호
+                { wch: 25 }, // 메모
+                { wch: 10 }, // 검진
+                { wch: 8 },  // 접수자
+                { wch: 50 }  // EMR
+            ];
+            
+            const fileName = `성장환자_EMR_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+            
+            showMessage(`✓ ${rowsToExport.length}명의 환자로 ${fileName} 다운로드 완료. 자라다케어 앱에 업로드하세요.`, 'success');
+        }
+        
+        function resetApp() {
+            location.reload();
+        }
+        
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.className = 'message ' + type;
+            messageDiv.textContent = text;
+        }
+    </script>
+</body>
+</html>
