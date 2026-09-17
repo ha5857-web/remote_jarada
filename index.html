@@ -4181,17 +4181,16 @@ async function syncMeasurementToPatient(p, rec){
 }
 
 // 골연령·예측 성인키가 포함된 기록을 저장하면, 환아 앱의 성장 그래프에도 같은 화살표·표시가 뜨도록 백엔드로 동기화합니다.
-// 의사 앱에 있는 키/몸무게 기록을, 마치 환아가 직접 입력한 것처럼 환아 앱 "내가 남긴 기록"에 그대로 넣어줍니다.
-// 그러면 환아 쪽 그래프에도 과거 기록이 다 보이고, 환아가 직접 눌러서 값을 고칠 수도 있게 됩니다.
+// 의사 앱에 있는 키/몸무게/뼈나이 기록을, 마치 환아가 직접 입력한 것처럼 환아 앱 "내가 남긴 기록"에 그대로 넣어줍니다.
+// 그러면 환아 쪽 그래프에도 의사가 입력한 기록이 다 보이고, 환아가 직접 키/몸무게를 추가로 입력하면 그것도 같은 그래프 위에 계속 누적됩니다.
 // 같은 날짜에 이미 기록이 있으면(환아가 이미 입력했거나, 예전에 보냈던 거면) 새로 만들지 않고 그 기록을 업데이트합니다.
-async function sendGrowthChartToPatient(patientId){
+// "성장차트 보내기" 버튼과 "지금 보이는 그래프를 환아에게 보내기" 버튼이 공통으로 이 함수를 씁니다.
+async function syncGrowthDataToPatient(patientId, statusEl){
   const p = getPatient(patientId);
-  const statusEl = document.getElementById(`growthSendStatus_${patientId}`);
   const api = getApiUrl();
-  if(!p || !api){ if(statusEl) statusEl.textContent = '연동 설정에서 백엔드 URL을 먼저 입력해주세요.'; return; }
+  if(!p || !api){ if(statusEl){ statusEl.textContent = '⚙️ 연동 설정에서 백엔드 URL을 먼저 입력해주세요.'; statusEl.style.color='var(--danger)'; } return; }
   const withGrowth = (p.records||[]).filter(r=> r.date && (r.height || r.weight || r.boneAgeWristMonths!=null || r.predictedHeight));
   if(!withGrowth.length){ if(statusEl){ statusEl.textContent = '보낼 키/몸무게/뼈나이 기록이 없습니다.'; statusEl.style.color='var(--danger)'; } return; }
-  if(!confirm(`${p.name} 환아의 키/몸무게 기록 ${withGrowth.length}건을 환아 앱 "내가 남긴 기록"으로 보낼까요? (환아가 직접 입력한 것처럼 보이고, 환아가 고칠 수도 있게 됩니다)`)) return;
   if(!p.accessCode){ p.accessCode = genAccessCode(); savePatients(); }
 
   if(statusEl){ statusEl.textContent = '전송 준비 중…'; statusEl.style.color='var(--secondary)'; }
@@ -4220,6 +4219,15 @@ async function sendGrowthChartToPatient(patientId){
     done++;
   }
   if(statusEl){ statusEl.textContent = `✅ ${done}건 전송 완료 (키/몸무게 + 뼈나이 포함, ${new Date().toLocaleTimeString('ko-KR')})`; statusEl.style.color='var(--ok)'; }
+}
+async function sendGrowthChartToPatient(patientId){
+  const p = getPatient(patientId);
+  const statusEl = document.getElementById(`growthSendStatus_${patientId}`);
+  if(!p) return;
+  const withGrowth = (p.records||[]).filter(r=> r.date && (r.height || r.weight || r.boneAgeWristMonths!=null || r.predictedHeight));
+  if(!withGrowth.length){ if(statusEl){ statusEl.textContent = '보낼 키/몸무게/뼈나이 기록이 없습니다.'; statusEl.style.color='var(--danger)'; } return; }
+  if(!confirm(`${p.name} 환아의 키/몸무게 기록 ${withGrowth.length}건을 환아 앱 "내가 남긴 기록"으로 보낼까요? (환아가 직접 입력한 것처럼 보이고, 환아가 고칠 수도 있게 됩니다)`)) return;
+  await syncGrowthDataToPatient(patientId, statusEl);
 }
 function syncDoctorPointToPatient(p, rec){
   const api = getApiUrl();
@@ -4754,34 +4762,17 @@ function deleteInboxItem(id){
 
 /* ---------------- 차트 캡처 업로드 (의사 직접 업로드) ---------------- */
 // 지금 화면에 보이는 성장 그래프(예측 성인키 등 포함)를 스냅샷으로 캡처해, 의사가 선택했을 때만 환아 앱으로 전송합니다.
+// (예전엔 이 그래프를 이미지로 캡처해서 보냈는데, 환아 앱이 더 이상 그 이미지를 보여주지 않아 무의미했습니다.
+// 이제는 이미지 대신 실제 키/몸무게/뼈나이 데이터를 보내서, 환아 앱에서도 같은 성장곡선이 그려지도록 합니다.
+// 환아가 직접 입력한 기록과 합쳐져서 표시되고, 환아가 스스로 키/몸무게를 추가하면 그래프 위에 계속 누적됩니다.)
 async function sendChartToPatient(){
   const p = getPatient(currentPatientId);
-  if(!p) return;
-  const api = getApiUrl();
   const status = document.getElementById('sendChartStatus');
-  if(!api){ status.textContent = '⚙️ 연동 설정에서 백엔드 URL을 먼저 입력해주세요.'; status.style.color='var(--danger)'; return; }
-  if(!confirm('지금 보이는 성장 그래프(예측 성인키 등 포함)를 환아 앱으로 보냅니다.\n이전에 보낸 그래프가 있으면 이번 것으로 교체됩니다.\n의학적 판단이 담긴 내용이니, 보호자에게 전달해도 괜찮은 내용인지 확인 후 진행해주세요.\n계속할까요?')) return;
-  if(!p.accessCode){ p.accessCode = genAccessCode(); savePatients(); }
-  const canvas = document.getElementById('growthCanvas');
-  const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
-  status.textContent = '전송 중…'; status.style.color='var(--secondary)';
-  try{
-    // 이전에 보낸 그래프가 있으면 먼저 지우고(최근 것만 유지), 새로 보냅니다.
-    try{
-      const res = await fetch(api);
-      const rows = await res.json();
-      const old = rows.filter(r=>r.pid===p.accessCode && r.type==='sentchart');
-      for(const r of old){
-        await fetch(api, { method:'POST', body: JSON.stringify({ action:'delete', id:r.id }) });
-      }
-    }catch(e){ /* 이전 항목 조회/삭제 실패해도 새 전송은 계속 진행 */ }
-
-    await fetch(api, { method:'POST', body: JSON.stringify({
-      id: uid(), pid: p.accessCode, type:'sentchart', date: todayStr(),
-      dataUrl, fileName: `growth_${chartMeasure}_${todayStr()}.jpg`
-    })});
-    status.textContent = '전송되었습니다. 환아 앱에서 확인할 수 있어요.'; status.style.color='var(--ok)';
-  }catch(err){ status.textContent = '전송에 실패했습니다.'; status.style.color='var(--danger)'; }
+  if(!p) return;
+  const withGrowth = (p.records||[]).filter(r=> r.date && (r.height || r.weight || r.boneAgeWristMonths!=null || r.predictedHeight));
+  if(!withGrowth.length){ if(status){ status.textContent = '보낼 키/몸무게/뼈나이 기록이 없습니다.'; status.style.color='var(--danger)'; } return; }
+  if(!confirm(`지금 보이는 성장 데이터(키/몸무게 ${withGrowth.length}건, 예측 성인키 등 포함)를 환아 앱으로 보냅니다.\n환아가 직접 입력한 기록과 합쳐져서 그래프에 표시되고, 환아가 스스로 키/몸무게를 추가하면 그것도 그래프 위에 계속 누적됩니다.\n의학적 판단이 담긴 내용이니, 보호자에게 전달해도 괜찮은 내용인지 확인 후 진행해주세요.\n계속할까요?`)) return;
+  await syncGrowthDataToPatient(currentPatientId, status);
 }
 
 function fileToDataUrl(file, maxDim=1600, quality=0.82){
