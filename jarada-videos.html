@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>삼성자라다소아청소년과 · 진료 전 영상</title>
+<meta name="robots" content="noindex,nofollow">
+<style>
+  :root{ --navy:#1B3A4B; --gold:#C0902C; --bg:#FBF8F2; --card:#fff; --line:#E7DFCF; --sub:#6B7280; --green:#2E6B3A; }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; background:var(--bg); color:#1f2937; font-family:-apple-system,BlinkMacSystemFont,'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif; }
+  header{ background:var(--navy); color:#fff; padding:calc(14px + env(safe-area-inset-top)) 18px 16px; }
+  header h1{ margin:0; font-size:18px; font-weight:800; }
+  header p{ margin:4px 0 0; font-size:12.5px; opacity:.85; }
+  main{ max-width:640px; margin:0 auto; padding:16px 14px calc(30px + env(safe-area-inset-bottom)); }
+  .intro{ font-size:14px; line-height:1.7; margin:2px 2px 14px; }
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:16px; padding:14px; margin-bottom:14px; }
+  .head{ display:flex; gap:10px; align-items:flex-start; margin-bottom:10px; }
+  .rank{ flex:0 0 30px; height:30px; border-radius:50%; background:var(--gold); color:#fff; font-weight:800; font-size:14px; display:flex; align-items:center; justify-content:center; }
+  .title{ font-size:15.5px; font-weight:800; line-height:1.4; }
+  .sub{ font-size:12.5px; color:var(--sub); margin-top:3px; line-height:1.5; }
+  .player{ position:relative; width:100%; aspect-ratio:16/9; background:#000; border-radius:12px; overflow:hidden; }
+  .player img{ width:100%; height:100%; object-fit:cover; display:block; opacity:.92; }
+  .player button.play{ position:absolute; inset:0; width:100%; height:100%; border:0; background:transparent; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  .play span{ width:64px; height:64px; border-radius:50%; background:rgba(0,0,0,.62); color:#fff; font-size:28px; display:flex; align-items:center; justify-content:center; padding-left:5px; }
+  .player iframe{ position:absolute; inset:0; width:100%; height:100%; border:0; }
+  .open{ display:inline-block; margin-top:9px; font-size:12.5px; color:var(--navy); text-decoration:underline; }
+  .note{ font-size:12px; color:var(--sub); line-height:1.65; margin:6px 2px 0; }
+  .more{ display:block; text-align:center; text-decoration:none; background:var(--navy); color:#fff; padding:13px; border-radius:12px; font-weight:700; font-size:14px; margin:6px 0 4px; }
+  .empty{ text-align:center; color:var(--sub); font-size:14px; padding:18px 6px; line-height:1.7; }
+  footer{ text-align:center; font-size:12px; color:var(--sub); margin-top:14px; line-height:1.7; }
+  footer a{ color:var(--navy); }
+</style>
+</head>
+<body>
+<header>
+  <h1>🎬 진료 전에 보실 영상</h1>
+  <p>삼성자라다소아청소년과 · 순서대로 보시면 진료가 훨씬 수월해요</p>
+</header>
+<main>
+  <div class="intro" id="intro"></div>
+  <div id="list"></div>
+  <a class="more" id="moreBtn" href="#" style="display:none;">다른 안내 영상도 보기</a>
+  <div class="note">※ 영상은 일반적인 안내예요. 아이에게 맞는 의학적 판단과 치료 결정은 진료 때 원장님이 직접 해드립니다.</div>
+  <footer>문의 <a href="tel:025230111">02-523-0111</a></footer>
+</main>
+
+<script>
+/* 영상 7편 — 영상추천 도구(초진 기록지 → 7편 중 선별)와 같은 목록입니다. 주소 뒤에 ?v=124 처럼 보여줄 영상 번호를 붙입니다. */
+const VIDEOS = [
+  {no:1,title:"우리 아이, 잘 크고 있나요",sub:"성장속도 · 키 순위보다 1년에 몇 cm",id:"ccxsr-6cdn4"},
+  {no:2,title:"키 크는 습관, 1순위는 잠입니다",sub:"생활습관 · 수면, 영양, 운동의 순서",id:"W80S1rwvM6Y"},
+  {no:3,title:"왜 이렇게 검사가 많을까요",sub:"성조숙증 검사 · 불필요한 치료를 막는 이유",id:"Nkz4dDbGNeY"},
+  {no:4,title:"이 주사, 어떻게 작용하나요",sub:"성조숙증 치료 · 층간소음으로 이해하는 억제",id:"ta7bS_O1rFs"},
+  {no:5,title:"몇 cm나 클까요",sub:"성장호르몬 효과 · 솔직하게 말씀드립니다",id:"ijNvlNmLn1M"},
+  {no:6,title:"우리 아이도 병행치료 해야 할까요",sub:"병행치료 · 가이드라인이 권하는 두 경우",id:"zC8_55pK0TQ"},
+  {no:7,title:"물만 먹어도 살찌는 아이",sub:"인슐린저항성 · 과장이 아닙니다",id:"DxoqacQTMYQ"}
+];
+function esc(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function readNos(){
+  const q = new URLSearchParams(location.search).get('v') || (location.hash.match(/^#v=(\d+)/)||[])[1] || '';
+  const out = []; String(q).split('').forEach(ch=>{ const n = +ch; if(n>=1 && n<=7 && !out.includes(n)) out.push(n); });
+  return out;
+}
+function card(v, rank, showRank){
+  return `<div class="card" id="c${v.no}">
+    <div class="head">${showRank ? `<div class="rank">${rank}</div>` : ''}<div><div class="title">${esc(v.title)}</div><div class="sub">${esc(v.sub)}</div></div></div>
+    <div class="player" id="p${v.no}">
+      <img src="https://img.youtube.com/vi/${v.id}/hqdefault.jpg" alt="${esc(v.title)}" loading="lazy">
+      <button class="play" onclick="playVideo(${v.no})" aria-label="재생"><span>▶</span></button>
+    </div>
+    <a class="open" href="https://youtu.be/${v.id}" target="_blank" rel="noopener">유튜브에서 열기</a>
+  </div>`;
+}
+function playVideo(no){
+  const v = VIDEOS.find(x=>x.no===no); const box = document.getElementById('p'+no); if(!v||!box) return;
+  box.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${v.id}?autoplay=1&rel=0&playsinline=1" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen title="${esc(v.title)}"></iframe>`;
+}
+(function init(){
+  const nos = readNos(), list = document.getElementById('list'), intro = document.getElementById('intro'), more = document.getElementById('moreBtn');
+  if(nos.length){
+    intro.textContent = `진료 전에 아래 ${nos.length}편을 순서대로 봐 주세요. 같은 설명을 진료실에서 반복하지 않고, 아이에게 필요한 이야기부터 시작할 수 있어요.`;
+    list.innerHTML = nos.map((n,i)=>card(VIDEOS.find(x=>x.no===n), i+1, true)).join('');
+    const rest = VIDEOS.filter(v=>!nos.includes(v.no));
+    if(rest.length){ more.style.display = 'block'; more.onclick = function(e){ e.preventDefault(); more.style.display='none';
+      list.insertAdjacentHTML('beforeend', '<div class="intro" style="margin-top:6px;"><b>그 밖의 안내 영상</b></div>' + rest.map(v=>card(v, 0, false)).join('')); }; }
+  }else{
+    intro.textContent = '삼성자라다소아청소년과 보호자 안내 영상이에요. 궁금한 영상을 눌러 보세요.';
+    list.innerHTML = VIDEOS.map(v=>card(v, 0, false)).join('');
+  }
+})();
+</script>
+</body>
+</html>
