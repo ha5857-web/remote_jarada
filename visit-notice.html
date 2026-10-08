@@ -1,0 +1,1557 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<!-- 자라다케어 보안 연동: 서버에 로그인 토큰을 자동으로 붙이고, 필요하면 비밀번호를 한 번 묻습니다 -->
+<script>
+(function () {
+  var KEY = 'jrd_auth_token';
+  var raw = window.fetch.bind(window);
+  var isApi = function (u) { return typeof u === 'string' && u.indexOf('script.google.com/macros/') !== -1; };
+  var loginInFlight = null;
+
+  function attach(url, opts, token) {
+    var o = Object.assign({}, opts || {});
+    var method = (o.method || 'GET').toUpperCase();
+    if (!token) return [url, o];
+    if (method === 'GET') {
+      url += (url.indexOf('?') !== -1 ? '&' : '?') + 'auth=' + encodeURIComponent(token);
+    } else if (typeof o.body === 'string') {
+      try { var b = JSON.parse(o.body); b.auth = token; o.body = JSON.stringify(b); } catch (e) {}
+    }
+    return [url, o];
+  }
+
+  function askLogin(apiUrl) {
+    if (loginInFlight) return loginInFlight;
+    loginInFlight = (async function () {
+      var base = apiUrl.split('?')[0];
+      for (var i = 0; i < 3; i++) {
+        var pw = window.prompt('자라다케어 보안 로그인\n원무과 비밀번호를 입력해주세요.');
+        if (pw === null) return null;
+        try {
+          var r = await raw(base, { method: 'POST', body: JSON.stringify({ action: 'login', password: pw }) });
+          var j = await r.json();
+          if (j && j.token) { localStorage.setItem(KEY, j.token); return j.token; }
+          window.alert((j && j.message) || '비밀번호가 올바르지 않습니다.');
+        } catch (e) { window.alert('서버에 연결할 수 없습니다.'); return null; }
+      }
+      return null;
+    })();
+    return loginInFlight.finally(function () { loginInFlight = null; });
+  }
+
+  window.fetch = async function (url, opts) {
+    if (!isApi(url)) return raw(url, opts);
+
+    // 앱 자체 로그인 요청: 그대로 보내고, 응답에 토큰이 있으면 저장
+    var body = null;
+    try { if (opts && typeof opts.body === 'string') body = JSON.parse(opts.body); } catch (e) {}
+    if (body && body.action === 'login') {
+      var lr = await raw(url, opts);
+      try { var lj = await lr.clone().json(); if (lj && lj.token) localStorage.setItem(KEY, lj.token); } catch (e) {}
+      return lr;
+    }
+
+    var a = attach(url, opts, localStorage.getItem(KEY));
+    var res = await raw(a[0], a[1]);
+    var j = null;
+    try { j = await res.clone().json(); } catch (e) {}
+    if (j && !Array.isArray(j) && j.code === 'AUTH_REQUIRED') {
+      localStorage.removeItem(KEY);
+      var t = await askLogin(url);
+      if (t) { a = attach(url, opts, t); res = await raw(a[0], a[1]); }
+    }
+    return res;
+  };
+
+  // 필요하면 콘솔에서 jrdLogout() 로 토큰을 지울 수 있습니다.
+  window.jrdLogout = function () { localStorage.removeItem(KEY); };
+})();
+</script>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>다음 내원일 안내 · 삼성자라다</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon-180.png">
+<link rel="manifest" href="manifest-doctor.json">
+<meta name="theme-color" content="#1B3A4B">
+<style>
+:root{
+  --primary:#1B3A4B; --accent:#C0902C; --secondary:#43555F;
+  --light:#FBF8F1; --border:#DED5C6; --ok:#2E8B57; --danger:#C0392B;
+  --radius:12px;
+}
+*{ box-sizing:border-box; }
+body{ font-family:'Noto Sans KR',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:var(--light); color:var(--primary); margin:0; padding:16px; max-width:560px; margin-left:auto; margin-right:auto; }
+header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+header h1{ font-size:17px; font-weight:800; }
+header button{ background:none; border:1px solid var(--border); border-radius:8px; padding:6px 10px; font-size:16px; cursor:pointer; }
+.cal-box{ background:#fff; border:1px solid var(--border); border-radius:var(--radius); padding:14px 14px 10px; margin-bottom:16px; }
+.field{ margin-bottom:12px; }
+.field label{ display:block; font-size:11.5px; font-weight:700; color:var(--secondary); margin-bottom:5px; }
+.field input, .field textarea, .field select{
+  width:100%; padding:10px; border:1px solid var(--border); border-radius:8px; font-size:14px; font-family:inherit; color:var(--primary); background:#fff;
+}
+.field textarea{ min-height:64px; resize:vertical; line-height:1.5; }
+.choice-row{ display:flex; gap:8px; }
+.choice-row.wrap{ flex-wrap:wrap; }
+.choice-btn{ padding:8px 12px; border:1.5px solid var(--border); border-radius:8px; background:#fff; color:var(--primary); font-size:12.5px; font-weight:600; cursor:pointer; }
+.choice-btn.active{ background:var(--primary); color:#fff; border-color:var(--primary); }
+.tpl-btn{ font-size:11.5px; padding:6px 10px; border:1.5px solid var(--border); border-radius:8px; background:#fff; color:var(--primary); cursor:pointer; font-weight:600; }
+.tpl-btn.used{ background:var(--primary); color:#fff; border-color:var(--primary); }
+.btn{ border:none; border-radius:9px; padding:12px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; }
+.btn-block{ width:100%; }
+.btn-primary{ background:var(--primary); color:#fff; }
+.btn-outline{ background:#fff; border:1px solid var(--border); color:var(--primary); }
+.section-title{ font-size:14px; font-weight:800; margin-bottom:8px; }
+.empty-note{ font-size:12px; color:var(--secondary); padding:10px 0; }
+.modal-ov{ display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:50; align-items:center; justify-content:center; }
+.modal-ov.open{ display:flex; }
+.modal{ background:#fff; border-radius:14px; padding:20px; width:90%; max-width:400px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📅 내원 안내 · 🌱 초진 접수</h1>
+  <button onclick="openSettings()">⚙️</button>
+</header>
+
+<div class="cal-box">
+  <div style="text-align:center;margin-bottom:14px;">
+    <div style="font-size:11px;color:var(--secondary);">삼성자라다소아청소년과 · 원무과 전용</div>
+  </div>
+
+  <div class="field"><label>환자명 *</label><input type="text" id="an_name" placeholder="홍길동"></div>
+
+  <div class="field">
+    <label>다음 내원 예정일 *</label>
+    <input type="text" inputmode="numeric" id="an_date_quick" placeholder="숫자만 쭉 입력 (예: 20260701)" maxlength="10" style="margin-bottom:6px;">
+    <input type="date" id="an_date">
+  </div>
+
+  <div class="field">
+    <label>내원 시간 (선택)</label>
+    <div class="choice-row" style="align-items:center;">
+      <button type="button" class="choice-btn active" id="an_timeNone" style="flex:0 0 auto;" onclick="toggleApptTimeNone()">미정</button>
+      <div id="an_timeWrap" style="display:none;align-items:center;gap:6px;flex:1;">
+        <select id="an_hour" style="flex:0 0 70px;"></select>
+        <span>:</span>
+        <select id="an_min" style="flex:0 0 70px;"></select>
+      </div>
+    </div>
+  </div>
+
+  <div class="field">
+    <label>검사 예정 (선택)</label>
+    <div class="choice-row wrap" id="an_tests">
+      <button type="button" class="choice-btn" data-multi="1" data-val="혈액검사">🔬 혈액검사</button>
+    <button type="button" class="choice-btn" data-multi="1" data-val="공복필요">🍽️ 공복 필요</button>
+    </div>
+  </div>
+
+  <div class="field">
+    <label>추가 안내 사항 (클릭하여 추가)</label>
+    <div class="choice-row wrap" id="an_templates" style="margin-bottom:8px;">
+        <button type="button" class="tpl-btn" id="an_introFormBtn" onclick="addApptMemo(this)" data-text="초진 기록지를 미리 작성해 오시면 진료가 빨라집니다: https://docs.google.com/forms/d/e/1FAIpQLScQHJ4Agz36KqkruYzihV_Cj-98uaHg-lLDQdAmL_v6kdgqeg/viewform">📝 초진 기록지 작성</button>
+    </div>
+    <textarea id="an_memo" rows="3" placeholder="위 버튼을 클릭하면 자동으로 추가됩니다. 직접 입력도 가능합니다."></textarea>
+    <div style="text-align:right;margin-top:2px;">
+      <span onclick="document.getElementById('an_memo').value='';resetApptMemoButtons();" style="font-size:11px;color:var(--secondary);cursor:pointer;text-decoration:underline;">전체 지우기</span>
+    </div>
+  </div>
+
+  <div class="field"><label>보호자 전화번호 *</label><input type="text" id="an_phone" placeholder="010-0000-0000"></div>
+
+  <button type="button" class="btn btn-primary btn-block" onclick="previewApptMsg()">👁️ 미리보기</button>
+</div>
+
+<div class="cal-box" id="an_previewBox" style="display:none;">
+  <div class="section-title">📱 문자 미리보기</div>
+  <textarea id="an_msgOutput" rows="10" style="width:100%;font-family:monospace;font-size:12px;line-height:1.6;"></textarea>
+  <div style="display:flex;gap:8px;margin-top:8px;">
+    <button type="button" class="btn btn-outline" style="flex:1;" onclick="copyApptMsg()">📋 복사</button>
+    <button type="button" class="btn btn-primary" style="flex:1;" id="an_sendBtn" onclick="sendApptMsg()">🚀 즉시 발송</button>
+  </div>
+  <div id="an_sendStatus" style="font-size:11px;margin-top:6px;"></div>
+</div>
+
+<div class="cal-box" id="bq_card" style="border-color:#2E7D6B;">
+  <div class="section-title" style="margin:0 0 6px;"><h2 style="margin:0;font-size:16px;">📋 초진 예약 대기열 <span style="font-size:10px;font-weight:400;opacity:.6;">(네이버 예약 · v11-2)</span></h2></div>
+  <p class="notice" style="font-size:12px;line-height:1.65;margin:0 0 8px;">네이버 예약으로 들어온 <b>초진 예약자</b>를 모아 보고, <b>초진 기록지를 아직 안 쓴 분</b>에게 작성 안내를 보내요. 기록지를 쓰면 <b>✅ 작성완료</b>로 바뀌어요. (보호자 연락처로 맞춰 봐요)</p>
+  <div id="bq_summary" style="font-size:12.5px;font-weight:700;margin:2px 0 8px;"></div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+    <button type="button" class="btn btn-outline" style="font-size:12px;padding:7px 11px;" onclick="bqToggle('bq_import')">📥 네이버 예약 붙여넣기</button>
+    <button type="button" class="btn btn-outline" style="font-size:12px;padding:7px 11px;" onclick="bqToggle('bq_add')">＋ 직접 추가</button>
+    <button type="button" class="btn btn-outline" style="font-size:12px;padding:7px 11px;" onclick="bqLoad()">🔄 새로고침</button>
+  </div>
+  <div id="bq_import" style="display:none;margin-bottom:10px;">
+    <div style="font-size:11.5px;color:var(--secondary);line-height:1.6;margin-bottom:5px;">네이버 예약 관리(예약자 목록)에서 <b>복사</b>하거나 엑셀에서 복사한 내용을 붙여넣으세요. 이름·연락처·이용일시·상품을 자동으로 읽어요. 읽은 결과는 저장 전에 고칠 수 있어요.</div>
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:0 0 6px;font-size:12px;">
+      <b>붙여넣는 목록의 이용일</b><input type="date" id="bq_batchDate" style="font-size:12px;padding:5px;">
+      <span style="color:var(--secondary);font-size:11px;">표에 날짜가 없고 시간만 있을 때 이 날짜로 넣어요 (네이버 예약자관리에서 보고 있는 날짜)</span>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:0 0 6px;">
+      <label class="btn btn-outline" style="font-size:12px;padding:7px 11px;cursor:pointer;margin:0;">📷 사진·📊 엑셀로 읽기<input type="file" id="bq_file" accept="image/*,.xlsx,.xls,.csv,.txt" multiple style="display:none;" onchange="bqFiles(this.files); this.value='';"></label>
+      <span style="font-size:11px;color:var(--secondary);">스크린샷은 칸에 바로 붙여넣기(Ctrl+V)도 돼요 · 사진은 🤖 AI가 읽어요(이름·번호가 AI 서비스로 전송돼요) · <b>읽은 결과를 꼭 확인</b>하세요</span>
+    </div>
+    <textarea id="bq_raw" onpaste="bqPasteImg(event)" rows="6" style="width:100%;font-size:12px;" placeholder="예) 홍길동   010-1234-5678   2026.10.12(월) 오후 2:30   초진 진료"></textarea>
+    <button type="button" class="btn btn-primary btn-block" style="margin-top:6px;" onclick="bqParse()">읽기</button>
+    <div id="bq_preview" style="margin-top:8px;"></div>
+  </div>
+  <div id="bq_add" style="display:none;margin-bottom:10px;padding:10px;border:1px dashed var(--border);border-radius:10px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+      <input type="text" id="bq_a_name" placeholder="예약자 이름" style="font-size:13px;padding:8px;">
+      <input type="tel" id="bq_a_phone" placeholder="010-0000-0000" style="font-size:13px;padding:8px;">
+      <input type="date" id="bq_a_date" style="font-size:13px;padding:8px;">
+      <input type="time" id="bq_a_time" style="font-size:13px;padding:8px;">
+    </div>
+    <button type="button" class="btn btn-primary btn-block" style="margin-top:6px;" onclick="bqAddManual()">대기열에 추가</button>
+  </div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px;font-size:12px;">
+    <button type="button" class="bq-f btn btn-outline" data-f="today" style="font-size:11.5px;padding:5px 10px;" onclick="bqSetFilter('today')">오늘·내일</button>
+    <button type="button" class="bq-f btn btn-outline" data-f="week" style="font-size:11.5px;padding:5px 10px;" onclick="bqSetFilter('week')">7일</button>
+    <button type="button" class="bq-f btn btn-outline" data-f="all" style="font-size:11.5px;padding:5px 10px;" onclick="bqSetFilter('all')">전체</button>
+    <label style="margin-left:4px;"><input type="checkbox" id="bq_onlyMissing" checked onchange="bqSetOpts()"> 기록지 미작성만</label>
+    <label><input type="checkbox" id="bq_hideRevisit" checked onchange="bqSetOpts()"> 재진 숨기기</label>
+    <label title="의사 앱 환자 목록에 이미 있는 보호자 번호로 예약한 분(재진 추정)을 숨겨요"><input type="checkbox" id="bq_hideKnown" checked onchange="bqSetOpts()"> 기존 환자 번호 숨기기</label>
+  </div>
+  <div id="bq_list" style="font-size:13px;"></div>
+  <div id="bq_status" style="font-size:11.5px;margin-top:6px;color:var(--secondary);"></div>
+</div>
+
+<div class="cal-box" id="fs_card" style="border-color:#7B4FA3;">
+  <div class="section-title">🌱 초진 접수 — 기록지 → 초진방 링크 + 사전 영상 발송 <span style="font-size:10px;font-weight:400;opacity:.6;">(v10-9)</span></div>
+  <p style="font-size:11.5px;color:var(--secondary);margin:0 0 10px;line-height:1.55;">환자가 구글폼(초진 기록지)을 제출하면 <b>「새 초진 기록지 불러오기」</b>에 나타납니다. 눌러서 고르세요(또는 응답 시트의 행을 복사해 붙여넣어도 돼요). 이름·생년월일·연락처를 읽고, 진료 전에 볼 영상 3편(7편 중)을 자동으로 고릅니다. 발송하면 <b>의사 앱 초진 탭에 자동으로 등록</b>됩니다.</p>
+  <button type="button" class="btn btn-outline btn-block" style="margin-bottom:8px;" onclick="fsLoadList()">📥 새 초진 기록지 불러오기</button>
+  <div id="fs_list" style="margin-bottom:10px;"></div>
+  <div style="font-size:11px;color:var(--secondary);margin-bottom:4px;">또는 응답 시트의 행을 복사해서 붙여넣기</div>
+  <div class="field"><textarea id="fs_raw" rows="4" placeholder="초진 기록지 한 줄을 그대로 붙여넣으세요"></textarea></div>
+  <button type="button" class="btn btn-primary btn-block" onclick="fsParse()">기록지 읽기</button>
+  <div id="fs_fields" style="display:none;margin-top:14px;">
+    <div id="fs_info" style="font-size:11.5px;color:var(--secondary);margin-bottom:10px;line-height:1.5;"></div>
+    <div class="field"><label>환자명 *</label><input type="text" id="fs_name"></div>
+    <div class="field"><label>생년월일 *</label><input type="date" id="fs_dob"></div>
+    <div class="field"><label>성별 *</label><select id="fs_sex"><option value="">선택</option><option value="F">여아</option><option value="M">남아</option></select></div>
+    <div class="field"><label>보호자 전화번호 *</label><input type="text" id="fs_phone" placeholder="010-0000-0000"></div>
+    <div class="field"><label>진료 예정일 (선택)</label><input type="date" id="fs_visit"></div>
+    <div class="field"><label>진료 전 시청 영상 (7편 중 최대 3편 · 눌러서 바꾸기)</label><div id="fs_videos" style="display:flex;flex-wrap:wrap;gap:6px;"></div></div>
+    <button type="button" class="btn btn-outline btn-block" onclick="fsPreview()">👁️ 발송 미리보기</button>
+    <div id="fs_previewBox" style="display:none;margin-top:10px;">
+      <div style="margin:0 0 8px;font-size:12px;line-height:1.5;">
+        <label style="display:block;margin-bottom:5px;"><input type="radio" name="fs_method" value="kakao" checked onchange="fsMethodChanged()"> <b>카카오톡 알림톡</b> (권장) — 승인된 안내 문구로 발송돼요. 카카오톡을 쓰지 않는 번호는 문자로 자동 대체돼요.</label>
+        <label style="display:block;"><input type="radio" name="fs_method" value="lms" onchange="fsMethodChanged()"> 문자(LMS) — 문구를 직접 고쳐서 보낼 수 있어요.</label>
+      </div>
+      <div id="fs_methodNote" style="font-size:11px;color:var(--secondary);margin-bottom:6px;line-height:1.5;"></div>
+      <textarea id="fs_msg" rows="14" oninput="fsMsgEdited()" style="width:100%;font-family:monospace;font-size:12px;line-height:1.6;"></textarea>
+      <button type="button" class="btn btn-primary btn-block" style="margin-top:8px;" id="fs_sendBtn" onclick="fsSend()">🚀 초진방 링크 발송</button>
+    </div>
+    <div id="fs_status" style="font-size:11.5px;margin-top:8px;"></div>
+  </div>
+</div>
+
+<div class="cal-box">
+  <div class="section-title">🕓 최근 발송 내역 (의사 앱과 공유)</div>
+  <div id="an_history"></div>
+</div>
+
+<!-- 설정: 백엔드 URL -->
+<div class="modal-ov" id="settingsOv" onclick="if(event.target.id==='settingsOv') closeSettings()">
+  <div class="modal">
+    <div class="section-title">⚙️ 연동 설정</div>
+    <div class="field"><label>백엔드 URL (Apps Script 웹앱 주소)</label><input type="text" id="cfgApiUrl" placeholder="https://script.google.com/macros/s/..."></div>
+    <div class="field"><label>사이트 주소 (환아 앱 파일이 올라간 폴더 URL)</label><input type="text" id="cfgSiteUrl" placeholder="예: https://ha5857-web.github.io/jarada-care/"></div>
+    <button class="btn btn-primary btn-block" onclick="saveSettings()">저장</button>
+  </div>
+</div>
+
+<script>
+const NAVER_RESERVATION_URL = 'https://map.naver.com/p/entry/place/2075175246?placePath=%2Fhome&c=15.00,0,0,0,dh';
+const INTAKE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScQHJ4Agz36KqkruYzihV_Cj-98uaHg-lLDQdAmL_v6kdgqeg/viewform'; // 환아가 열 수 있는 공개 응답 주소
+
+function getApiUrl(){ return localStorage.getItem('jrd_api_url') || ''; }
+function openSettings(){
+  document.getElementById('cfgApiUrl').value = getApiUrl();
+  document.getElementById('cfgSiteUrl').value = localStorage.getItem('jrd_site_url') || '';
+  document.getElementById('settingsOv').classList.add('open');
+}
+function closeSettings(){ document.getElementById('settingsOv').classList.remove('open'); }
+function saveSettings(){
+  const v = document.getElementById('cfgApiUrl').value.trim();
+  localStorage.setItem('jrd_api_url', v);
+  localStorage.setItem('jrd_site_url', document.getElementById('cfgSiteUrl').value.trim());
+  closeSettings();
+  renderApptHistory();
+}
+
+function escapeHtml(s){ return (s||'').toString().replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fmtDate(d){
+  if(!d) return '';
+  const dt = new Date(d+'T00:00:00');
+  if(isNaN(dt)) return d;
+  return `${dt.getFullYear()}.${String(dt.getMonth()+1).padStart(2,'0')}.${String(dt.getDate()).padStart(2,'0')}`;
+}
+function timeAgo(ts){
+  if(!ts) return '';
+  const diff = Date.now() - new Date(ts).getTime();
+  const min = Math.floor(diff/60000);
+  if(min < 1) return '방금';
+  if(min < 60) return `${min}분 전`;
+  const hr = Math.floor(min/60);
+  if(hr < 24) return `${hr}시간 전`;
+  return `${Math.floor(hr/24)}일 전`;
+}
+function getMultiChoiceGroup(groupId){
+  const group = document.getElementById(groupId);
+  if(!group) return [];
+  return Array.from(group.querySelectorAll('.choice-btn.active')).map(b=>b.dataset.val);
+}
+// choice-btn (data-multi="1") 토글: 클릭할 때마다 active 상태를 바꿔서 여러 개 선택 가능하게 합니다.
+document.addEventListener('click', e=>{
+  const btn = e.target.closest('.choice-btn');
+  if(btn && btn.dataset.multi==='1') btn.classList.toggle('active');
+});
+
+// 일반 날짜 입력을 숫자로 빠르게 채우는 도우미
+function attachQuickDateInput(quickId, targetId){
+  const quick = document.getElementById(quickId);
+  if(!quick) return;
+  quick.addEventListener('input', ()=>{
+    const digits = quick.value.replace(/\D/g,'').slice(0,8);
+    let formatted = digits;
+    if(digits.length > 4) formatted = digits.slice(0,4) + '-' + digits.slice(4,6) + (digits.length>6 ? '-'+digits.slice(6,8) : '');
+    quick.value = formatted;
+    if(digits.length === 8){
+      const y = digits.slice(0,4), m = digits.slice(4,6), d = digits.slice(6,8);
+      const test = new Date(`${y}-${m}-${d}T00:00:00`);
+      if(!isNaN(test) && Number(m)>=1 && Number(m)<=12 && Number(d)>=1 && Number(d)<=31){
+        document.getElementById(targetId).value = `${y}-${m}-${d}`;
+      }
+    }
+  });
+}
+attachQuickDateInput('an_date_quick', 'an_date');
+
+(function initApptTimeSelects(){
+  const hourSel = document.getElementById('an_hour');
+  const minSel = document.getElementById('an_min');
+  for(let h=9; h<=20; h++) hourSel.innerHTML += `<option value="${h}">${String(h).padStart(2,'0')}시</option>`;
+  for(let m=0; m<60; m+=10) minSel.innerHTML += `<option value="${m}">${String(m).padStart(2,'0')}분</option>`;
+})();
+function toggleApptTimeNone(){
+  const btn = document.getElementById('an_timeNone');
+  const wrap = document.getElementById('an_timeWrap');
+  const isNone = !btn.classList.contains('active');
+  btn.classList.toggle('active', isNone);
+  wrap.style.display = isNone ? 'none' : 'flex';
+}
+function addApptMemo(btn){
+  const text = btn.dataset.text;
+  const memo = document.getElementById('an_memo');
+  if(btn.classList.contains('used')){
+    let current = memo.value;
+    if(current.trim()===text.trim()) current = '';
+    else if(current.includes('\n'+text)) current = current.replace('\n'+text, '');
+    else if(current.startsWith(text)) current = current.slice(text.length).replace(/^\n/, '');
+    else if(current.includes(text)) current = current.replace(text, '');
+    memo.value = current.trim();
+    btn.classList.remove('used');
+  } else {
+    if(memo.value.trim()) memo.value += '\n';
+    memo.value += text;
+    btn.classList.add('used');
+  }
+}
+function resetApptMemoButtons(){
+  document.querySelectorAll('#an_templates .tpl-btn').forEach(b=>b.classList.remove('used'));
+}
+function formatDateKr(dateStr){
+  if(!dateStr) return '';
+  const d = new Date(dateStr+'T00:00:00');
+  const days = ['일','월','화','수','목','금','토'];
+  return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일(${days[d.getDay()]})`;
+}
+function previewApptMsg(){
+  const name = document.getElementById('an_name').value.trim();
+  const dateVal = document.getElementById('an_date').value;
+  if(!name){ alert('환자명을 입력해주세요.'); return; }
+  if(!dateVal){ alert('다음 내원 예정일을 선택해주세요.'); return; }
+
+  const dateKr = formatDateKr(dateVal);
+  const isTimeNone = document.getElementById('an_timeNone').classList.contains('active');
+  let timeStr = '';
+  if(!isTimeNone){
+    const h = parseInt(document.getElementById('an_hour').value||'9');
+    const m = document.getElementById('an_min').value||'0';
+    const ampm = h < 12 ? '오전' : '오후';
+    const h12 = h > 12 ? h-12 : h;
+    timeStr = `${ampm} ${h12}시` + (m!=='0' ? ` ${m}분` : '');
+  }
+
+  const allTests = getMultiChoiceGroup('an_tests');
+  const needsFasting = allTests.includes('공복필요');
+  const tests = allTests.filter(t => t !== '공복필요'); // 공복필요는 검사 목록이 아니라 별도 안내로 표시
+  const memo = document.getElementById('an_memo').value.trim();
+
+  let msg = `안녕하세요, 삼성자라다소아청소년과입니다.\n`;
+  msg += `${name} 환아분의 다음 내원 일정을 안내드립니다.\n\n`;
+  msg += `📅 다음 내원일: ${dateKr}`;
+  if(timeStr) msg += ` ${timeStr}`;
+  msg += `\n`;
+  if(tests.length) msg += `\n🔬 예정 검사: ${tests.join(', ')}\n`;
+  if(needsFasting) msg += `\n⚠️ 검사를 위해 공복이 필요합니다.\n- 전날 밤 10시 이후 금식을 유지해 주세요.\n- 밤까지는 물 가능, 검사 당일 아침부터는 물도 금식입니다.\n`;
+  if(memo) msg += `\n📌 안내사항\n${memo}\n`;
+  msg += `\n📅 예약확인/변경: ${NAVER_RESERVATION_URL}\n`;
+  msg += `☎ 02-523-0111\n`;
+  msg += `\n- 삼성자라다소아청소년과 -`;
+
+  document.getElementById('an_msgOutput').value = msg;
+  document.getElementById('an_previewBox').style.display = 'block';
+  document.getElementById('an_sendStatus').textContent = '';
+  const btn = document.getElementById('an_sendBtn');
+  btn.disabled = false; btn.textContent = '🚀 즉시 발송';
+}
+function copyApptMsg(){
+  navigator.clipboard.writeText(document.getElementById('an_msgOutput').value);
+  const status = document.getElementById('an_sendStatus');
+  status.textContent = '📋 복사되었습니다.'; status.style.color = 'var(--secondary)';
+}
+async function sendApptMsg(){
+  const api = getApiUrl();
+  if(!api){ openSettings(); return; }
+  const phone = document.getElementById('an_phone').value.trim();
+  if(!phone){ alert('보호자 전화번호를 입력해주세요.'); return; }
+  const text = document.getElementById('an_msgOutput').value;
+  const btn = document.getElementById('an_sendBtn');
+  const status = document.getElementById('an_sendStatus');
+  btn.disabled = true; btn.textContent = '📤 발송 중…';
+  status.textContent = ''; status.style.color = 'var(--secondary)';
+  try{
+    const res = await fetch(api, { method:'POST', body: JSON.stringify({
+      action: 'sendvisitnotice', phone, text,
+      name: document.getElementById('an_name').value.trim(),
+      date: document.getElementById('an_date').value,
+      timeStr: document.getElementById('an_timeNone').classList.contains('active') ? '' : `${document.getElementById('an_hour').value}:${document.getElementById('an_min').value}`,
+      tests: getMultiChoiceGroup('an_tests'),
+      memo: document.getElementById('an_memo').value.trim(),
+      formLink: document.getElementById('an_introFormBtn').classList.contains('used') ? INTAKE_FORM_URL : ''
+    })});
+    const data = await res.json();
+    if(data.status==='ok'){
+      status.textContent = '✅ 발송 완료되었습니다.'; status.style.color = 'var(--ok)';
+      btn.textContent = '✅ 발송됨';
+      renderApptHistory();
+    } else {
+      status.textContent = '❌ 발송 실패: ' + (data.message||'알 수 없는 오류'); status.style.color = 'var(--danger)';
+      btn.disabled = false; btn.textContent = '🚀 즉시 발송';
+    }
+  }catch(err){
+    status.textContent = '❌ 발송 중 오류가 발생했습니다.'; status.style.color = 'var(--danger)';
+    btn.disabled = false; btn.textContent = '🚀 즉시 발송';
+  }
+}
+async function renderApptHistory(){
+  const box = document.getElementById('an_history');
+  const api = getApiUrl();
+  if(!api){ box.innerHTML = `<div class="empty-note">⚙️ 설정에서 백엔드 URL을 먼저 입력해주세요.</div>`; return; }
+  try{
+    const res = await fetch(api);
+    const rows = await res.json();
+    const list = rows.filter(r=>r.type==='visitNoticeSent').sort((a,b)=> a.timestamp < b.timestamp ? 1 : -1).slice(0, 20);
+    if(!list.length){ box.innerHTML = `<div class="empty-note">아직 발송 내역이 없습니다.</div>`; return; }
+    box.innerHTML = list.map(r=>{
+      let d = {};
+      try{ d = JSON.parse(r.question||'{}'); }catch(e){}
+      return `<div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:12px;">
+        <b>${escapeHtml(d.name||'')}</b> · ${d.kind==='firstvisit' ? '🌱 초진 접수' + (d.date?' · 진료 '+fmtDate(d.date):'') : (fmtDate(d.date)||'')}${d.timeStr?' '+d.timeStr:''}
+        <div style="color:var(--secondary);font-size:11px;margin-top:2px;">${timeAgo(r.timestamp)} 발송${d.channels&&d.channels.length?' · '+d.channels.map(c=>c==='kakao'?'💛카카오':'📱문자').join('+'):''}${d.tests&&d.tests.length?' · '+escapeHtml(d.tests.join(', ')):''}</div>
+      </div>`;
+    }).join('');
+  }catch(err){ box.innerHTML = `<div class="empty-note">불러오지 못했습니다.</div>`; }
+}
+
+/* ===================== 🌱 초진 접수 ===================== */
+
+/* =====================================================================
+ * 초진 공용 모듈 (원무과용 visit-notice.html · 의사용 index.html 에서 똑같이 씁니다)
+ *  - 영상추천_수정본.html 의 "초진 기록지 → 7편 중 3편 선별" 로직을 그대로 옮긴 것입니다.
+ *  - 초진 기록지 한 줄(구글폼 응답)에서 이름·생년월일·성별·연락처·키/몸무게를 읽습니다.
+ * ===================================================================== */
+const FV_DEFAULT_PREP = [
+  '이전에 재어둔 키·몸무게 기록(학교 건강검진 결과, 소아과 기록 등)이 있으면 사진으로 올려주세요.',
+  '이전 검사 결과(혈액검사, 엑스레이 등)가 있으면 사진으로 올려주세요.',
+  '복용 중인 약과 영양제가 있다면 이름을 메모해 오세요.',
+  '진료 전 아래 영상을 시청하고 오시면 설명을 훨씬 쉽게 이해하실 수 있어요.'
+].join('\n');
+// 환아에게 나가는 초진 안내용 구글폼 (공개 응답 주소)
+// 맞춤 영상 화면(자라다케어 사이트) — 이 주소 뒤에 ?v=145 처럼 영상 번호를 붙이면 코드 입력 없이 바로 열립니다.
+const FV_VIDEO_SITE = 'https://jaradacare.com/';
+const FV_INTAKE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScQHJ4Agz36KqkruYzihV_Cj-98uaHg-lLDQdAmL_v6kdgqeg/viewform';
+
+const JRDV = (function(){
+  /* ---------- 보호자 안내 영상 7편 (영상추천_수정본.html 과 동일) ---------- */
+  const VIDEOS = [
+    {no:1,title:"우리 아이, 잘 크고 있나요",sub:"성장속도 · 키 순위보다 1년에 몇 cm",src:"https://youtu.be/ccxsr-6cdn4"},
+    {no:2,title:"키 크는 습관, 1순위는 잠입니다",sub:"생활습관 · 수면, 영양, 운동의 순서",src:"https://youtu.be/W80S1rwvM6Y"},
+    {no:3,title:"왜 이렇게 검사가 많을까요",sub:"성조숙증 검사 · 불필요한 치료를 막는 이유",src:"https://youtu.be/Nkz4dDbGNeY"},
+    {no:4,title:"이 주사, 어떻게 작용하나요",sub:"성조숙증 치료 · 층간소음으로 이해하는 억제",src:"https://youtu.be/ta7bS_O1rFs"},
+    {no:5,title:"몇 cm나 클까요",sub:"성장호르몬 효과 · 솔직하게 말씀드립니다",src:"https://youtu.be/ijNvlNmLn1M"},
+    {no:6,title:"우리 아이도 병행치료 해야 할까요",sub:"병행치료 · 가이드라인이 권하는 두 경우",src:"https://youtu.be/zC8_55pK0TQ"},
+    {no:7,title:"물만 먹어도 살찌는 아이",sub:"인슐린저항성 · 과장이 아닙니다",src:"https://youtu.be/DxoqacQTMYQ"}
+  ];
+  const KIOSK_BASE = "https://ha5857-web.github.io/jarada-kiosk/";
+  const V = no => VIDEOS.find(x=>x.no===no);
+  let sexOverride = null;
+
+  /* 날짜+시각이 붙은 칸(구글폼 제출 시각 "2026. 8. 22 오후 5:57:54")은 생년월일이 아닙니다. */
+  function findDobStr(raw){
+    const text = String(raw||'');
+    const re = /((?:19|20)\d{2})\s*[.\-\/년]\s*(\d{1,2})\s*[.\-\/월]\s*(\d{1,2})(?!\d)/g;
+    const cands = [];
+    const scan = (txt)=>{
+      let m; re.lastIndex = 0;
+      while((m = re.exec(txt))){
+        const after = txt.slice(m.index + m[0].length);
+        if(/^\s*(?:오전|오후)?\s*\d{1,2}\s*:\s*\d{2}/.test(after)) continue;      // 제출 시각
+        const y=+m[1], mo=+m[2], d=+m[3];
+        if(mo<1||mo>12||d<1||d>31) continue;
+        const age = (Date.now() - new Date(y,mo-1,d)) / 31557600000;
+        if(age<0 || age>25) continue;                                              // 아이 나이가 아님
+        cands.push(`${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`);
+      }
+    };
+    const cols = text.split('\t');
+    for(const c of cols.slice(0,5)){ scan(c); if(cands.length) return cands[0]; }
+    scan(text.replace(/\s+/g,' '));
+    return cands[0] || '';
+  }
+
+/* 2017 한국 소아청소년 성장도표 근사값 (만 3~17세, P50 / SD) — 선별용 */
+const HT={
+ M:{p50:[96.5,103.1,109.6,115.9,122.1,127.9,133.4,138.8,144.7,151.4,158.6,165.0,169.2,171.4,172.6],
+    sd :[4.2,4.5,4.7,5.0,5.3,5.6,5.9,6.3,6.8,7.3,7.5,7.0,6.3,5.9,5.8]},
+ F:{p50:[95.4,101.9,108.4,114.7,120.8,126.7,132.6,139.1,145.8,151.7,155.9,158.3,159.5,160.0,160.2],
+    sd :[4.2,4.4,4.6,4.9,5.2,5.5,6.0,6.4,6.6,6.3,5.8,5.6,5.5,5.4,5.4]}};
+/* BMI 85th / 95th 근사 (만 5~17세) */
+const BMI85={M:[17.0,17.3,17.9,18.6,19.4,20.2,21.0,21.8,22.5,23.2,23.8,24.3,24.8],
+             F:[16.9,17.2,17.8,18.5,19.4,20.3,21.2,22.0,22.7,23.3,23.7,24.0,24.3]};
+const BMI95={M:[18.3,18.9,19.8,20.8,21.9,22.9,23.9,24.8,25.6,26.3,26.9,27.4,27.9],
+             F:[18.1,18.8,19.7,20.7,21.8,22.9,23.9,24.8,25.5,26.1,26.5,26.8,27.1]};
+/* 연령별 정상 성장속도 하한 (cm/년) */
+function gvFloor(a){ return a<2?9 : a<4?6 : a<10?4.5 : 4; }
+
+function interp(arr,age,base){
+  const i=Math.max(0,Math.min(arr.length-2,Math.floor(age)-base));
+  const f=Math.max(0,Math.min(1,age-base-i));
+  return arr[i]+(arr[i+1]-arr[i])*f;
+}
+function zToP(z){ // 정규분포 근사
+  const t=1/(1+0.2316419*Math.abs(z));
+  const d=0.3989423*Math.exp(-z*z/2);
+  let p=d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));
+  p=z>0?1-p:p; return Math.round(p*1000)/10;
+}
+function htZ(sex,age,cm){
+  if(age<3||age>17||!cm) return null;
+  const T=HT[sex]; return (cm-interp(T.p50,age,3))/interp(T.sd,age,3);
+}
+function bmiBand(sex,age,bmi){
+  if(age<5||age>17||!bmi) return null;
+  if(bmi>=interp(BMI95[sex],age,5)) return 95;
+  if(bmi>=interp(BMI85[sex],age,5)) return 85;
+  return 0;
+}
+
+/* ---------- 기록지 파싱 ---------- */
+
+function num(re,t){ const m=t.match(re); return m?parseFloat(m[1]):null; }
+
+// 취침시각 추출 — "10시~11시이전 취침 7시반 기상"처럼 범위·수식어가 섞이거나
+// 취침·기상 시각이 한 문장에 같이 나오는 표현에서도 안정적으로 "취침" 쪽 숫자만 골라낸다.
+function extractBedHour(t){
+  const bedIdx = t.indexOf('취침');
+  if (bedIdx < 0) return null;
+  const wakeIdx = t.indexOf('기상');
+
+  // 1) '취침' 앞쪽 근처에서 가장 마지막 'N시'를 찾는다.
+  //    범위 표기("10시~11시이전 취침")면 뒤쪽(더 늦은) 숫자가 채택된다.
+  const before = t.slice(Math.max(0, bedIdx - 20), bedIdx);
+  const beforeNums = [...before.matchAll(/(\d{1,2})\s*시/g)];
+  if (beforeNums.length) return +beforeNums[beforeNums.length - 1][1];
+
+  // 2) 앞에 없으면 '취침' 뒤에서 찾되, 그 사이에 '기상'이 먼저 나오면
+  //    그 숫자는 기상시각이므로 채택하지 않는다.
+  let after = t.slice(bedIdx, Math.min(t.length, bedIdx + 15));
+  if (wakeIdx > bedIdx) {
+    const rel = wakeIdx - bedIdx;
+    if (rel < after.length) after = after.slice(0, rel);
+  }
+  const m = after.match(/(\d{1,2})\s*시/);
+  return m ? +m[1] : null;
+}
+
+function parseIntake(raw){
+  const t=raw.replace(/\s+/g," ");
+  const o={};
+
+  // 생년월일 → 만나이 (제출 시각 같은 "날짜+시각" 칸은 생년월일로 읽지 않습니다)
+  const dobStr=findDobStr(raw);
+  if(dobStr){ const dp=dobStr.split('-').map(Number); const b=new Date(dp[0],dp[1]-1,dp[2]);
+    o.dob=dobStr; o.age=Math.round(((Date.now()-b)/31557600000)*10)/10;
+    if(o.age<0||o.age>25) o.age=null; }
+
+  // 성별 추정 — 가중 투표 (기록지에 성별 칸이 없어 단서를 모아 판단)
+  let m=0,f=0;
+  if(/남아\s*[-–:]|고환|변성기|음경|포경|아들/.test(t)) m+=5;
+  if(/여아\s*[-–:]|가슴\s*(멍울|몽우리|발달)|유방|분비물|외동딸|장녀|딸/.test(t)) f+=5;
+  if(/(초경|생리)\s*(을|를)?\s*(시작|했)/.test(t)) f+=5;      // 아이 초경
+  if(/\d\s*남\s*\d*\s*녀/.test(t)){ /* 남매 — 판단 보류 */ }
+  else{ if(/\d\s*녀\s*중|\d녀중/.test(t)) f+=3;
+        if(/\d\s*남\s*중|\d남중|장남/.test(t)) m+=3; }
+  o.sex = m>f?"M" : f>m?"F" : null;
+  if(sexOverride) o.sex=sexOverride;
+
+  // 키 · 몸무게
+  o.ht=num(/키\s*:?\s*(\d{2,3}(?:\.\d)?)/,t) || num(/(\d{2,3}(?:\.\d)?)\s*cm\s*\/\s*몸무게/,t);
+  o.wt=num(/몸무게\s*:?\s*(\d{1,3}(?:\.\d)?)/,t) || num(/체중\s*:?\s*(\d{1,3}(?:\.\d)?)/,t);
+  if(!o.ht||!o.wt){                      // "2026-04-20/169.4/63.5" 처럼 라벨 없는 표기
+    const bare=t.match(/\/\s*(\d{2,3}(?:\.\d)?)\s*(?:cm)?\s*\/\s*(\d{1,3}(?:\.\d)?)\s*(?:kg)?/);
+    if(bare){ o.ht=o.ht||+bare[1]; o.wt=o.wt||+bare[2]; }
+  }
+  if(o.ht&&(o.ht<45||o.ht>200)) o.ht=null;
+  if(o.wt&&(o.wt<3||o.wt>150)) o.wt=null;
+  if(o.ht&&o.wt) o.bmi=Math.round(o.wt/Math.pow(o.ht/100,2)*10)/10;
+
+  // 부모 키
+  o.fh=num(/(?:아버지|아빠|부)\s*:?\s*(1[5-9]\d(?:\.\d)?)/,t);
+  o.mh=num(/(?:어머니|어머님|엄마|모)\s*:?\s*(1[4-8]\d(?:\.\d)?)/,t);
+  if(!o.fh||!o.mh){ const pair=t.match(/(1[5-9]\d(?:\.\d)?)\s*\/\s*(1[4-8]\d(?:\.\d)?)/);
+    if(pair){ o.fh=o.fh||+pair[1]; o.mh=o.mh||+pair[2]; } }
+  if(o.fh&&o.mh&&o.sex) o.mph=Math.round(((o.fh+o.mh+(o.sex==="M"?13:-13))/2)*10)/10;
+
+  // 성장속도
+  o.gv=num(/1년\s*(?:간|동안)?\s*(?:약\s*|대략\s*)?([\d.]+)\s*(?:cm|센치|센티)/,t)
+     || num(/([\d.]+)\s*(?:cm|센치|센티)\s*(?:정도\s*)?(?:성장|자람|큼)/,t);
+
+  if(o.gv===null||o.gv===undefined){ // 한 칸에 "8cm"처럼 값만 적힌 1년 성장량 (1~15cm)
+    const cols=String(raw).split('\t').map(c=>c.trim()); for(const c of cols){ const mm=c.match(/^(\d{1,2}(?:\.\d)?)\s*(?:cm|센치|센티)$/i); if(mm){ const v=parseFloat(mm[1]); if(v>=1&&v<=15){ o.gv=v; break; } } } }
+
+  // 모 초경
+  const men=t.match(/초경\s*:?\s*(초\s*\d|중\s*\d|고\s*\d|만?\s*\d{1,2}\s*세)/);
+  if(men){ const v=men[1].replace(/\s/g,"");
+    o.mMen = /초[1-5]/.test(v)||/1[01]세/.test(v) ? "early" : /초6|중1/.test(v) ? "avg" : "late"; }
+
+  // 사춘기 징후
+  o.pub = /가슴\s*(멍울|몽우리|발달|나옴|통증)|유방|분비물|초경\s*시작|생리\s*시작|고환\s*(크기)?\s*(변화|커)|변성기|음모|체모|겨드랑이\s*털|정수리\s*냄새|머리\s*냄새|여드름|피지/.test(t)
+        && !/징후\s*(는)?\s*(없|아직|모름|관찰\s*안)|없음\s*$/.test(t.slice(-30));
+  { const tv=num(/고환\s*:?\s*(\d+(?:\.\d+)?)\s*(?:cc|ml|mL|㎖)/i,t); if(tv!==null){ o.testis=tv; if(tv>=4) o.pub=true; } }
+  o.onGH = /성장\s*호르몬\s*(?:투여|주사|치료)\s*중|GH\s*(?:투여|주사|치료)\s*중|투여\s*중인?\s*약물?\s*:?\s*성장\s*호르몬/i.test(t);  // 이미 성장호르몬 치료 중
+  o.menarche = /초경\s*시작|생리\s*(를)?\s*시작|초경\s*했|생리\s*중/.test(t);
+
+  // 생활
+  // 취침시각: "10시~11시이전 취침 7시반 기상"처럼 범위·수식어(이전/경 등)가 섞이거나
+  // 취침과 기상 시각이 한 문장에 같이 나오는 실제 기록 표현을 견고하게 처리한다.
+  // (예전 방식은 이런 경우 기상시각을 취침시각으로 잘못 읽는 경우가 있었음)
+  const bedHour = extractBedHour(t);
+  if(bedHour!==null){
+    let h=bedHour;
+    // "몇 시 취침"이라는 문구는 대개 오후~자정 무렵을 가리킴 — 12(자정)=24, 8~11시=오후 8~11시(20~23),
+    // 1~7시=다음날 새벽(25~31)로 환산해야 "늦게 잔다"는 판정이 실제 시각과 맞아떨어진다.
+    if(h===12) h=24;
+    else if(h>=1&&h<=7) h+=24;
+    else if(h>=8&&h<=11) h+=12;
+    o.bed=h;
+  }
+  o.lateBed = o.bed>=23 || /새벽\s*[1-5]\s*시|12시\s*(넘어|이후)|자정/.test(t);
+  o.media = num(/(\d)\s*시간/,(t.match(/(?:스마트폰|태블릿|미디어|폰)[^가-힣]{0,20}\d\s*시간/)||[""])[0]) || 0;
+  o.noExercise = /운동\s*(은)?\s*(없|안\s*함|거의\s*안|x|X|하지\s*않)/.test(t);
+  o.picky = /편식|안\s*먹|잘\s*안\s*먹|입이\s*짧|식욕\s*(이)?\s*없|소식|식사량\s*(이)?\s*적|양이\s*적/.test(t);
+  o.noMilk = /우유\s*(는)?\s*(거의\s*)?(안\s*(먹|마)|잘\s*안|싫어|안먹)|유제품\s*(거의\s*)?안/.test(t);
+  o.snack = /간식\s*(을)?\s*(좋아|많이|자주|매일)|단\s*음료|군것질|과자\s*(를)?\s*(좋아|자주|매일)/.test(t);
+
+  // 보호자 걱정 문구
+  o.cShort = /작(은|음|아|다|고)|앞번호|또래보다\s*(작|덜)|저신장|덜\s*자라|성장이\s*(더디|느리)/.test(t);
+  o.cTall  = /또래보다\s*(크|큼)|친구보다\s*키가\s*큼|많이\s*큼|커서\s*(걱정|나중)/.test(t);
+  o.cPub   = /성조숙|조숙|초경(이)?\s*(빠|일찍)|사춘기(가)?\s*(빠|일찍)|2차\s*성징/.test(t);
+  o.cObes  = /비만|과체중|살이\s*(찌|많)|체중이\s*(많이|늘)|통통|뚱뚱/.test(t);
+  o.cBone  = /뼈\s*나이|골연령|성장판|예측키|최종\s*키|남은\s*성장|얼마나\s*더/.test(t);
+  o.cDrop  = /백분위\s*(가)?\s*(감소|떨어|내려)|퍼센트\s*(가)?\s*(감소|떨어|내려)|점점\s*(작|차이|격차)|성장이\s*(멈|둔화|정체)|안\s*크/.test(t);
+  return o;
+}
+
+/* ---------- 점수화 ---------- */
+const PRIO1=[4,5,3,1,7,2];
+function scoreIntake(o){
+  const S={},W={};
+  const add=(no,pt,why)=>{ S[no]=(S[no]||0)+pt; if(why){(W[no]=W[no]||[]); if(!W[no].includes(why))W[no].push(why);} };
+
+  const z = (o.sex&&o.age&&o.ht)?htZ(o.sex,o.age,o.ht):null;
+  const p = z!==null?zToP(z):null;
+  const bb= (o.sex&&o.age&&o.bmi)?bmiBand(o.sex,o.age,o.bmi):null;
+  o._z=z; o._p=p; o._bb=bb;
+
+  const early = o.pub && o.age && (o.sex==="F" ? o.age<8.5 : o.age<9.5);
+
+  /* ── 3번 사춘기 · 성조숙 ── */
+  if(o.pub&&o.age){
+    const border= o.sex==="F" ? o.age<9.5 : o.age<10.5;
+    if(early)      add(4,12,`만 ${o.age}세에 사춘기 징후`);
+    else if(border)add(4,8,`만 ${o.age}세 · 사춘기 징후 (경계)`);
+    else           add(4,4,"사춘기 징후 확인됨");
+  }
+  if(o.menarche) add(4,7,"초경 시작");
+  if(o.cPub) add(4,3,"보호자가 성조숙을 걱정");
+  if(o.mMen==="early") add(4,2,"어머니 초경이 빠른 편");
+  if(z!==null&&z>1.3&&o.age&&o.age<10) add(4,4,`또래보다 큼 (${p}백분위)`);
+  if(o.cTall) add(4,2,"또래보다 크다는 걱정");
+
+  /* ── 1번 성장도표 · 저신장 ── */
+  if(p!==null){
+    if(p<=3)       add(1,12,`신장 ${p}백분위`);
+    else if(p<=10) add(1,8,`신장 ${p}백분위`);
+    else if(p<=25) add(1,5,`신장 ${p}백분위`);
+  }
+  if(o.mph&&o.ht&&o.age>=8&&z!==null){
+    const mz=htZ(o.sex,17,o.mph);
+    if(mz!==null&&z-mz<=-1.2) add(1,5,"중간부모키 대비 낮음");
+  }
+  if(o.cShort) add(1,p===null?3:1,"또래보다 작다는 걱정");
+
+  /* ── 2번 골연령 · 남은 성장 ── */
+  if(o.gv!==null&&o.age){
+    const f=gvFloor(o.age);
+    if(o.gv<f-1.5) add(5,11,`성장속도 ${o.gv}cm/년`);
+    else if(o.gv<f) add(5,7,`성장속도 ${o.gv}cm/년`);
+    else if(o.gv>f+3.5&&o.age<11) add(5,5,`성장속도 ${o.gv}cm/년 (빠름)`);
+  }
+  if(o.cDrop) add(5,7,"백분위 하락 · 성장 둔화 호소");
+  if(o.cBone) add(5,6,"뼈나이·예측키를 궁금해함");
+  if(o.pub&&p!==null&&p<=25) add(5,6,"사춘기 징후 + 낮은 백분위");
+  if(o.pub&&o.age>=10) add(5,3,"사춘기 진행 중");
+
+  /* ── 7번 비만 · 대사 ── */
+  if(bb===95) add(7,11,`BMI ${o.bmi} (95백분위 이상)`);
+  else if(bb===85) add(7,7,`BMI ${o.bmi} (85백분위 이상)`);
+  if(o.cObes) add(7,3,"체중 증가를 걱정");
+  if(bb&&o.snack) add(7,2,"간식·단음료 잦음");
+
+  /* ── 4번 검사 안내 ── 초진에서 검사로 이어질 가능성이 높은 소견 */
+  if(o.onGH) add(5,6,"성장호르몬 치료 중 · 효과 궁금");   // 이미 치료 중이면 효과 설명(5번)을 우선, 검사 안내(3번)는 빼기
+  const willTest = !o.onGH && ((p!==null&&p<=10) || (o.gv!==null&&o.age&&o.gv<gvFloor(o.age)) || early || bb===95);
+  if(willTest) add(3,5,"검사로 이어질 가능성이 높음");
+  if(o.cBone) add(3,3,"검사·예측키를 궁금해함");
+
+  /* ── 5번 생활습관 ── */
+  if(o.lateBed) add(2,4,"취침이 늦음");
+  if(o.media>=3) add(2,3,`미디어 ${o.media}시간`);
+  if(o.noExercise) add(2,1,"규칙적 운동 없음");
+  if(o.picky) add(2,1,"편식·소식");
+
+  if(!Object.keys(S).length) add(1,5,"특이 소견 없음 · 기본 안내");
+
+  let out=Object.keys(S).map(Number)
+    .map(no=>({no,score:S[no],why:(W[no]||[]).slice(0,2).join(" · ")}))
+    .sort((a,b)=>b.score-a.score || PRIO1.indexOf(a.no)-PRIO1.indexOf(b.no));
+
+  /* 기존 초진 890건을 돌려 보니 신장 중앙값이 25백분위, 48%가 25백분위 이하였습니다.
+     1번(성장도표 읽는 법)은 사실상 전 환자 공통이라 개별 슬롯을 차지할 이유가 없어,
+     1순위에 고정하고 나머지 두 칸을 개별화합니다.
+     예외 — 신장이 50백분위 이상이면서 조기 사춘기나 고도비만이 뚜렷하면 1번을 뺍니다. */
+  const drop1 = (p!==null && p>=50) && (early || bb===95);
+
+  let final;
+  if(drop1){ final=out.slice(0,3); }
+  else{
+    const common = out.find(r=>r.no===1) || {no:1,score:0,why:"전 환자 공통 · 성장 평가 기본"};
+    final=[common].concat(out.filter(r=>r.no!==1).slice(0,2));
+  }
+  const fill=[[5,"예측키 기본 안내"],[3,"검사 절차 기본 안내"],[2,"생활습관 기본 안내"]];
+  for(const [no,why] of fill){ if(final.length>=3) break;
+    if(!final.some(r=>r.no===no)) final.push({no,score:0,why}); }
+  return final.slice(0,3);
+}
+
+
+const IMPRESSIONS=[
+  {k:"사춘기 발달 빠름", v:[4,5], v2:[3,4]},   // v2 = STEP 2(혈액검사 전)에서 쓰는 순서: 검사 먼저, 확진 뒤(STEP 3)에 치료
+  {k:"저신장", v:[1,3]},
+  {k:"성장 속도 감소", v:[1,5]},
+  {k:"골연령 선행", v:[5,4]},
+  {k:"골연령 지연", v:[5]},
+  {k:"과체중·비만", v:[7,2]},
+  {k:"수면·식습관 문제", v:[2]},
+  {k:"검사 진행 예정", v:[3]},
+  {k:"성장호르몬 치료 검토", v:[5,6]},
+  {k:"억제 + 성장호르몬 병행 검토", v:[6,4]},
+  {k:"특이 소견 없음 · 추적", v:[1]},
+  {k:"키 성장 고민", v:[1]}
+];
+// IMPRESSIONS와 같은 순서 - 차트에 적은 소견/플랜 문구를 자동으로 인식하기 위한 규칙.
+// STEP2(임상 임프레션)의 자동 인식과 STEP3(진료 후)의 파싱에서 공용으로 사용합니다.
+const IMPRESS_RULES=[
+  /사춘기.{0,12}(빠름|빠른|조기|앞섬|앞서)|조기\s*사춘기|성조숙증|precocious\s*puberty|\bCPP\b/i,
+  /저신장|단신|또래보다\s*작음/,
+  /성장\s*속도\s*(감소|둔화)|성장\s*둔화|백분위\s*(감소|하락)/,
+  /골연령\s*(선행|앞섬|빠름)|뼈나이.{0,10}(빠름|앞섬)/,
+  /골연령\s*지연|뼈나이.{0,10}지연/,
+  /과체중|비만/,
+  /수면\s*(부족|문제)|식습관\s*문제|편식/,
+  /검사\s*(진행|예정|필요)|정밀\s*검사|추가\s*검사|GnRH\s*(stim|자극)|LHRH\s*(stim|자극)|(stimulation|자극)\s*(test|검사)|stim\.?\s*test/i,
+  /성장\s*호르몬\s*(치료|주사)|성장\s*호르몬.{0,10}(wanted|희망|원함|원해|원하|관심|문의)|\bGH\b\s*[:：]?\s*(wanted|want|희망|원함)/i,
+  /억제\s*(치료|주사).{0,20}(병행|\+|및).{0,10}성장\s*호르몬|GnRH.{0,20}병행|성조숙증.{0,15}치료.{0,15}병행/i,
+  /특이\s*소견\s*없음|정상\s*범위|경과\s*관찰|추적\s*관찰/,
+  /키\s*(성장)?\s*(고민|걱정|궁금)|성장\s*(고민|걱정)|잘\s*(클|자랄)\s*(까|지)|키가?\s*(작|안\s*(크|커|자))|더\s*컸으면/
+];
+/* ---------- 차트 읽기 엔진 ----------
+   1) 부정 표현 처리: "성조숙증 아님", "비만 없음", "(-)" 는 소견으로 잡지 않습니다.
+   2) 초진 기록지(STEP 1에 붙여넣은 내용)와 겹치는 줄은 빼고, 차트에서 새로 추가된 내용만 읽습니다.
+      (보호자가 적은 걱정이 진찰 소견으로 잘못 읽히는 것을 막기 위해)
+   3) GnRH 자극검사 peak LH 수치가 있으면 기준(LH_PEAK_CUT)과 비교해 성조숙증 소견을 넣거나 뺍니다.
+   4) 영상은 임프레션 순서가 아니라 점수 → 단계별 우선순위로 정렬합니다. */
+const LH_PEAK_CUT=5;   // GnRH 자극검사 peak LH 기준(IU/L). 원장님 기준에 맞게 이 숫자만 바꾸세요.
+const NEGT=/(없(음|어|고|다|는|습|네|었|던|이)|않|아니(에|고|다|야|라|어|었|며)|아닙|아님|배제|음성|정상|\(\s*[-–]\s*\)|\bneg|\bno\b|\bnot\b|^[은는이가도]?\s*안\s)/i;
+function hitNegEv(s,re){   // 뒤따르는 부정 표현이 없는 첫 일치의 앞뒤 문구를 돌려줌(없으면 null)
+  const g=new RegExp(re.source,(re.flags||"").replace("g","")+"g"), ms=[]; let m;
+  while((m=g.exec(s))){ ms.push({i:m.index,l:m[0].length}); if(!m[0].length) g.lastIndex++; }
+  for(let k=0;k<ms.length;k++){
+    const st=ms[k].i+ms[k].l, en=Math.min(st+14, k+1<ms.length?ms[k+1].i:s.length);
+    const tail=s.slice(st,en).replace(/^\s*[:：\-]\s*/,"").split(/[,./·:：\n]/)[0];
+    if(!NEGT.test(tail)){
+      const ls=s.lastIndexOf("\n",ms[k].i)+1; let le=s.indexOf("\n",st); if(le<0) le=s.length;
+      const a=Math.max(ls,ms[k].i-14), b=Math.min(le,st+26);
+      return (a>ls?"…":"")+s.slice(a,b).replace(/\s+/g," ").trim()+(b<le?"…":"");
+    }
+  }
+  return null;
+}
+function peakLH(t){
+  const m=t.match(/peak\s*LH\s*[:=]?\s*(\d+(?:\.\d+)?)|LH\s*peak\s*[:=]?\s*(\d+(?:\.\d+)?)|(?:최고|최대)\s*LH\s*[:=]?\s*(\d+(?:\.\d+)?)/i);
+  return m ? parseFloat(m[1]||m[2]||m[3]) : null;
+}
+function normKey(s){ return String(s).toLowerCase().replace(/[\s.,;:!?·•()\[\]{}"'“”‘’\-–—_\/\\]+/g,""); }
+function addedOnly(chart,intake){
+  const inK=normKey(intake||"");
+  if(inK.length<20) return {text:chart, added:null, skipped:0};
+  const G=new Set(); for(let i=0;i+5<=inK.length;i++) G.add(inK.slice(i,i+5));
+  const segs=chart.split(/[\n\t]+|[.!?。]\s+/).map(x=>x.trim()).filter(Boolean);
+  const keep=[]; let skipped=0;
+  for(const sg of segs){
+    const k=normKey(sg);
+    if(!k) continue;
+    if(k.length<5){ if(k && inK.includes(k)){ skipped++; continue; } keep.push(sg); continue; }
+    let hit=0,tot=0; for(let i=0;i+5<=k.length;i++){ tot++; if(G.has(k.slice(i,i+5))) hit++; }
+    if(hit/tot>=0.7) skipped++; else keep.push(sg);
+  }
+  return {text:keep.join("\n"), added:keep, skipped};
+}
+function chartFindings(text){
+  const out=[];
+  IMPRESS_RULES.forEach((re,i)=>{ const ev=hitNegEv(text,re); if(ev!==null) out.push({i,ev}); });
+  detectTableImpressions(text).idx.forEach(i=>{ if(!out.some(o=>o.i===i)) out.push({i,ev:"검사표 수치"}); });
+  return out;
+}
+function analyzeChart(raw,intake){
+  const d=addedOnly(raw,intake||"");
+  const usedDiff=d.added!==null;
+  const text=usedDiff?d.text:raw;
+  const ev=text.trim()?chartFindings(text):[];
+  const notes=[];
+  const lh=peakLH(text);
+  if(lh!==null){
+    const t7=ev.findIndex(f=>f.i===7 && /stim|자극/i.test(f.ev));   // 결과가 이미 나왔으면 "검사 예정"은 아님
+    if(t7>=0){ ev.splice(t7,1); notes.push("GnRH 자극검사 결과(peak LH)가 있어 '검사 진행 예정'은 뺐습니다."); }
+    const at=ev.findIndex(f=>f.i===0);
+    if(lh>=LH_PEAK_CUT){
+      if(at<0) ev.push({i:0,ev:"peak LH "+lh}); else ev[at].ev+=" · peak LH "+lh;
+      notes.push("peak LH "+lh+" ≥ "+LH_PEAK_CUT+" → 성조숙증 소견으로 읽었습니다.");
+    }else{
+      if(at>=0) ev.splice(at,1);
+      notes.push("peak LH "+lh+" < "+LH_PEAK_CUT+" → 성조숙증 소견은 제외했습니다. 다르면 STEP 2에서 직접 골라 주세요.");
+    }
+  }
+  return {idx:[...new Set(ev.map(f=>f.i))], ev, notes, usedDiff, added:d.added, skipped:d.skipped};
+}
+function autoDetectImpressions(raw){ return analyzeChart(raw,"").idx; }
+// 단계별 영상 우선순위: STEP 2(혈액검사 전)는 검사·치료 설명 위주, STEP 3(확정)은 치료 위주
+const PRIO_STAGE={2:[3,4,5,6,7,1,2], 3:[4,6,5,7,3,1,2]};
+function stageV(i,stage){ const im=IMPRESSIONS[i]; return (stage===2 && im.v2) ? im.v2 : im.v; }
+function rankVideos(idxList,stage,limit){
+  const sc={};
+  idxList.forEach(i=>stageV(i,stage).forEach((no,pos)=>{ sc[no]=(sc[no]||0)+Math.max(1,3-pos); }));
+  const pr=PRIO_STAGE[stage]||PRIO_STAGE[2];
+  return Object.keys(sc).map(Number).sort((a,b)=>sc[b]-sc[a] || pr.indexOf(a)-pr.indexOf(b)).slice(0,limit||3);
+}
+const esc=x=>String(x).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+// 차트 프로그램이 "AGE BA TS WT HT BMI" 같은 표 형태로 수치를 뽑아 줄 때는
+// 문구가 아니라 숫자만 있어서 위의 문구 인식(IMPRESS_RULES)이 아무것도 못 찾는다.
+// 이 표를 직접 읽어서 골연령 선행/지연, 저신장, 과체중, 사춘기 조기 징후를 함께 판단한다.
+function detectTableImpressions(t){
+  const re = /AGE\s+BA\s+TS\s+WT\s+HT\s+BMI(?:\s+BT)?\s*(?:\d{4}-\d{1,2}-\d{1,2}\s*)?([\d.]+)\s+([\d.]+)\s+T?(\d)\s+([\d.]+)(?:\(([\d.]+)\))?\s+([\d.]+)(?:\(([\d.]+)\))?\s+([\d.]+)(?:\(([\d.]+)\))?/;
+  const m = t.match(re);
+  if(!m) return { found:false, idx:[] };
+
+  const age=+m[1], ba=+m[2], ts=+m[3];
+  const htPct = m[7]!==undefined?+m[7]:null;
+  const bmiPct = m[9]!==undefined?+m[9]:null;
+
+  const idx = new Set();
+  const baDiff = ba - age;
+  if(baDiff >= 0.8) idx.add(3);        // 골연령 선행
+  else if(baDiff <= -0.8) idx.add(4);  // 골연령 지연
+
+  if(htPct !== null && htPct <= 10) idx.add(1);   // 저신장
+  if(bmiPct !== null && bmiPct >= 85) idx.add(5); // 과체중·비만
+
+  // 사춘기 징후 — 성별별 조기사춘기 나이 기준(여아 9.5세/남아 10.5세 미만)을 재사용.
+  // 성별을 아직 못 골랐으면 더 넉넉한 여아 기준(9.5세)으로 판단.
+  if(ts >= 2){
+    const early = sexOverride==='M' ? age<10.5 : age<9.5;
+    if(early) idx.add(0);
+  }
+  return { found:true, idx:[...idx], raw:{age,ba,ts,htPct,bmiPct} };
+}
+
+
+  /* ---------- 공개 함수 ---------- */
+  // 구글폼 한 줄에는 시트 스크립트가 덧붙인 링크·문구가 같이 따라옵니다. 그 부분은 빼고 읽습니다.
+  function sanitizeIntake(raw){
+    let t = String(raw||'').replace(/\r/g,'');
+    const cut = t.search(/\[삼성자라다\s*소아청소년과\]|진료\s*전에\s*아래\s*영상/);
+    if(cut > 0) t = t.slice(0, cut);
+    t = t.replace(/https?:\/\/\S+/g, ' ');
+    return t;
+  }
+  function vid(no, why){ const v=V(no); return { no, title:v.title, question:v.sub, link:v.src, why:why||'' }; }
+  function thumb(link){ const m=String(link||'').match(/(?:youtu\.be\/|v=)([A-Za-z0-9_-]{6,})/); return m ? `https://img.youtube.com/vi/${m[1]}/mqdefault.jpg` : ''; }
+  // 초진 기록지 → 진료 전 영상 3편
+  function preVideos(raw, sex){
+    sexOverride = sex || null;
+    const o = parseIntake(sanitizeIntake(raw));
+    const list = scoreIntake(o);
+    sexOverride = null;
+    return { o, list, videos: list.map(r=>vid(r.no, r.why)) };
+  }
+  // 진료 후 소견/플랜 텍스트 → 영상 3편 (STEP 3 규칙)
+  // exclude: 진료 전에 이미 보낸 영상 번호 — 진료 후에는 새로운 영상을 보여주기 위해 제외합니다.
+  function postVideos(text, intake, sex, exclude){
+    sexOverride = sex || null;
+    const res = analyzeChart(String(text||''), intake ? sanitizeIntake(intake) : '');
+    sexOverride = null;
+    const ex = new Set(exclude || []);
+    const ranked = rankVideos(res.idx, 3, 7);
+    const nos = ranked.filter(n=>!ex.has(n)).slice(0,3);
+    return { res, nos, videos: nos.map(n=>vid(n)), excluded: ranked.filter(n=>ex.has(n)) };
+  }
+  function link(nos){ return KIOSK_BASE + '#v=' + nos.join(''); }
+  function watchLink(nos){ return FV_VIDEO_SITE + '?v=' + nos.join(''); }
+  function preMessageBody(videos){
+    const l = videos.map((v,i)=>`${i+1}순위) ${v.no}. ${v.title}`).join('\n');
+    return `진료 전에 아래 영상을 순서대로 봐 주세요. 같은 설명을 진료실에서 반복하지 않고, 아이에게 필요한 이야기부터 시작할 수 있습니다.\n\n${l}\n\n${link(videos.map(v=>v.no))}`;
+  }
+  return { VIDEOS, V, vid, thumb, link, watchLink, sanitizeIntake, findDobStr, parseIntake, scoreIntake, analyzeChart, rankVideos, preVideos, postVideos, preMessageBody, IMPRESSIONS };
+})();
+
+/* ---------- 초진 기록지 한 줄 → 접수 정보 ---------- */
+function parseFirstIntake(raw){
+  const clean = JRDV.sanitizeIntake(raw);
+  const out = { name:'', dob:'', sex:'', phone:'', ht:null, wt:null, fh:null, mh:null, history:[] };
+  const cols = clean.split('\t').map(c=>c.trim());
+  const flat = clean.replace(/\s+/g,' ');
+  out.dob = JRDV.findDobStr(clean);
+  const STOP = /^(없음|있음|모름|정상|해당없음|아니오|예|남|여)$/;
+  for(const c of cols.slice(0,5)){ if(/^[가-힣]{2,4}$/.test(c) && !STOP.test(c)){ out.name = c; break; } }
+  if(!out.name){ const nm = flat.match(/(?:이름|성함|환아명?)\s*[:：]?\s*([가-힣]{2,4})/); if(nm) out.name = nm[1]; }
+  // 정규식의 '뒤돌아보기(lookbehind)'는 iPadOS 16.3 이하 Safari에서 앱 전체가 안 열리게 해서 쓰지 않고 직접 확인합니다
+  const ph = (function(){ const re = /01[016789][-\s.]?\d{3,4}[-\s.]?\d{4}(?!\d)/g; let m; while((m = re.exec(flat))){ if(m.index === 0 || !/\d/.test(flat[m.index-1])) return m; } return null; })();
+  if(ph){
+    const dg = ph[0].replace(/\D/g,'');
+    out.phone = dg.length===11 ? `${dg.slice(0,3)}-${dg.slice(3,7)}-${dg.slice(7)}` : `${dg.slice(0,3)}-${dg.slice(3,6)}-${dg.slice(6)}`;
+  }
+  const o = JRDV.parseIntake(clean);
+  out.sex = o.sex || '';
+  out.fh = o.fh; out.mh = o.mh; out.ht = o.ht; out.wt = o.wt;
+  const hre = /((?:19|20)\d{2})\s*[.\-\/]\s*(\d{1,2})\s*[.\-\/]\s*(\d{1,2})\s*[\/,:\s]*키\s*:?\s*(\d{2,3}(?:\.\d)?)\s*(?:cm|센티)?\s*[\/,\s]*(?:몸무게|체중)\s*:?\s*(\d{1,3}(?:\.\d)?)/g;
+  let hm; const seen = new Set();
+  while((hm = hre.exec(flat))){
+    const date = `${hm[1]}-${String(hm[2]).padStart(2,'0')}-${String(hm[3]).padStart(2,'0')}`, h = parseFloat(hm[4]), w = parseFloat(hm[5]);
+    if(h<45||h>200||w<3||w>150||seen.has(date)) continue;
+    seen.add(date); out.history.push({ date, height:h, weight:w });
+  }
+  out.history.sort((a,b)=> a.date<b.date ? -1 : 1);
+  const tg = flat.match(/목표\s*키\s*[:：(]?\s*(\d{3}(?:\.\d)?)/); if(tg) out.target = parseFloat(tg[1]);
+  else{ for(const c of cols){ const m = c.match(/^(1[5-9]\d)\s*cm$/i); if(m){ out.target = parseFloat(m[1]); break; } } }
+  return out;
+}
+
+function apiTail(api){ return String(api||'').replace(/\/exec.*$/,'').slice(-8); }
+let fsVideos = [];            // 선택된 영상 [{no,title,question,link}]
+let fsParsed = null;
+let fsItems = [], fsKey = '', fsPickedRaw = '', fsLms = '', fsKakao = '', fsKakaoNew = '', fsKakaoOld = '', fsCurLink = '';
+async function fsEnsureInfo(){      // 알림톡 템플릿이 새 「초진 안내」인지 서버에 한 번 물어봅니다 (목록을 이미 불러왔다면 생략)
+  if(window.fsTplNew !== undefined) return;
+  try{ const api = getApiUrl(); const res = await fetch(api, { method:'POST', body: JSON.stringify({ action:'listintakes' }) }); const d = await res.json(); window.fsTplNew = (d && d.template === 'new'); }catch(e){ window.fsTplNew = false; }
+}
+async function fsLoadList(){
+  const api = getApiUrl(); if(!api){ openSettings(); return; }
+  const box = document.getElementById('fs_list');
+  box.innerHTML = '<div class="empty-note">불러오는 중…</div>';
+  try{
+    const res = await fetch(api, { method:'POST', body: JSON.stringify({ action:'listintakes' }) });
+    const data = await res.json();
+    if(data.status!=='ok'){ box.innerHTML = `<div class="empty-note" style="color:var(--danger);">❌ ${escapeHtml(data.message||'불러오지 못했어요')}</div>`; return; }
+    fsItems = data.items || [];
+    window.fsTplNew = (data.template === 'new');
+    if(!fsItems.length){ box.innerHTML = '<div class="empty-note">새로 들어온 초진 기록지가 없어요.</div>'; return; }
+    box.innerHTML = fsItems.map((it,i)=>{
+      const o = parseFirstIntake(it.raw);
+      return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);font-size:12.5px;">
+        <div style="flex:1;min-width:0;"><b>${escapeHtml(o.name||'(이름 미인식)')}</b>${o.dob?' · '+escapeHtml(o.dob.replace(/-/g,'.')):''}
+          <div style="font-size:11px;color:var(--secondary);">${escapeHtml(it.key)} 제출 · ${o.phone?'📞 연락처 있음':'⚠️ 연락처 없음'}</div></div>
+        <button type="button" class="btn btn-primary" style="padding:7px 12px;font-size:12px;" onclick="fsPick(${i})">접수</button></div>`;
+    }).join('');
+  }catch(e){ box.innerHTML = '<div class="empty-note" style="color:var(--danger);">❌ 불러오지 못했어요.</div>'; }
+}
+function fsPick(i){
+  const it = fsItems[i]; if(!it) return;
+  document.getElementById('fs_raw').value = it.raw;
+  fsKey = it.key; fsPickedRaw = it.raw;
+  fsParse();
+  document.getElementById('fs_fields').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+function fsGenPid(){ const b = new Uint8Array(12); crypto.getRandomValues(b); return Array.from(b, x=>x.toString(16).padStart(2,'0')).join(''); }
+function fsPidFor(name, dob){            // 같은 환자를 다시 보내도 같은 링크(pid)를 씁니다
+  let map = {}; try{ map = JSON.parse(localStorage.getItem('jrd_fv_pids')||'{}'); }catch(e){}
+  const k = name + '|' + dob;
+  if(!map[k]){ map[k] = fsGenPid(); localStorage.setItem('jrd_fv_pids', JSON.stringify(map)); }
+  return map[k];
+}
+function fsRenderVideos(){
+  document.getElementById('fs_videos').innerHTML = JRDV.VIDEOS.map(v=>{
+    const k = fsVideos.findIndex(x=>x.no===v.no);
+    return `<button type="button" class="choice-btn ${k>=0?'active':''}" style="flex:0 0 auto;" onclick="fsToggleVideo(${v.no})">${k>=0?(k+1)+'순위 · ':''}${v.no}. ${escapeHtml(v.title)}</button>`;
+  }).join('');
+}
+function fsToggleVideo(no){
+  const k = fsVideos.findIndex(x=>x.no===no);
+  if(k>=0) fsVideos.splice(k,1);
+  else{ if(fsVideos.length>=3){ alert('영상은 3편까지만 고를 수 있어요. 하나를 빼고 골라주세요.'); return; } fsVideos.push(JRDV.vid(no)); }
+  fsRenderVideos(); document.getElementById('fs_previewBox').style.display = 'none';
+}
+function fsParse(){
+  const raw = document.getElementById('fs_raw').value;
+  if(!raw.trim()){ alert('초진 기록지를 붙여넣어 주세요.'); return; }
+  const o = parseFirstIntake(raw);
+  const pre = JRDV.preVideos(raw, o.sex);
+  fsParsed = { o, raw };
+  if(raw !== fsPickedRaw){ const c0 = raw.split('\t')[0].trim(); fsKey = /\d{1,2}\s*:\s*\d{2}/.test(c0) ? c0 : ''; }   // 시트에서 복사한 행이면 첫 칸(응답 시각)을 접수 표시용 키로 사용
+  fsVideos = pre.videos.slice();
+  document.getElementById('fs_name').value = o.name;
+  document.getElementById('fs_dob').value = o.dob;
+  document.getElementById('fs_sex').value = o.sex;
+  document.getElementById('fs_phone').value = o.phone;
+  document.getElementById('fs_visit').value = '';
+  const info = [];
+  if(o.dob) info.push('생년월일 ' + o.dob.replace(/-/g,'.'));
+  if(pre.o.age) info.push('만 ' + pre.o.age + '세');
+  info.push(o.phone ? '연락처 인식됨' : '⚠️ 연락처가 기록지에 없어요 — 아래에 직접 입력하세요');
+  info.push('서버 …' + apiTail(getApiUrl()).slice(-6));
+  if(o.dob){ const ag = (Date.now()-new Date(o.dob))/31557600000; if(ag<2 || ag>20) info.push('⚠️ 생년월일을 확인해 주세요(만 ' + ag.toFixed(1) + '세로 계산돼요)'); }
+  if(pre.list.length) info.push('영상 선별 근거: ' + pre.list.map(r=>r.no + '번 ' + (r.why||'')).join(' / '));
+  document.getElementById('fs_info').textContent = info.join(' · ');
+  document.getElementById('fs_fields').style.display = 'block';
+  document.getElementById('fs_previewBox').style.display = 'none';
+  document.getElementById('fs_status').textContent = '';
+  fsRenderVideos();
+}
+function fsLink(pid, o, visit){
+  const site = (localStorage.getItem('jrd_site_url')||'').replace(/\/+$/,'');
+  const params = new URLSearchParams({ pid, lang:'ko' });
+  if(o.dob) params.set('dob', o.dob);
+  if(o.sex) params.set('sex', o.sex);
+  const api = getApiUrl(); if(api) params.set('api', api);
+  if(visit) params.set('nextcall', visit);
+  params.set('loc', 'domestic'); params.set('first', '1');
+  return (site ? site + '/' : '') + '자라다케어_환아용.html?' + params.toString();
+}
+function fsCollect(){
+  const name = document.getElementById('fs_name').value.trim();
+  const dob = document.getElementById('fs_dob').value;
+  const sex = document.getElementById('fs_sex').value;
+  const phone = document.getElementById('fs_phone').value.trim();
+  const visit = document.getElementById('fs_visit').value;
+  return { name, dob, sex, phone, visit };
+}
+async function fsPreview(){
+  try{ await fsEnsureInfo(); }catch(e){}
+  const f = fsCollect(), st = document.getElementById('fs_status');
+  if(!f.name || !f.dob || !f.sex){ st.textContent = '이름·생년월일·성별을 확인해 주세요.'; st.style.color='var(--danger)'; return; }
+  if(!fsVideos.length){ st.textContent = '영상을 1편 이상 골라주세요.'; st.style.color='var(--danger)'; return; }
+  if(!(localStorage.getItem('jrd_site_url')||'')){ st.textContent = '⚙️ 설정에서 "사이트 주소"를 먼저 입력해 주세요. (없으면 링크가 열리지 않아요)'; st.style.color='var(--danger)'; openSettings(); return; }
+  const pid = fsPidFor(f.name, f.dob);
+  const link = fsLink(pid, f, f.visit);
+  let msg = `[삼성자라다소아청소년과]\n${f.name} 환아 보호자님, 안녕하세요.\n아래 "초진방" 링크 하나로, 진료 전에는 영상 시청과 성장기록지 올리기를, 진료 후에는 진료 요약·검사 결과 설명·운동/영양/수면 안내를 보실 수 있어요. 링크를 보관해 주세요.\n\n👉 초진방: ${link}\n\n📺 진료 전에 순서대로 봐 주세요\n`;
+  msg += fsVideos.map((v,i)=>`${i+1}순위) ${v.no}. ${v.title}`).join('\n');
+  msg += `\n▶ 영상 바로 보기(코드 입력 없이): ${JRDV.watchLink(fsVideos.map(v=>v.no))}\n`;
+  msg += `\n같은 설명을 진료실에서 반복하지 않고, 아이에게 필요한 이야기부터 시작할 수 있습니다.\n`;
+  if(f.visit) msg += `\n📅 진료 예정일: ${formatDateKr(f.visit)}\n`;
+  msg += `\n☎ 02-523-0111\n- 삼성자라다소아청소년과 -`;
+  fsLms = msg; fsCurLink = link;
+  const dKr = f.visit ? (()=>{ const p = f.visit.split('-'); return `${+p[1]}월 ${+p[2]}일`; })() : '미정';
+  const vl = fsVideos.map(v=>`${v.no}. ${v.title}`);
+  fsKakaoNew = `[삼성자라다소아청소년과] 초진 안내\n\n${f.name} 보호자님, 안녕하세요.\n초진 진료 안내입니다. 아래 전용 링크(초진방) 하나로 진료 전과 진료 후를 모두 확인하실 수 있어요.\n\n▶ 진료 전: 보시면 좋은 영상 시청, 성장기록지 올리기\n▶ 진료 후: 같은 링크를 다시 열면 진료 요약, 검사 결과 설명, 운동·영양·수면 안내를 확인하실 수 있어요\n\n■ 초진방 링크\n${link}\n\n■ 진료 전에 보실 영상\n${vl.join('\n')}\n영상 바로 보기: ${JRDV.watchLink(fsVideos.map(v=>v.no))}\n\n■ 진료 예정일\n${dKr}\n\n본 메시지는 초진 진료를 신청하신 ${f.name} 어린이 보호자님께 발송되는 안내입니다.\n문의: 02-523-0111`;
+  fsKakaoOld = `[자라다케어] 성장 기록 확인 페이지 안내\n\n${f.name} 보호자님, 삼성자라다소아청소년과입니다.\n진료 기록 확인 및 성장 기록 입력을 위한 전용 페이지를 안내드립니다.\n\n▶ 접속: ${link}\n\n본 링크는 ${f.name} 어린이 진료 관련 전용 페이지이며, 타 문의는 병원(02-523-0111)으로 연락 바랍니다.`;
+  fsKakao = window.fsTplNew ? fsKakaoNew : fsKakaoOld;
+  document.getElementById('fs_previewBox').style.display = 'block';
+  fsMethodChanged();
+  const btn = document.getElementById('fs_sendBtn'); btn.disabled = false;
+  st.textContent = ''; 
+}
+function fsMethod(){ const r = document.querySelector('input[name="fs_method"]:checked'); return r ? r.value : 'kakao'; }
+function fsMethodChanged(){
+  const m = fsMethod(), ta = document.getElementById('fs_msg'), note = document.getElementById('fs_methodNote'), btn = document.getElementById('fs_sendBtn');
+  ta.value = m === 'kakao' ? fsKakao : fsLms;
+  ta.readOnly = (m === 'kakao');
+  ta.style.background = m === 'kakao' ? '#f4f4f4' : '';
+  note.textContent = m === 'kakao'
+    ? (window.fsTplNew
+        ? '※ 승인된 「초진 안내」 카카오 알림톡으로 발송돼요. 초진방 링크, 진료 전 영상 목록·영상 바로 보기 링크, 진료 예정일이 알림톡 본문에 들어가요. (아래는 미리보기 예시이고, 실제 문구는 승인된 템플릿 그대로예요. 수정할 수 없어요.)'
+        : '※ 카카오 알림톡은 승인된 템플릿 문구만 보낼 수 있어서 수정할 수 없어요. 링크를 누르면 나오는 「초진방」에 진료 전 영상이 있고, 진료 후에는 같은 링크에 진료 요약이 올라와요. (「초진 안내」 템플릿 ID를 서버에 등록하면 영상 목록도 알림톡에 들어가요.)')
+    : '※ 일반 문자로 보내요. 문구를 직접 고칠 수 있고, 영상 목록과 영상 바로 보기 링크가 들어가요.';
+  btn.textContent = m === 'kakao' ? '🚀 카카오톡으로 초진방 링크 발송' : '🚀 문자로 초진방 링크 발송';
+}
+function fsMsgEdited(){ if(fsMethod() === 'lms') fsLms = document.getElementById('fs_msg').value; }
+async function fsSend(){
+  const api = getApiUrl(); if(!api){ openSettings(); return; }
+  const f = fsCollect(), st = document.getElementById('fs_status'), btn = document.getElementById('fs_sendBtn');
+  if(!f.phone){ st.textContent = '보호자 전화번호를 입력해 주세요.'; st.style.color='var(--danger)'; return; }
+  const method = fsMethod();
+  const text = fsLms;                      // 카카오 요청이 실패했을 때 대신 보낼 문자 내용(항상 함께 전달)
+  const o = fsParsed ? fsParsed.o : {};
+  const pid = fsPidFor(f.name, f.dob);
+  const sentAt = new Date().toISOString();
+  const preVideos = fsVideos.map(v=>({ no:v.no, title:v.title, question:v.question, link:v.link }));
+  const payload = { v:1, stage:'pre', visitDate:f.visit||'', name:f.name, preVideos, prep:FV_DEFAULT_PREP, post:null, updatedAt:sentAt };
+  const pending = { pid, name:f.name, dob:f.dob, sex:f.sex, phone:f.phone, visitDate:f.visit||'',
+    intake: JRDV.sanitizeIntake(fsParsed ? fsParsed.raw : '').trim(), history:o.history||[], fh:o.fh||null, mh:o.mh||null,
+    preVideos, prep:FV_DEFAULT_PREP, by:'원무과', sentAt };
+  btn.disabled = true; btn.textContent = '📤 발송 중…'; st.textContent = ''; st.style.color = 'var(--secondary)';
+  try{
+    const res = await fetch(api, { method:'POST', body: JSON.stringify({ action:'registerfirstvisit', pid, name:f.name, phone:f.phone, text, method, link: fsCurLink, videoLink: JRDV.watchLink(fsVideos.map(v=>v.no)), visitDate:f.visit||'', payload, pending, intakeKey: fsKey, force: !!window.fsForce }) });
+    const data = await res.json();
+    if(data.status==='ok'){
+      let via = data.channel === 'kakao' ? '카카오톡 알림톡으로 발송 요청했어요(카카오톡이 없는 번호는 문자로 자동 대체)' : data.channel === 'sms' ? '문자로 발송했어요' : '발송했어요(서버 Code.gs가 예전 버전이면 문자로 갈 수 있어요)';
+      if(data.channel === 'sms' && method === 'kakao' && data.kakaoError){ via = '⚠️ 카카오 알림톡 요청이 실패해서 문자로 보냈어요 — 이유: ' + data.kakaoError; }
+      st.textContent = `✅ ${via} [연결 …${pid.slice(-6)} · 서버 …${apiTail(api).slice(-6)}] — 의사 앱 초진 탭에 자동으로 등록됩니다.`; st.style.color = 'var(--ok)';
+      btn.textContent = '✅ 발송됨'; renderApptHistory();
+      fsItems = fsItems.filter(it=>it.key!==fsKey); if(document.getElementById('fs_list').innerHTML) fsLoadList();
+    }else{
+      window.fsProgressed = (data.code === 'PROGRESSED');
+      st.textContent = '❌ ' + (data.message || '발송 실패') + (data.saved ? ' (접수 내용은 저장되어 있어요. 다시 누르면 같은 링크로 재발송됩니다)' : '');
+      st.style.color = 'var(--danger)'; btn.disabled = false; fsMethodChanged();
+    }
+  }catch(err){
+    st.textContent = '❌ 발송 중 오류가 발생했습니다.'; st.style.color = 'var(--danger)'; btn.disabled = false; fsMethodChanged();
+  }
+}
+
+window.BQ_ACTOR = '원무과';
+/* ===================== 📋 초진 예약 대기열 (네이버 예약) ===================== */
+let bqItems = [], bqFilter = 'week', bqOnlyMissing = true, bqHideRevisit = true, bqHideKnown = true, bqParsed = [];
+const BQ_WD = ['일','월','화','수','목','금','토'];
+const BQ_STOP = /^(원장|대리|방문|예약|확정|취소|완료|대기|네이버|초진|재진|상담|진료|검사|성장|성조숙|예약자|이용|일시|전화|연락처|상품|옵션|요청|사항|신규|노쇼|이용완료|없음|무료|방문|결제|현장|병원|의원)/;
+function bqPost(body){ const api = getApiUrl(); if(!api) return Promise.reject(new Error('연동 설정의 백엔드 URL이 없어요.')); return fetch(api, { method:'POST', body: JSON.stringify(body) }).then(r=>r.json()); }
+function bqPad(n){ return String(n).padStart(2,'0'); }
+function bqYmd(d){ return d.getFullYear() + '-' + bqPad(d.getMonth()+1) + '-' + bqPad(d.getDate()); }
+function bqFmtPhone(s){ const d = String(s||'').replace(/\D/g,''); if(d.length===11) return d.slice(0,3)+'-'+d.slice(3,7)+'-'+d.slice(7); if(d.length===10) return d.slice(0,3)+'-'+d.slice(3,6)+'-'+d.slice(6); return String(s||''); }
+function bqDateLabel(ymd){ const d = new Date(ymd + 'T00:00:00'); const base = `${d.getMonth()+1}/${d.getDate()}(${BQ_WD[d.getDay()]})`; const t = bqYmd(new Date()), tm = bqYmd(new Date(Date.now()+86400000)); return ymd === t ? '오늘 · ' + base : ymd === tm ? '내일 · ' + base : ymd < t ? '지난 예약 · ' + base : base; }
+function bqSay(msg, bad){ const el = document.getElementById('bq_status'); if(el){ el.textContent = msg || ''; el.style.color = bad ? 'var(--danger)' : 'var(--secondary)'; } }
+function bqToggle(id){ const el = document.getElementById(id); if(el) el.style.display = (el.style.display === 'none' ? 'block' : 'none'); }
+
+/* ---------- 네이버 예약 붙여넣기 읽기 ---------- */
+function bqYear(m, d){ const now = new Date(); let y = now.getFullYear(); const dt = new Date(y, m-1, d); if(dt.getTime() < now.getTime() - 45*86400000) y += 1; return y; }
+function bqFindDate(t){
+  let m;
+  if((m = t.match(/(20\d{2})\s*[.\-\/년]\s*(\d{1,2})\s*[.\-\/월]\s*(\d{1,2})/))) return m[1] + '-' + bqPad(+m[2]) + '-' + bqPad(+m[3]);
+  if((m = t.match(/(^|[^\d])(\d{2})\s*\.\s*(\d{1,2})\s*\.\s*(\d{1,2})(?!\d)/))) return '20' + m[2] + '-' + bqPad(+m[3]) + '-' + bqPad(+m[4]);
+  if((m = t.match(/(\d{1,2})\s*월\s*(\d{1,2})\s*일/))) return bqYear(+m[1], +m[2]) + '-' + bqPad(+m[1]) + '-' + bqPad(+m[2]);
+  if((m = t.match(/(^|[^\d])(\d{1,2})\s*\/\s*(\d{1,2})(?!\d)/))) { const mo = +m[2], da = +m[3]; if(mo>=1 && mo<=12 && da>=1 && da<=31) return bqYear(mo, da) + '-' + bqPad(mo) + '-' + bqPad(da); }
+  return '';
+}
+function bqFindTime(t){
+  let m;
+  if((m = t.match(/(오전|오후)\s*(\d{1,2})\s*[:시]\s*(\d{2})?/))){ let h = +m[2]; if(m[1]==='오후' && h<12) h += 12; if(m[1]==='오전' && h===12) h = 0; return bqPad(h) + ':' + bqPad(m[3] ? +m[3] : 0); }
+  if((m = t.match(/(^|[^\d])(\d{1,2}):(\d{2})(?!\d)/))){ const h = +m[2]; if(h>=0 && h<=23) return bqPad(h) + ':' + m[3]; }
+  return '';
+}
+function bqParseBlock(block){
+  const text = block.replace(/\s+/g, ' ');
+  if(/취소|노쇼|no.?show/i.test(text)) return { cancelled:true };
+  const ph = text.match(/01[016789][-\s.]?\d{3,4}[-\s.]?\d{4}/);
+  const noPhone = ph ? text.replace(ph[0], ' ') : text;
+  let name = '', m;
+  if((m = noPhone.match(/(?:예약자|이름|성함|고객)\s*[:：]?\s*([가-힣][가-힣*○]{1,3})/))) name = m[1];
+  if(!name){ const cells = block.split(/\t|\||\/|,/).map(x=>x.trim()); for(const c of cells){ if(/^[가-힣][가-힣*○]{1,3}$/.test(c) && !BQ_STOP.test(c)){ name = c; break; } } }
+  if(!name && (m = noPhone.match(/([가-힣]{2,4})\s*님/))) name = m[1];
+  if(!name){ for(const t of noPhone.split(/\s+/)){ if(/^[가-힣][가-힣*○]{1,3}$/.test(t) && !BQ_STOP.test(t) && !/^(오전|오후|월요일|화요일|수요일|목요일|금요일|토요일|일요일|진료|상담|검사)/.test(t)){ name = t; break; } } }
+  let bookingNo = ''; if((m = noPhone.match(/(?:예약\s*번호|예약No\.?|No\.?)\s*[:：#]?\s*(\d{6,})/))) bookingNo = m[1];
+  if(!bookingNo && (m = noPhone.match(/(^|[^\d])(\d{8,12})(?!\d)/)) && !/^20\d{6}$/.test(m[2])) bookingNo = m[2];
+  const sv = noPhone.match(/(초진|재진|신환|구환)(?:\s*(?:진료|상담|검사))?/);
+  return { date: bqFindDate(noPhone), time: bqFindTime(noPhone), name: name, phone: ph ? bqFmtPhone(ph[0]) : '', service: sv ? sv[0].trim() : '', bookingNo: bookingNo, source: 'naver' };
+}
+function bqSplit(raw){
+  const lines = raw.replace(/\r/g, '').split('\n').map(l=>l.trim());
+  const hasPhone = l => /01[016789][-\s.]?\d{3,4}[-\s.]?\d{4}/.test(l);
+  const tabRows = lines.filter(l => l.indexOf('\t') >= 0 && (hasPhone(l) || /20\d{2}\s*[.\-]/.test(l)));   // 엑셀·표에서 복사한 줄
+  const blocks = []; let cur = [];
+  const flush = () => { if(cur.length){ blocks.push(cur.join('\n')); cur = []; } };
+  for(const l of lines){
+    if(l.indexOf('\t') >= 0){ flush(); continue; }
+    if(!l){ flush(); continue; }
+    if(hasPhone(l) && cur.some(hasPhone)) flush();
+    cur.push(l);
+  }
+  flush();
+  return tabRows.concat(blocks);
+}
+function bqNaverTable(raw, batchDate){
+  const text = raw.replace(/\r/g, '');
+  const re = /(^|[^\d\-])(\d{9,12})(?![\d\-])/g;                 // 예약번호: 하이픈 없는 9~12자리
+  const hits = []; let m;
+  while((m = re.exec(text))){ if(m[2].charAt(0) === '0') continue; hits.push({ num: m[2], start: m.index + m[1].length, end: m.index + m[1].length + m[2].length }); }
+  if(!hits.length) return null;
+  const out = [], skipped = []; let cancelled = 0, usedBatch = 0;
+  hits.forEach((h, i) => {
+    const winStart = Math.max(i ? hits[i-1].end : 0, h.start - 420);
+    const win = text.slice(winStart, h.start);
+    const phs = win.match(/01[016789][-\s.]?\d{3,4}[-\s.]?\d{4}/g);
+    if(!phs){ skipped.push(h.num); return; }
+    const phone = bqFmtPhone(phs[phs.length-1]);
+    const phIdx = win.lastIndexOf(phs[phs.length-1]);
+    let head = win.slice(0, phIdx);
+    let visitor = ''; const vm = head.match(/(?:방문자|진료자)\s*[:：]?\s*(?!정보)([가-힣*○]{2,5})/); if(vm) visitor = vm[1];            // 목록의 '방문자' / 상세정보의 '진료자' = 아이 이름
+    let dob = '', sex = ''; const dm = head.match(/생년월일\s*[:：]?\s*(\d{4})\s*[-./]\s*(\d{1,2})\s*[-./]\s*(\d{1,2})/); if(dm) dob = dm[1] + '-' + bqPad(+dm[2]) + '-' + bqPad(+dm[3]);
+    const sm = head.match(/성별\s*[:：]?\s*(남|여)/); if(sm) sex = sm[1];
+    head = head.replace(/(?:방문자|진료자)\s*[:：]?\s*(?!정보)[가-힣*○]{0,5}/g, ' ').replace(/대리\s*예약/g, ' ');
+    const toks = head.split(/[\s\t\n,/|]+/).filter(t => /^[가-힣][가-힣*○]{1,3}$/.test(t) && !BQ_STOP.test(t));
+    const name = toks.length ? toks[toks.length-1] : '';
+    const nameAt = name ? Math.max(0, head.indexOf(name)) : 0;
+    if(/(취소|노쇼)(?!\s*일시)/.test(head.slice(Math.max(0, nameAt - 14), nameAt))){ cancelled++; return; }   // 상태 칸의 글자만 봅니다 (표 제목 "취소일시"는 제외)
+    const post = text.slice(h.end, Math.min(text.length, h.end + 300));
+    let time = '', date = '', svc = '';
+    const lab = post.match(/이용\s*일시\s*[:：]?\s*([^\n]{0,40})/);             // 상세정보 화면: "이용일시 2026.10.10.(토) 오후 3:20"
+    if(lab){ time = bqFindTime(lab[1]); date = bqFindDate(lab[1]); const pv = post.match(/(?:예약\s*상품|상품)\s*[:：]?\s*([^\n]{0,20})/); if(pv) svc = pv[1].trim(); }
+    else{
+      const tm = post.slice(0, 140).match(/(오전|오후)?\s*(\d{1,2}):(\d{2})/);
+      if(tm){ time = bqFindTime(tm[0]); date = bqFindDate(post.slice(0, tm.index + tm[0].length)); const after = post.slice(tm.index + tm[0].length); const pm = after.match(/^[\s\t]*([^\d\t\n]{2,20})/); if(pm) svc = pm[1].trim(); }
+    }
+    if(!date){ date = batchDate || ''; if(date) usedBatch++; }
+    const sv = svc.match(/(초진|재진|신환|구환)/);
+    out.push({ date: date, time: time, name: name, visitor: visitor, dob: dob, sex: sex, phone: phone, service: sv ? sv[1] : svc, bookingNo: h.num, source: 'naver' });
+  });
+  return { rows: out, skipped: skipped, cancelled: cancelled, usedBatch: usedBatch };
+}
+function bqLoadScript(src){ return new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => no(new Error('불러오기 실패')); document.head.appendChild(s); }); }
+// 캡처 → 조각(긴 화면은 위에서부터 나눔) → JPEG base64
+async function bqImgChunks(file){
+  const url = URL.createObjectURL(file);
+  try{
+    const img = await new Promise((ok, no) => { const im = new Image(); im.onload = () => ok(im); im.onerror = () => no(new Error('이미지를 열지 못했어요')); im.src = url; });
+    const W = img.naturalWidth, H = img.naturalHeight, scale = Math.min(1, 1400 / W);
+    const sliceH = H > W * 2.2 ? Math.round(W * 1.7) : H, step = sliceH === H ? H : Math.round(sliceH * 0.88);   // 긴 화면은 12% 겹치게 자름
+    const out = [];
+    for(let y = 0; y < H && out.length < 12; y += step){
+      const h = Math.min(sliceH, H - y); if(h < 120) break;
+      const cv = document.createElement('canvas'); cv.width = Math.round(W * scale); cv.height = Math.round(h * scale);
+      cv.getContext('2d').drawImage(img, 0, y, W, h, 0, 0, cv.width, cv.height);
+      out.push(cv.toDataURL('image/jpeg', 0.88).split(',')[1]);
+      if(y + h >= H) break;
+    }
+    return out;
+  } finally { URL.revokeObjectURL(url); }
+}
+// AI가 캡처를 읽어요. 키가 없거나 실패하면 null (→ 글자 인식으로 대신)
+async function bqAiImage(file){
+  const chunks = await bqImgChunks(file), rows = [], seen = {}; let cancelled = 0;
+  for(let i = 0; i < chunks.length; i++){
+    bqSay('🤖 AI가 캡처를 읽는 중… (' + (i + 1) + '/' + chunks.length + ')');
+    const d = await bqPost({ action: 'readbookingimage', image: chunks[i], mediaType: 'image/jpeg' });
+    if(d.status !== 'ok'){ if(d.code === 'nokey' || i === 0) return { fail: d.message || '실패' }; bqSay('일부 조각은 읽지 못했어요: ' + (d.message || ''), true); continue; }
+    cancelled += d.cancelled || 0;
+    (d.rows || []).forEach(r => { const k = r.bookingNo || [r.name, r.visitor, r.date, r.time].join('|'); if(seen[k]) return; seen[k] = 1; rows.push(r); });
+  }
+  return { rows: rows, cancelled: cancelled };
+}
+async function bqFileText(f){
+  const n = (f.name || '').toLowerCase();
+  if(/^image\//.test(f.type) || /\.(png|jpe?g|webp|heic|gif|bmp)$/.test(n)){
+    try{
+      const ai = await bqAiImage(f);
+      if(ai && ai.rows){ return { text: '', pre: { rows: ai.rows, cancelled: ai.cancelled, skipped: [] } }; }
+      bqSay('AI 읽기를 쓸 수 없어 글자 인식으로 대신해요 (' + ((ai && ai.fail) || '') + ')', true);
+    }catch(e){ bqSay('AI 읽기에 실패해 글자 인식으로 대신해요 (' + (e.message || e) + ')', true); }
+    if(typeof Tesseract === 'undefined') await bqLoadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js');
+    const r = await Tesseract.recognize(f, 'kor+eng');
+    return { text: r.data.text || '', pre: null };
+  }
+  if(/\.(xlsx|xls)$/.test(n)){
+    if(typeof XLSX === 'undefined') await bqLoadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+    let wb;
+    try{ wb = XLSX.read(await f.arrayBuffer(), { type: 'array' }); }
+    catch(e){ if(/password|encrypt|protect/i.test(String(e && e.message))) throw new Error('비밀번호가 걸린 엑셀이에요. 엑셀에서 비밀번호를 넣고 열어 「다른 이름으로 저장」할 때 비밀번호를 지운 파일을 올려 주세요'); throw e; }
+    let pre = null; const out = [];
+    wb.SheetNames.forEach(s => {
+      const aoa = XLSX.utils.sheet_to_json(wb.Sheets[s], { header: 1, raw: false, defval: '' });
+      const p = bqExcelParse(aoa);
+      if(p){ pre = pre || { rows: [], cancelled: 0, skipped: [] }; pre.rows = pre.rows.concat(p.rows); pre.cancelled += p.cancelled; pre.skipped = pre.skipped.concat(p.skipped); }
+      else out.push(aoa.map(r => r.join('\t')).join('\n'));
+    });
+    return { text: out.join('\n'), pre: pre };
+  }
+  return { text: await f.text(), pre: null };
+}
+// 네이버 예약 엑셀(예약자관리 → 엑셀 다운로드): 열 이름으로 읽어요. 전화번호는 뒤 4자리만 옵니다(******9601).
+function bqExcelParse(aoa){
+  const hi = aoa.findIndex(r => r && r.some(c => String(c).trim() === '예약번호') && r.some(c => String(c).trim() === '이용일시'));
+  if(hi < 0) return null;
+  const H = aoa[hi].map(c => String(c == null ? '' : c).trim());
+  const g = (r, n) => { const i = H.indexOf(n); return (i < 0 || r[i] == null) ? '' : String(r[i]).trim(); };
+  const rows = [], skipped = []; let cancelled = 0;
+  const thisYear = new Date().getFullYear();
+  for(let k = hi + 1; k < aoa.length; k++){
+    const r = aoa[k]; if(!r || !r.some(c => String(c).trim())) continue;
+    const no = g(r, '예약번호').replace(/\D/g, ''); if(!no) continue;
+    const st = g(r, '상태');
+    if(/(취소|노쇼)/.test(st) || g(r, '예약취소일시')){ cancelled++; continue; }
+    const when = g(r, '이용일시');
+    const dm = when.match(/(\d{2,4})\s*[.\-/]\s*(\d{1,2})\s*[.\-/]\s*(\d{1,2})/), tm = when.match(/(오전|오후)?\s*(\d{1,2}):(\d{2})/);
+    if(!dm){ skipped.push('예약번호 ' + no); continue; }
+    let y = +dm[1]; if(y < 100) y += 2000;
+    const date = y + '-' + bqPad(+dm[2]) + '-' + bqPad(+dm[3]);
+    let time = '';
+    if(tm){ let h = +tm[2]; if(tm[1] === '오후' && h < 12) h += 12; if(tm[1] === '오전' && h === 12) h = 0; time = bqPad(h) + ':' + tm[3]; }
+    const visitor = g(r, '방문자'), booker = g(r, '예약자');
+    const phoneRaw = g(r, '방문자전화번호') || g(r, '전화번호') || g(r, '연락처');
+    const digits = phoneRaw.replace(/\D/g, '');
+    const dobRaw = g(r, '예약자입력정보1-생년월일') || g(r, '생년월일');
+    const dm2 = dobRaw.match(/(\d{4})\s*[.\-/]\s*(\d{1,2})\s*[.\-/]\s*(\d{1,2})/);
+    let dob = dm2 ? dm2[1] + '-' + bqPad(+dm2[2]) + '-' + bqPad(+dm2[3]) : '';
+    const sexRaw = g(r, '예약자입력정보2-성별') || g(r, '성별'); const sex = /남/.test(sexRaw) ? '남' : (/여/.test(sexRaw) ? '여' : '');
+    let memo = g(r, '직원메모');
+    if(!visitor && dob && (+dob.slice(0, 4)) <= thisYear - 19){ memo = (memo ? memo + ' · ' : '') + '방문자 칸이 비어 있고 생년월일이 성인이에요(보호자 본인 정보일 수 있음)'; dob = ''; }
+    const opt = g(r, '가격분류 및 옵션'), prod = g(r, '상품'); const sv = (opt + ' ' + prod).match(/(초진|재진|신환|구환)/);
+    rows.push({ date: date, time: time, name: booker, visitor: visitor, dob: dob, sex: sex, phone: digits.length >= 9 ? phoneRaw : '', last4: digits.length >= 4 ? digits.slice(-4) : '', service: sv ? sv[1] : '', memo: memo, bookingNo: no, source: 'naver' });
+  }
+  return { rows: rows, skipped: skipped, cancelled: cancelled };
+}
+async function bqFiles(files){
+  const list = Array.from(files || []); if(!list.length) return;
+  const ta = document.getElementById('bq_raw'); let all = ta && ta.value.trim() ? ta.value.trim() + '\n' : '';
+  let pre = { rows: [], cancelled: 0, skipped: [] };
+  try{
+    for(let i = 0; i < list.length; i++){
+      bqSay('읽는 중… (' + (i + 1) + '/' + list.length + ') ' + list[i].name + (/^image/.test(list[i].type) ? ' · 사진은 10~40초 걸려요' : ''));
+      const r = await bqFileText(list[i]);
+      all += r.text + '\n';
+      if(r.pre){ pre.rows = pre.rows.concat(r.pre.rows); pre.cancelled += r.pre.cancelled; pre.skipped = pre.skipped.concat(r.pre.skipped); }
+    }
+    bqSay('');
+    const extra = all.replace(/\s/g, '') ? all : '';
+    if(!pre.rows.length){ if(ta) ta.value = all; bqParse(); return; }
+    bqParsed = pre.rows;
+    if(extra && ta){ ta.value = extra; const keep = pre.rows; bqParse(); bqParsed = keep.concat(bqParsed); }
+    bqRenderPreview(pre.skipped, pre.cancelled, '');
+  }catch(e){ bqSay('파일을 읽지 못했어요: ' + (e.message || e), true); }
+}
+function bqPasteImg(ev){
+  const items = (ev.clipboardData && ev.clipboardData.items) || [];
+  const imgs = []; for(let i = 0; i < items.length; i++){ if(items[i].kind === 'file' && /^image\//.test(items[i].type)){ const f = items[i].getAsFile(); if(f) imgs.push(f); } }
+  if(imgs.length){ ev.preventDefault(); bqFiles(imgs); }
+}
+function bqParse(){
+  const raw = (document.getElementById('bq_raw') || {}).value || '';
+  if(!raw.trim()){ bqSay('붙여넣은 내용이 없어요.', true); return; }
+  const batch = (document.getElementById('bq_batchDate') || {}).value || '';
+  const nt = bqNaverTable(raw, batch);
+  if(nt && nt.rows.length){ bqParsed = nt.rows.filter(r => r.date); const noDate = nt.rows.length - bqParsed.length; bqRenderPreview(nt.skipped.map(n => '예약번호 ' + n).concat(noDate ? [noDate + '건은 날짜를 몰라 뺐어요. 위에서 이용일을 고르세요'] : []), nt.cancelled, nt.usedBatch ? batch : ''); return; }
+  const blocks = bqSplit(raw); bqParsed = []; const skipped = []; let cancelled = 0;
+  blocks.forEach(b => { const r = bqParseBlock(b); if(r.cancelled){ cancelled++; return; } if(!r.date && batch) r.date = batch; if((r.phone || r.name) && r.date) bqParsed.push(r); else skipped.push(b.slice(0, 80)); });
+  bqRenderPreview(skipped, cancelled, '');
+}
+function bqRenderPreview(skipped, cancelled, batchUsed){
+  const box = document.getElementById('bq_preview'); if(!box) return;
+  if(!bqParsed.length){ box.innerHTML = '<div style="color:var(--danger);font-size:12px;">읽을 수 있는 예약을 찾지 못했어요. 이름·연락처·날짜가 같이 보이는지 확인하거나 「＋ 직접 추가」를 쓰세요.' + (skipped.length ? '<br>읽지 못한 줄: ' + escapeHtml(skipped.slice(0,3).join(' / ')) : '') + '</div>'; return; }
+  const inp = (id, v, ph, type, w) => `<input type="${type||'text'}" id="${id}" value="${escapeHtml(v||'')}" placeholder="${ph||''}" style="font-size:12px;padding:5px;width:${w||'100%'};min-width:0;">`;
+  box.innerHTML = '<div style="font-size:12px;margin-bottom:4px;"><b>' + bqParsed.length + '건</b>을 읽었어요. 맞는지 확인하고 고친 뒤 저장하세요.' + (cancelled ? ' (취소 ' + cancelled + '건은 뺐어요)' : '') + (skipped.length ? ' (읽지 못한 줄 ' + skipped.length + '개)' : '') + (batchUsed ? '<br><span style="color:var(--secondary);">날짜가 표에 없어서 위에서 고른 이용일(' + batchUsed.slice(5).replace('-', '/') + ')로 넣었어요.</span>' : '') + '</div>'
+    + bqParsed.map((r, i) => `<div style="padding:6px 0;border-bottom:1px solid var(--border);"><label style="font-size:12px;"><input type="checkbox" id="bq_p_ok${i}" checked> ${i+1}번 예약</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:3px;">${inp('bq_p_name'+i, r.name, '예약자')}${inp('bq_p_phone'+i, r.phone, r.last4 ? '연락처(전체 번호 모르면 비워두세요 · 뒤 ' + r.last4 + ')' : '연락처')}${inp('bq_p_vis'+i, r.visitor, '방문자(아이) 이름')}<span></span>${inp('bq_p_date'+i, r.date, '', 'date')}${inp('bq_p_time'+i, r.time, '', 'time')}</div>${inp('bq_p_svc'+i, r.service, '상품(초진 등)')}</div>`).join('')
+    + '<button type="button" class="btn btn-primary btn-block" style="margin-top:8px;" onclick="bqSaveParsed()">대기열에 저장</button>';
+}
+async function bqSaveParsed(){
+  const g = id => (document.getElementById(id) || {}).value || '';
+  const items = [];
+  bqParsed.forEach((r, i) => { if(!(document.getElementById('bq_p_ok'+i) || {}).checked) return; items.push({ dob: r.dob || '', sex: r.sex || '', name: g('bq_p_name'+i), visitor: g('bq_p_vis'+i), phone: g('bq_p_phone'+i), last4: r.last4 || '', memo: r.memo || '', date: g('bq_p_date'+i), time: g('bq_p_time'+i), service: g('bq_p_svc'+i), bookingNo: r.bookingNo, source: 'naver' }); });
+  if(!items.length){ bqSay('저장할 예약을 선택해 주세요.', true); return; }
+  await bqSave(items);
+}
+async function bqSave(items){
+  try{
+    bqSay('저장하는 중…');
+    const d = await bqPost({ action:'savebookings', items, createdBy: (window.BQ_ACTOR || '') });
+    if(d.status !== 'ok'){ bqSay('❌ 저장하지 못했어요: ' + (d.message || d.code || ''), true); return; }
+    bqSay(`✅ ${d.added}건 추가${d.skipped ? ' · 이미 있어서 건너뜀 ' + d.skipped : ''}${d.invalid ? ' · 날짜가 틀려 제외 ' + d.invalid : ''}`);
+    const raw = document.getElementById('bq_raw'); if(raw) raw.value = ''; const pv = document.getElementById('bq_preview'); if(pv) pv.innerHTML = ''; bqParsed = [];
+    await bqLoad(true);
+  }catch(e){ bqSay('❌ 저장 중 오류: ' + (e.message || e), true); }
+}
+function bqAddManual(){
+  const g = id => (document.getElementById(id) || {}).value || '';
+  if(!g('bq_a_name').trim() && !g('bq_a_phone').trim()){ bqSay('이름이나 연락처를 입력해 주세요.', true); return; }
+  if(!g('bq_a_date')){ bqSay('예약 날짜를 선택해 주세요.', true); return; }
+  bqSave([{ name: g('bq_a_name'), phone: g('bq_a_phone'), date: g('bq_a_date'), time: g('bq_a_time'), service: '초진', source: 'manual' }]).then(()=>{ ['bq_a_name','bq_a_phone','bq_a_time'].forEach(id=>{ const e = document.getElementById(id); if(e) e.value = ''; }); });
+}
+
+/* ---------- 목록 ---------- */
+async function bqLoad(quiet, force){
+  const box = document.getElementById('bq_list'); if(!box) return;
+  if(!getApiUrl()){ box.innerHTML = '<div style="color:var(--secondary);">연동 설정에서 백엔드 URL을 먼저 입력해 주세요.</div>'; return; }
+  if(!quiet) box.innerHTML = '<div style="color:var(--secondary);">불러오는 중…</div>';
+  try{
+    const d = await bqPost({ action:'listbookings', sync: force ? 'force' : '' });
+    if(d.status !== 'ok'){ box.innerHTML = '<div style="color:var(--danger);">❌ 불러오지 못했어요: ' + escapeHtml(d.message || d.code || '') + '</div>'; return; }
+    bqItems = d.items || [];
+    if(d.sync && d.sync.enabled){ if(d.sync.error) bqSay('⚠️ 에어테이블 연동 오류: ' + d.sync.error, true); else if(!d.sync.skipped) bqSay('🔗 에어테이블 연동: ' + (d.sync.added ? '새 예약 ' + d.sync.added + '건을 가져왔어요' : '새로 들어온 예약이 없어요') + (d.sync.updated ? ' · 바뀐 예약 ' + d.sync.updated + '건 반영' : '') + (d.sync.cancelled ? ' · 거절 ' + d.sync.cancelled + '건 취소 표시' : '')); }
+    if(d.intakeError) bqSay('⚠️ 초진 기록지 응답 시트를 읽지 못해 작성 여부는 확인하지 못했어요: ' + d.intakeError, true);
+    bqRender();
+  }catch(e){ box.innerHTML = '<div style="color:var(--danger);">❌ 불러오는 중 오류: ' + escapeHtml(e.message || String(e)) + '</div>'; }
+}
+function bqSetFilter(f){ bqFilter = f; bqRender(); }
+function bqSetOpts(){ bqOnlyMissing = !!(document.getElementById('bq_onlyMissing') || {}).checked; bqHideRevisit = !!(document.getElementById('bq_hideRevisit') || {}).checked; bqHideKnown = !!(document.getElementById('bq_hideKnown') || {}).checked; bqRender(); }
+function bqRender(){
+  const box = document.getElementById('bq_list'); if(!box) return;
+  document.querySelectorAll('#bq_card .bq-f').forEach(b => { const on = b.dataset.f === bqFilter; b.style.background = on ? 'var(--primary)' : ''; b.style.color = on ? '#fff' : ''; });
+  const today = bqYmd(new Date()), tomorrow = bqYmd(new Date(Date.now() + 86400000)), week = bqYmd(new Date(Date.now() + 7*86400000));
+  const inRange = bqItems.filter(b => !(bqHideRevisit && /재진/.test(b.service)) && !(bqFilter === 'today' && b.date > tomorrow) && !(bqFilter === 'week' && b.date > week));
+  const hiddenKnown = inRange.filter(b => bqHideKnown && b.known && !b.intake.submitted).length;
+  let list = inRange.filter(b => !(bqHideKnown && b.known && !b.intake.submitted));
+  const miss = list.filter(b => !b.intake.submitted);
+  const label = { today:'오늘·내일', week:'7일 안', all:'전체' }[bqFilter];
+  const sum = document.getElementById('bq_summary');
+  if(sum) sum.innerHTML = `${label} 예약 <b>${list.length}명</b> · ✅ 기록지 작성 ${list.length - miss.length}명 · <span style="color:${miss.length ? 'var(--danger)' : 'var(--ok)'};">⚠️ 미작성 ${miss.length}명</span>${hiddenKnown ? ` <span style="font-weight:400;color:var(--secondary);font-size:11.5px;">· 기존 환자 번호 ${hiddenKnown}명은 숨김</span>` : ''}`;
+  const shown = bqOnlyMissing ? miss : list;
+  if(!shown.length){ box.innerHTML = '<div style="color:var(--secondary);padding:8px 0;">' + (list.length ? '모두 기록지를 작성했어요 👍' : '표시할 예약이 없어요. 「📥 네이버 예약 붙여넣기」로 추가하세요.') + '</div>'; return; }
+  let html = '', lastDate = '';
+  shown.forEach(b => {
+    if(b.date !== lastDate){ lastDate = b.date; html += `<div style="font-weight:800;font-size:12.5px;margin:10px 0 2px;color:var(--primary);">${bqDateLabel(b.date)}</div>`; }
+    let badge, act = '';
+    if(b.intake.registered){ badge = '<span style="color:var(--ok);font-weight:700;">🌱 접수 완료</span>'; }
+    else if(b.intake.submitted){
+      badge = `<span style="color:var(--ok);font-weight:700;">✅ 기록지 작성완료${b.intake.child ? ' (' + escapeHtml(b.intake.child) + ')' : ''}</span>${({name:' · 이름으로 추정', name4:' · 이름+번호 뒤4자리 일치', nameonly:' · ⚠️ 이름만 같음(번호 뒤4자리 다름) 확인 필요', last4:' · ⚠️ 번호 뒤4자리만 일치(이름 다름) 확인 필요'})[b.intake.by] ? '<span style="color:var(--secondary);font-size:11px;">' + ({name:' · 이름으로 추정', name4:' · 이름+번호 뒤4자리 일치', nameonly:' · ⚠️ 이름만 같음(번호 뒤4자리 다름) 확인 필요', last4:' · ⚠️ 번호 뒤4자리만 일치(이름 다름) 확인 필요'})[b.intake.by] + '</span>' : ''}`;
+      act = `<button type="button" class="btn btn-primary" style="font-size:12px;padding:6px 10px;" onclick="bqRegister('${b.id}')">🌱 접수하기</button>`;
+    }else{
+      badge = '<span style="color:var(--danger);font-weight:700;">⚠️ 기록지 미작성</span>' + (b.status === 'guided' ? `<span style="color:var(--secondary);font-size:11px;"> · 📨 안내함 ${b.guidedAt ? new Date(b.guidedAt).getMonth()+1 + '/' + new Date(b.guidedAt).getDate() : ''}</span>` : '');
+      act = b.phone ? `<button type="button" class="btn btn-primary" style="font-size:12px;padding:6px 10px;" onclick="bqGuide('${b.id}')">📨 ${b.status === 'guided' ? '다시 안내' : '작성 안내 문자'}</button>` : `<span style="color:var(--danger);">${b.last4 ? '번호 ***' + escapeHtml(b.last4) + ' (전체 번호 필요)' : '전화번호 없음'}</span> <button type="button" class="btn btn-outline" style="font-size:12px;padding:6px 10px;" onclick="bqEditPhone('${b.id}')">📞 번호 입력</button>`;
+    }
+    html += `<div style="padding:8px 0;border-bottom:1px solid var(--border);">
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;">
+        <div style="min-width:0;line-height:1.5;"><b>${b.time || '시간 미정'}</b> · <b>${escapeHtml(b.name || '(이름 없음)')}</b>${b.visitor ? ' <span style="font-size:12px;">(아이 ' + escapeHtml(b.visitor) + (b.dob ? ' · ' + escapeHtml(b.dob) : '') + (b.sex ? ' · ' + escapeHtml(b.sex) : '') + ')</span>' : (b.dob ? ' <span style="font-size:12px;">(' + escapeHtml(b.dob) + (b.sex ? ' · ' + escapeHtml(b.sex) : '') + ')</span>' : '')} <span style="color:var(--secondary);">${escapeHtml(bqFmtPhone(b.phone))}</span>${b.known ? ' <span style="font-size:11px;background:#F1ECE0;border-radius:6px;padding:1px 6px;">기존 환자 번호</span>' : ''}${b.service ? ` <span style="font-size:11px;background:#EEF2F0;border-radius:6px;padding:1px 6px;">${escapeHtml(b.service)}</span>` : ''}${b.channel ? ` <span style="font-size:10.5px;background:${/네이버/.test(b.channel) ? '#DCFCE7' : /똑닥/.test(b.channel) ? '#DBEAFE' : '#F1F5F9'};border-radius:6px;padding:1px 6px;">${escapeHtml(b.channel)}</span>` : ''}${b.source === 'airtable' ? ' <span style="font-size:10.5px;color:var(--secondary);">🔗자동</span>' : ''}</div>
+        <button type="button" onclick="bqDelete('${b.id}')" aria-label="삭제" style="border:0;background:none;color:var(--secondary);font-size:16px;cursor:pointer;">✕</button>
+      </div>
+      <div style="margin-top:5px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px;">${badge}${act}</div></div>`;
+  });
+  box.innerHTML = html;
+}
+async function bqEditPhone(id){
+  const b = bqItems.find(x => x.id === id); if(!b) return;
+  const v = prompt(`${b.name || '이 예약'} 보호자 전화번호를 입력하세요 (010-0000-0000)`, b.phone || ''); if(v === null) return;
+  if(v.replace(/\D/g, '').length < 9){ bqSay('전화번호가 올바르지 않아요.', true); return; }
+  if(b.last4 && v.replace(/\D/g, '').slice(-4) !== b.last4 && !confirm('예약에 적힌 번호 뒤 4자리(' + b.last4 + ')와 달라요. 그래도 저장할까요?')) return;
+  try{ await bqPatch(id, { phone: v }); await bqLoad(true); bqSay('✅ 전화번호를 저장했어요.'); }catch(e){ bqSay('❌ 저장하지 못했어요', true); }
+}
+async function bqPatch(id, patch){ return bqPost({ action:'updatebooking', id: id, patch: patch }); }
+async function bqDelete(id){
+  const b = bqItems.find(x => x.id === id); if(!b) return;
+  if(!confirm(`${b.name || '이 예약'} (${b.date} ${b.time || ''}) 을 대기열에서 지울까요?`)) return;
+  try{ await bqPost({ action:'deletebooking', id: id }); await bqLoad(true); }catch(e){ bqSay('❌ 지우지 못했어요', true); }
+}
+
+/* ---------- 작성 안내 문자 만들기 (위의 「다음 내원일 안내 문자」 칸을 채워 줍니다) ---------- */
+function bqNearest(sel, val){ if(!sel) return; const o = Array.from(sel.options).map(x => ({ v: x.value, d: Math.abs(+x.value - val) })).sort((a,b) => a.d - b.d)[0]; if(o) sel.value = o.v; }
+function bqGuide(id){
+  const b = bqItems.find(x => x.id === id); if(!b) return;
+  const $ = k => document.getElementById(k);
+  if(!$('an_name')){ alert('이 화면에는 안내 문자 칸이 없어요.'); return; }
+  $('an_name').value = b.visitor || b.intake.child || b.name || '';
+  const dt = $('an_date'); dt.value = b.date; ['input','change'].forEach(ev => dt.dispatchEvent(new Event(ev, { bubbles:true })));
+  const none = $('an_timeNone');
+  if(b.time){
+    if(none && none.classList.contains('active') && typeof toggleApptTimeNone === 'function') toggleApptTimeNone();
+    const p = b.time.split(':'); bqNearest($('an_hour'), +p[0]); bqNearest($('an_min'), +p[1]);
+  }else if(none && !none.classList.contains('active') && typeof toggleApptTimeNone === 'function'){ toggleApptTimeNone(); }
+  $('an_phone').value = bqFmtPhone(b.phone);
+  const btn = $('an_introFormBtn'); if(btn && !btn.classList.contains('used') && typeof addApptMemo === 'function') addApptMemo(btn);   // "초진 기록지 작성" 안내(구글폼 링크) 넣기
+  window.bqGuideId = id;
+  if(typeof previewApptMsg === 'function') previewApptMsg();
+  const pv = $('an_previewBox') || $('an_name'); if(pv && pv.scrollIntoView) pv.scrollIntoView({ behavior:'smooth', block:'center' });
+  bqSay('📨 위 「다음 내원일 안내 문자」 칸에 채워 두었어요. 내용을 확인하고 「🚀 즉시 발송」을 누르세요. 발송되면 「안내함」으로 표시돼요.');
+}
+// 안내 문자를 실제로 보내면 대기열에 "안내함"으로 표시
+if(typeof sendApptMsg === 'function'){
+  const _bqSendOrig = sendApptMsg;
+  sendApptMsg = async function(){
+    await _bqSendOrig.apply(this, arguments);
+    try{
+      const st = document.getElementById('an_sendStatus');
+      if(window.bqGuideId && st && st.textContent.indexOf('✅') === 0){ const id = window.bqGuideId; window.bqGuideId = null; await bqPatch(id, { status:'guided', guidedAt: new Date().toISOString() }); bqLoad(true); }
+    }catch(e){}
+  };
+}
+
+/* ---------- 이미 쓴 기록지 → 초진 접수 카드로 ---------- */
+async function bqRegister(id){
+  const b = bqItems.find(x => x.id === id); if(!b || !b.intake.submitted) return;
+  if(typeof fsLoadList !== 'function'){ alert('초진 접수 카드가 없는 화면이에요.'); return; }
+  await fsLoadList();
+  const idx = (typeof fsItems !== 'undefined' ? fsItems : []).findIndex(it => it.key === b.intake.key);
+  if(idx < 0){ bqSay('초진 접수 목록에서 이 기록지를 찾지 못했어요. 이미 접수했거나 목록(최근 60건)에서 밀려났을 수 있어요.', true); return; }
+  fsPick(idx);
+  const c = document.getElementById('fs_card'); if(c && c.scrollIntoView) c.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+/* ---------- 네이버 예약자관리 화면의 북마크로 넘어온 목록 읽기 ---------- */
+function bqHashImport(){
+  try{
+    const h = location.hash || ''; if(h.indexOf('#bq=') !== 0) return false;
+    let s = h.slice(4).replace(/-/g, '+').replace(/_/g, '/'); while(s.length % 4) s += '=';
+    const obj = JSON.parse(decodeURIComponent(escape(atob(s))));
+    history.replaceState(null, '', location.pathname + location.search);                // 주소에 이름·번호가 남지 않게 지움
+    if(typeof showView === 'function') showView('appt');
+    const raw = document.getElementById('bq_raw'), bd = document.getElementById('bq_batchDate'), box = document.getElementById('bq_import');
+    if(!raw) return false;
+    const dm = String(obj.d || '').match(/20\d{2}-\d{2}-\d{2}/); if(dm && bd) bd.value = dm[0];
+    raw.value = String(obj.t || ''); if(box) box.style.display = 'block';
+    bqParse();
+    const c = document.getElementById('bq_card'); if(c && c.scrollIntoView) c.scrollIntoView({ behavior:'smooth', block:'start' });
+    bqSay('📎 네이버 예약자관리에서 가져온 목록을 읽었어요. 이름·연락처를 확인하고 「대기열에 저장」을 누르세요.');
+    return true;
+  }catch(e){ bqSay('북마크로 넘어온 내용을 읽지 못했어요: ' + (e.message || e), true); return false; }
+}
+
+/* ---------- 시작 ---------- */
+(function(){
+  const bd = document.getElementById('bq_batchDate'); if(bd && !bd.value) bd.value = bqYmd(new Date());
+  const run = () => { try{ if(getApiUrl() && (window.BQ_AUTOLOAD !== false)) bqLoad(true); }catch(e){} };
+  setTimeout(bqHashImport, 900);                         // 앱이 다 열린 뒤에 북마크 목록을 읽음
+  if(window.BQ_ACTOR === '의사'){
+    if(typeof showView === 'function'){ const _sv = showView; showView = function(v){ const r = _sv.apply(this, arguments); if(v === 'appt') setTimeout(run, 60); return r; }; }
+  }else{
+    try{ if(localStorage.getItem('jrd_auth_token')) setTimeout(run, 900); }catch(e){}
+  }
+})();
+
+if(!getApiUrl()) openSettings();
+renderApptHistory();
+</script>
+</body>
+</html>
