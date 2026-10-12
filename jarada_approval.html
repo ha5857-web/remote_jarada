@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>삼성자라다 챗봇 코드 승인기</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:#f0f4f0;min-height:100vh;padding:20px;display:flex;justify-content:center;align-items:flex-start}
+.wrap{width:100%;max-width:480px}
+.header{background:linear-gradient(135deg,#1a5c2a,#2d7a3a);color:white;padding:22px 24px;border-radius:16px;margin-bottom:20px}
+.header h1{font-size:18px;font-weight:700}
+.header p{font-size:12px;opacity:.75;margin-top:3px}
+.card{background:white;border-radius:16px;padding:24px;margin-bottom:16px;box-shadow:0 2px 12px rgba(0,0,0,.06)}
+label{font-size:13px;font-weight:700;color:#444;display:block;margin-bottom:6px}
+.hint{font-size:12px;color:#888;margin-bottom:10px}
+.field-row{display:flex;gap:10px;align-items:flex-end;margin-bottom:16px}
+select,input{border:2px solid #e0e0e0;border-radius:10px;padding:12px 14px;font-size:15px;font-family:inherit;outline:none;transition:border .2s;background:white}
+select:focus,input:focus{border-color:#2d7a3a}
+.approve-btn{width:100%;padding:16px;background:#2d7a3a;color:white;border:none;border-radius:12px;font-size:17px;font-weight:800;cursor:pointer;font-family:inherit;transition:all .2s;letter-spacing:.5px}
+.approve-btn:hover{background:#1a5c2a}
+.approve-btn:active{transform:scale(.98)}
+.result-box{background:#f0f7f0;border:2px solid #2d7a3a;border-radius:14px;padding:20px;text-align:center;display:none}
+.result-label{font-size:13px;color:#555;margin-bottom:8px}
+.result-code{font-size:36px;font-weight:800;color:#1a5c2a;letter-spacing:4px;font-family:'Courier New',monospace;cursor:pointer;padding:10px 16px;background:white;border-radius:10px;display:inline-block;margin-bottom:12px;border:2px dashed #2d7a3a}
+.result-code:hover{background:#e8f5e9}
+.result-info{font-size:13px;color:#555;line-height:1.8}
+.copy-row{display:flex;gap:8px;margin-top:14px;justify-content:center}
+.btn-s{padding:10px 16px;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+.btn-copy{background:#1a6fa8;color:white}
+.btn-kakao{background:#fee500;color:#3c1e1e}
+.btn-sms{background:#555;color:white}
+.history{margin-top:20px}
+.history h3{font-size:14px;font-weight:700;color:#444;margin-bottom:10px}
+.hist-item{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#f8f8f8;border-radius:10px;margin-bottom:6px;font-size:13px}
+.hist-code{font-family:monospace;font-weight:700;color:#1a5c2a;font-size:15px}
+.hist-info{color:#888;font-size:12px}
+.badge{background:#2d7a3a;color:white;font-size:10px;padding:3px 8px;border-radius:20px;font-weight:700}
+.notice{background:#fff8e1;border-left:4px solid #f59e0b;padding:12px 14px;border-radius:8px;font-size:12px;color:#78610a;line-height:1.7;margin-top:12px}
+.secret-row{display:flex;align-items:center;gap:8px;padding:12px 14px;background:#f0f0f0;border-radius:10px;font-size:13px}
+.secret-inp{width:80px;text-align:center;font-size:18px;font-weight:700;letter-spacing:2px}
+.tab-row{display:flex;gap:6px;margin-bottom:14px}
+.tab{padding:8px 14px;border:2px solid #e0e0e0;background:white;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;color:#666}
+.tab.on{border-color:#2d7a3a;background:#f0f7f0;color:#2d7a3a}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="header">
+  <h1>🌱 챗봇 코드 승인기</h1>
+  <p>원장님 · 원무과 전용 · 환자 코드를 즉시 생성합니다</p>
+</div>
+
+<!-- 설정 카드 -->
+<div class="card">
+  <label>🔑 비밀 접두사 설정</label>
+  <p class="hint">챗봇 파일에 설정한 것과 동일하게 입력하세요. 처음 한 번만 설정하면 저장됩니다.</p>
+  <div class="secret-row">
+    <span>접두사:</span>
+    <input class="secret-inp" id="secretInp" type="text" maxlength="3" placeholder="Z" value="Z">
+    <button class="btn-s btn-copy" onclick="saveSecret()" style="padding:8px 14px">저장</button>
+    <span id="secretSaved" style="color:#2d7a3a;font-size:12px;font-weight:700"></span>
+  </div>
+</div>
+
+<!-- 승인 카드 -->
+<div class="card">
+  <label>👶 아이 생년월일 입력</label>
+  <p class="hint">생년(연도), 생월, 생일을 입력하세요. 생년은 뒤 2자리만 사용됩니다.</p>
+  <div class="field-row">
+    <div>
+      <label style="margin-bottom:4px">생년 (年)</label>
+      <select id="bYear">
+        <option value="">년</option>
+      </select>
+    </div>
+    <div>
+      <label style="margin-bottom:4px">생월 (月)</label>
+      <select id="bMonth">
+        <option value="">월</option>
+        <option>01</option><option>02</option><option>03</option><option>04</option>
+        <option>05</option><option>06</option><option>07</option><option>08</option>
+        <option>09</option><option>10</option><option>11</option><option>12</option>
+      </select>
+    </div>
+    <div>
+      <label style="margin-bottom:4px">생일 (日)</label>
+      <select id="bDay">
+        <option value="">일</option>
+      </select>
+    </div>
+  </div>
+  <div style="margin-bottom:20px;padding:12px 14px;background:#f0f7f0;border-radius:10px;font-size:13px;color:#2d7a3a;font-weight:600">
+    📅 유효기간: 챗봇 첫 사용일로부터 <strong>6개월</strong>
+  </div>
+  <button class="approve-btn" onclick="approve()">✅ 코드 승인 및 생성</button>
+
+  <!-- 결과 -->
+  <div class="result-box" id="resultBox">
+    <div class="result-label">생성된 이용 코드</div>
+    <div class="result-code" id="resultCode" onclick="copyCode()" title="클릭하면 복사됩니다">——————</div>
+    <div class="result-info" id="resultInfo"></div>
+    <div class="copy-row">
+      <button class="btn-s btn-copy" onclick="copyCode()">📋 코드 복사</button>
+      <button class="btn-s btn-kakao" onclick="sendKakao()">💬 카카오 문자</button>
+    </div>
+  </div>
+</div>
+
+<!-- 초진방 자동 승인 목록 -->
+<div class="card" id="fvCard">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+    <label style="margin:0">🌱 초진방 등록 아이 · 자동 승인</label>
+    <span id="fvCount" class="badge">0명</span>
+  </div>
+  <p class="hint">초진방에 등록된 아이는 코드(Z+생년월일)가 자동으로 만들어져 승인돼요. 따로 누르지 않아도 됩니다.</p>
+  <div id="fvLogin">
+    <div class="secret-row" style="margin-bottom:8px"><span>서버주소</span><input id="fvApi" type="text" style="flex:1;min-width:0;font-size:12px;padding:8px" placeholder="Apps Script 웹앱 주소"></div>
+    <div class="secret-row"><span>비밀번호</span><input id="fvPw" type="password" style="flex:1;min-width:0;font-size:14px;padding:8px" placeholder="원무과 비밀번호"><button class="btn-s btn-copy" onclick="fvLogin()" style="padding:8px 14px">불러오기</button></div>
+  </div>
+  <div id="fvMsg" style="font-size:12px;color:#c0392b;margin-top:8px"></div>
+  <div id="fvList"></div>
+</div>
+
+<!-- 오늘 발급 내역 -->
+<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <label style="margin:0">📋 오늘 발급 내역</label>
+    <span id="histCount" class="badge">0건</span>
+  </div>
+  <div id="histList"><p style="font-size:13px;color:#aaa;text-align:center;padding:12px">아직 발급된 코드가 없습니다</p></div>
+</div>
+
+<div class="notice">
+  ⚠️ <strong>보안 안내:</strong> 이 승인기는 원장님·원무과 기기에서만 사용하세요.<br>
+  생성된 코드는 챗봇 파일의 비밀 접두사가 일치해야 작동합니다.<br>
+  코드 형식: <strong>접두사 + 생년뒤2자리(2) + 생월(2) + 생일(2) = 7자리</strong> · 유효기간: 첫 사용일로부터 6개월
+</div>
+</div>
+
+<script>
+const today = new Date();
+const DAYS_PER_MONTH=[0,31,29,31,30,31,30,31,31,30,31,30,31];
+
+// 생일 드롭다운
+function fillDays(month) {
+  const dayEl = document.getElementById('bDay');
+  const cur = dayEl.value;
+  dayEl.innerHTML = '<option value="">일</option>';
+  const max = month ? DAYS_PER_MONTH[parseInt(month)] : 31;
+  for (let d=1;d<=max;d++) {
+    const v = String(d).padStart(2,'0');
+    dayEl.innerHTML += `<option value="${v}"${v===cur?' selected':''}>${d}일</option>`;
+  }
+}
+document.getElementById('bMonth').addEventListener('change', function(){
+  fillDays(this.value);
+  updateValidUntil();
+});
+fillDays(null);
+
+// 생년 드롭다운 (2000~현재)
+(function(){
+  const sel = document.getElementById('bYear');
+  const curYear = today.getFullYear();
+  for(let y = curYear; y >= 2000; y--) {
+    sel.innerHTML += `<option value="${String(y).slice(-2)}">${y}년</option>`;
+  }
+})();
+
+
+
+// 비밀 접두사 저장
+function saveSecret(){
+  const v = document.getElementById('secretInp').value.trim().toUpperCase();
+  if(!v){alert('접두사를 입력하세요');return;}
+  localStorage.setItem('jrd_prefix',v);
+  document.getElementById('secretSaved').textContent='✅ 저장됨';
+  setTimeout(()=>document.getElementById('secretSaved').textContent='',2000);
+}
+(function(){
+  const saved = localStorage.getItem('jrd_prefix');
+  if(saved) document.getElementById('secretInp').value=saved;
+})();
+
+// 발급 내역
+function getHistory(){
+  try{return JSON.parse(localStorage.getItem('jrd_hist_'+today.toISOString().slice(0,10))||'[]');}
+  catch{return[];}
+}
+function saveHistory(item){
+  const h=getHistory();
+  h.unshift(item);
+  localStorage.setItem('jrd_hist_'+today.toISOString().slice(0,10),JSON.stringify(h.slice(0,50)));
+}
+function renderHistory(){
+  const h=getHistory();
+  document.getElementById('histCount').textContent=h.length+'건';
+  const el=document.getElementById('histList');
+  if(!h.length){el.innerHTML='<p style="font-size:13px;color:#aaa;text-align:center;padding:12px">아직 발급된 코드가 없습니다</p>';return;}
+  el.innerHTML=h.map(item=>`
+    <div class="hist-item">
+      <div>
+        <div class="hist-code">${item.code}</div>
+        <div class="hist-info">생년월일: ${item.birth} · ${item.time}</div>
+      </div>
+      <button class="btn-s btn-copy" style="font-size:12px;padding:6px 10px" onclick="navigator.clipboard?.writeText('${item.code}')">복사</button>
+    </div>`).join('');
+}
+renderHistory();
+
+// 코드 생성
+function approve(){
+  const prefix=(document.getElementById('secretInp').value.trim()||localStorage.getItem('jrd_prefix')||'Z').toUpperCase();
+  const by=document.getElementById('bYear').value;
+  const bm=document.getElementById('bMonth').value;
+  const bd=document.getElementById('bDay').value;
+
+  if(!by||!bm||!bd){alert('아이 생년(연도), 생월, 생일을 모두 입력해 주세요');return;}
+
+  const code=prefix+by+bm+bd;
+  // 유효기간: 챗봇 첫 사용일로부터 6개월 (챗봇이 관리)
+  const issueDate=`${today.getFullYear()}.${String(today.getMonth()+1).padStart(2,'0')}.${String(today.getDate()).padStart(2,'0')}`;
+  const expireDate=new Date(today);
+  expireDate.setMonth(expireDate.getMonth()+6);
+  const expires=`${expireDate.getFullYear()}.${String(expireDate.getMonth()+1).padStart(2,'0')}.${String(expireDate.getDate()).padStart(2,'0')}`;
+
+  document.getElementById('resultCode').textContent=code;
+  document.getElementById('resultInfo').innerHTML=
+    `<strong>생년월일:</strong> 20${by}년 ${parseInt(bm)}월 ${parseInt(bd)}일생<br>
+     <strong>발급일:</strong> ${issueDate}<br>
+     <strong>유효기간:</strong> 첫 사용일로부터 6개월 (최대 ${expires}까지)`;
+  document.getElementById('resultBox').style.display='block';
+
+  // 내역 저장
+  const now=new Date();
+  saveHistory({
+    code,
+    birth:`20${by}년 ${parseInt(bm)}월 ${parseInt(bd)}일생`,
+    time:`${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`
+  });
+  renderHistory();
+}
+
+let lastCode='';
+function copyCode(){
+  const code=document.getElementById('resultCode').textContent;
+  if(code==='——————') return;
+  lastCode=code;
+  function showCopied(){
+    const el=document.getElementById('resultCode');
+    const orig=el.textContent;
+    el.textContent='✅ 복사됨!';
+    setTimeout(()=>el.textContent=orig,1200);
+  }
+  if(navigator.clipboard && window.isSecureContext){
+    navigator.clipboard.writeText(code).then(showCopied).catch(()=>fallbackCopy(code,showCopied));
+  } else {
+    fallbackCopy(code,showCopied);
+  }
+}
+function fallbackCopy(text,cb){
+  const ta=document.createElement('textarea');
+  ta.value=text;
+  ta.style.cssText='position:fixed;left:-9999px;top:-9999px';
+  document.body.appendChild(ta);
+  ta.focus();ta.select();
+  try{document.execCommand('copy');if(cb)cb();}catch(e){alert('코드: '+text+'\n\n위 코드를 직접 복사해 주세요.');}
+  document.body.removeChild(ta);
+}
+
+function sendKakao(){
+  const code=document.getElementById('resultCode').textContent;
+  const info=document.getElementById('resultInfo').textContent.replace(/<[^>]+>/g,'');
+  const msg=`[삼성자라다 소아청소년과]
+📱 성장 건강 상담 챗봇 이용 안내
+
+성장·비만·영양에 관한 궁금한 점을 24시간 무료로 상담받으실 수 있습니다.
+
+🔑 이용 코드: ${code}
+💬 AI 직접 질문: 하루 5회 무료
+
+📲 이용 방법
+① 챗봇 파일 실행
+② 코드 입력 (처음 1회만, 이후 자동)
+③ 메뉴 탐색 또는 직접 질문
+
+문의: 02-523-0111
+삼성자라다 소아청소년과`;
+
+  function showKakaoCopied(){alert('메시지가 복사되었습니다.\n카카오톡에 붙여넣기 해주세요.');}
+  if(navigator.clipboard && window.isSecureContext){
+    navigator.clipboard.writeText(msg).then(showKakaoCopied).catch(()=>fallbackCopy(msg,showKakaoCopied));
+  } else {
+    fallbackCopy(msg,showKakaoCopied);
+  }
+}
+
+// ───────── 초진방 등록 아이 자동 승인 목록 ─────────
+const FV_API_DEFAULT='https://script.google.com/macros/s/AKfycbzTNYUR8rlsZSmQl1AQrIkB-HGARhUQDwP4nrDFti3R7-ip4ipRGOqk4lVfVZpIFSwONg/exec';
+function fvEsc(t){return String(t||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function fvApi(){return (document.getElementById('fvApi').value||'').trim()||FV_API_DEFAULT;}
+async function fvPost(body){
+  const r=await fetch(fvApi(),{method:'POST',body:JSON.stringify(body)});
+  return r.json();
+}
+async function fvLoad(){
+  const msg=document.getElementById('fvMsg'); msg.textContent='';
+  const tok=sessionStorage.getItem('jrd_fv_tok');
+  if(!tok) return;
+  try{
+    const d=await fvPost({action:'listfvcodes',auth:tok});
+    if(d&&d.status==='ok'){
+      document.getElementById('fvLogin').style.display='none';
+      renderFv(d.items||[]);
+    } else {
+      sessionStorage.removeItem('jrd_fv_tok');
+      document.getElementById('fvLogin').style.display='';
+      msg.textContent=(d&&d.message)||'다시 로그인해 주세요.';
+    }
+  }catch(e){ msg.textContent='서버에 연결하지 못했어요. 서버주소를 확인해 주세요.'; }
+}
+async function fvLogin(){
+  const msg=document.getElementById('fvMsg'); msg.textContent='';
+  const pw=document.getElementById('fvPw').value;
+  if(!pw){msg.textContent='비밀번호를 입력해 주세요.';return;}
+  try{ localStorage.setItem('jrd_fv_api',fvApi()); }catch(e){}
+  try{
+    const d=await fvPost({action:'login',password:pw});
+    if(d&&d.status==='ok'&&d.token){ sessionStorage.setItem('jrd_fv_tok',d.token); document.getElementById('fvPw').value=''; fvLoad(); }
+    else msg.textContent=(d&&d.message)||'로그인에 실패했어요.';
+  }catch(e){ msg.textContent='서버에 연결하지 못했어요. 서버주소를 확인해 주세요.'; }
+}
+function renderFv(items){
+  document.getElementById('fvCount').textContent=items.length+'명';
+  const el=document.getElementById('fvList');
+  if(!items.length){el.innerHTML='<p style="font-size:13px;color:#aaa;text-align:center;padding:12px">최근 60일 안에 초진방에 등록된 아이가 없어요</p>';return;}
+  el.innerHTML=items.map(it=>`
+    <div class="hist-item">
+      <div>
+        <div class="hist-code">${fvEsc(it.code)} <span class="badge" style="font-size:9px;vertical-align:middle">자동 승인</span></div>
+        <div class="hist-info">${fvEsc(it.name)} · ${fvEsc(it.dob)} · 등록 ${fvEsc(it.date)}</div>
+      </div>
+      <button class="btn-s btn-copy" style="font-size:12px;padding:6px 10px" onclick="navigator.clipboard&&navigator.clipboard.writeText('${fvEsc(it.code)}')">복사</button>
+    </div>`).join('');
+}
+(function(){
+  try{ document.getElementById('fvApi').value=localStorage.getItem('jrd_fv_api')||FV_API_DEFAULT; }catch(e){ document.getElementById('fvApi').value=FV_API_DEFAULT; }
+  fvLoad();
+})();
+</script>
+</body>
+</html>
