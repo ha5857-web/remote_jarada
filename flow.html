@@ -2982,7 +2982,17 @@ function open(id){
   document.body.appendChild(o);
   var g=Object.assign({},v.gr||{});
   if(!g.dob&&v.dob)g.dob=v.dob;if(!g.sex)g.sex=sexOf(v);if(!g.date)g.date=todayStr();
+  var it=v.intake||{};if(!g.fh&&it.fatherH)g.fh=it.fatherH;if(!g.mh&&it.motherH)g.mh=it.motherH;
   fillEditor(g);
+  if((!g.dob||!g.sex)&&/\d{3,}/.test(v.chartNo||'')){
+    api({action:'flowprepare',chartNo:v.chartNo,chart:(v.name||'')+' '+v.chartNo+' 생년월일 성별'}).then(function(pj){
+      var idn=pj&&pj.status==='ok'&&pj.source==='patient'&&pj.identity;if(!idn||ST.id!==id)return;
+      var d=document.getElementById('fr-dob'),s=document.getElementById('fr-sex');
+      if(d&&!d.value&&idn.dob)d.value=String(idn.dob).slice(0,10);
+      if(s&&!s.value&&idn.sex)s.value=/^(M|남)/i.test(idn.sex)?'M':/^(F|여)/i.test(idn.sex)?'F':'';
+      infoSum();
+    }).catch(function(){});
+  }
   o.addEventListener('click',function(e){
     var b=e.target.closest('[data-fr]');if(!b||b.disabled)return;var k=b.dataset.fr;
     if(k==='close')close();

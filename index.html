@@ -8982,6 +8982,29 @@ async function rvView(){
   try{ await rvWithShim(p, () => GR.open(p.id), 1500); }catch(e){ alert(e.message || '기록지를 열지 못했어요.'); }
 }
 /* ---- flow → 의사 앱: flow의 [성장 리포트]에서 만든 진료 후 기록을 이 환자 카드(초진: 진료 후 안내 / 재진: 오늘 경과 기록)로 가져옵니다 ---- */
+/* ---- 의사 앱 → flow: 오늘 flow 환자 중 생년월일·성별·부모 키가 비어 있는 분께 의사 앱 값을 채워 줍니다 (성장 리포트용) ---- */
+window.fvFillAt = window.fvFillAt || 0;
+async function fvFlowFillAll(visits){
+  if(!Array.isArray(visits) || Date.now() - window.fvFillAt < 20000) return;
+  window.fvFillAt = Date.now();
+  const today = todayStr(), dg = s => String(s||'').replace(/\D/g,'');
+  for(const v of visits){
+    if(!v || !v.id || v.id==='config:flow' || !v.name || (v.date && v.date!==today)) continue;
+    const it = v.intake || {};
+    const need = !v.dob || !it.fatherH || !it.motherH;
+    if(!need) continue;
+    let m = v.chartNo ? patients.filter(p=>dg(p.chartNo) && dg(p.chartNo)===dg(v.chartNo)) : [];
+    if(!m.length){ const b = patients.filter(p=>p.name===v.name); if(b.length===1) m = b; }
+    if(m.length!==1) continue;
+    const p = m[0], patch = {};
+    if(!v.dob && p.dob) patch.dob = p.dob;
+    if(!it.fatherH && p.fatherHeight) patch['intake.fatherH'] = String(p.fatherHeight);
+    if(!it.motherH && p.motherHeight) patch['intake.motherH'] = String(p.motherHeight);
+    if(!Object.keys(patch).length) continue;
+    patch.updatedAt = Date.now();
+    try{ await bqPost({ action:'flowsave', id:v.id, patch }); }catch(e){}
+  }
+}
 window.fvPullAt = window.fvPullAt || {};
 function fvFlowFindVisit(p, visits){
   const today = todayStr(), dg = s => String(s||'').replace(/\D/g,'');
@@ -9015,6 +9038,7 @@ async function fvFlowPull(p){
   window.fvPullAt[p.id] = now;
   let fl; try{ fl = await bqPost({ action:'flowlist' }); }catch(e){ return; }
   if(!fl || fl.status!=='ok' || !Array.isArray(fl.visits)) return;
+  fvFlowFillAll(fl.visits);
   const v = fvFlowFindVisit(p, fl.visits); if(!v || !v.gr || !v.gr.ready || v.gr.from!=='flow') return;
   const g = v.gr, gp = g.post || {};
   if(!(g.at > (p.flowGrAt||0))) return;
@@ -10754,6 +10778,7 @@ async function ucLoad(quiet){
   else if(!quiet) ucSay('⚠️ 구글 초진기록지 목록을 못 불러왔어요. 예약 기준으로만 보여요.', true);
   UC.flowOk = !!(fl && fl.status==='ok' && Array.isArray(fl.visits));
   UC.flowVisits = UC.flowOk ? fl.visits.filter(v=>v && v.id && v.id!=='config:flow' && v.name) : [];
+  if(UC.flowOk){ try{ fvFlowFillAll(fl.visits); }catch(e){} }
   ucBuild(); ucRender();
   { const m = document.getElementById('uc_msg'); if(m && m.textContent==='불러오는 중…') ucSay(''); }
 }
