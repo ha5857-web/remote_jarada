@@ -8981,7 +8981,62 @@ async function rvView(){
   if(!rvHasContent(n.post)){ alert('먼저 🤖 AI로 작성하거나 내용을 입력해 주세요.'); return; }
   try{ await rvWithShim(p, () => GR.open(p.id), 1500); }catch(e){ alert(e.message || '기록지를 열지 못했어요.'); }
 }
+/* ---- flow → 의사 앱: flow의 [성장 리포트]에서 만든 진료 후 기록을 이 환자 카드(초진: 진료 후 안내 / 재진: 오늘 경과 기록)로 가져옵니다 ---- */
+window.fvPullAt = window.fvPullAt || {};
+function fvFlowFindVisit(p, visits){
+  const today = todayStr(), dg = s => String(s||'').replace(/\D/g,'');
+  const c = (visits||[]).filter(v=>v && v.id && v.id!=='config:flow' && v.name && (!v.date || v.date===today));
+  let m = p.chartNo ? c.filter(v=>dg(v.chartNo) && dg(v.chartNo)===dg(p.chartNo)) : [];
+  if(!m.length){ const b = c.filter(v=>v.name===p.name); if(b.length===1) m = b; }
+  return m.length===1 ? m[0] : null;
+}
+function fvFlowMergeRecords(p, text){
+  let n = 0; if(!p.records) p.records = [];
+  String(text||'').split('\n').forEach(line=>{
+    const d = line.match(/(\d{4})-(\d{2})-(\d{2})/); if(!d) return;
+    const date = d[0], h = parseFloat((line.match(/키\s*([\d.]+)/)||[])[1]), w = parseFloat((line.match(/몸무게\s*([\d.]+)/)||[])[1]);
+    const b = line.match(/골연령\s*(\d+)\s*세\s*(\d+)\s*개월/), ba = b ? (+b[1])*12 + (+b[2]) : null;
+    if(!(h>0)) return;
+    const ex = p.records.find(r=>r.date===date);
+    if(ex){
+      if((ex.height==null||ex.height==='') ){ ex.height = h; n++; }
+      if(w>0 && (ex.weight==null||ex.weight==='')){ ex.weight = w; n++; }
+      if(ba!=null && ex.boneAgeWristMonths==null){ ex.boneAgeWristMonths = ba; n++; }
+    }else{
+      const r = { id: uid(), date, callDone:false, height:h }; if(w>0) r.weight = w; if(ba!=null) r.boneAgeWristMonths = ba;
+      p.records.push(r); n++;
+    }
+  });
+  return n;
+}
+async function fvFlowPull(p){
+  if(!p || !getApiUrl()) return;
+  const now = Date.now(); if(window.fvPullAt[p.id] && now - window.fvPullAt[p.id] < 8000) return;
+  window.fvPullAt[p.id] = now;
+  let fl; try{ fl = await bqPost({ action:'flowlist' }); }catch(e){ return; }
+  if(!fl || fl.status!=='ok' || !Array.isArray(fl.visits)) return;
+  const v = fvFlowFindVisit(p, fl.visits); if(!v || !v.gr || !v.gr.ready || v.gr.from!=='flow') return;
+  const g = v.gr, gp = g.post || {};
+  if(!(g.at > (p.flowGrAt||0))) return;
+  const vids = (gp.videos||[]).map(x=>{ try{ return JRDV.vid(x.no); }catch(e){ return null; } }).filter(Boolean);
+  const fields = { summary:gp.summary||'', labs:gp.labs||'', xray:gp.xray||'', direction:gp.direction||'', exercise:gp.exercise||'', nutrition:gp.nutrition||'', sleep:gp.sleep||'', nextDate:gp.nextDate||'', tests:gp.tests||[], videos:vids };
+  if(p.firstVisit){
+    const old = p.firstVisit.post || {};
+    p.firstVisit.post = Object.assign({}, old, fields); delete p.firstVisit.post.pending;
+    if(g.date && !p.firstVisit.visitDate) p.firstVisit.visitDate = g.date;
+  }else{
+    p.rvNote = { date: g.date || todayStr(), chart: (p.rvNote && p.rvNote.chart) || '', post: Object.assign({}, (p.rvNote && p.rvNote.post) || {}, fields) };
+  }
+  fvFlowMergeRecords(p, g.recsText);
+  if(!p.dob && g.dob) p.dob = g.dob;
+  if(!p.fatherHeight && g.fh) p.fatherHeight = g.fh;
+  if(!p.motherHeight && g.mh) p.motherHeight = g.mh;
+  p.flowGrAt = g.at; p.updatedAt = new Date().toISOString();
+  try{ savePatients(); }catch(e){}
+  if(currentPatientId === p.id){ try{ renderFirstVisitBox(p); }catch(e){} const st = document.getElementById('fv_status') || document.getElementById('rv_status'); if(st){ st.style.color = 'var(--ok)'; st.textContent = '✅ flow에서 만든 리포트 내용을 가져왔어요. 읽어보고 필요하면 고치세요.'; } }
+}
 function renderFirstVisitBox(p){
+  try{ fvFlowPull(p); }catch(e){}
   try{ rvRender(p); }catch(e){}
   const box = document.getElementById('firstVisitBox');
   if(!box) return;

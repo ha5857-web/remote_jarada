@@ -2877,7 +2877,7 @@ function modelOf(v){
   return GR.compute(GR.build(Object.assign({name:v.name||''},g)).st);
 }
 function say(t,bad){ST.msg=t;ST.bad=!!bad;var e=document.getElementById('grmsg');if(e){e.textContent=t;e.style.color=bad?'#b63a32':''}}
-function commit(g,now){var v=V();if(!v)return;g.at=Date.now();g.ready=hasPost(g.post);v.gr=g;put(v,!!now)}
+function commit(g,now){var v=V();if(!v)return;g.at=Date.now();g.from='flow';g.ready=hasPost(g.post);v.gr=g;put(v,!!now)}
 function collect(){
   var v=V();if(!v)return null;
   var g=Object.assign({},v.gr||{}),val=function(id){var e=document.getElementById(id);return e?String(e.value||'').trim():''};
