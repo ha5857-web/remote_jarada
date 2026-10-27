@@ -333,6 +333,16 @@ pre.report{white-space:pre-wrap;word-break:keep-all;overflow-wrap:anywhere;backg
 .grov.editing .gredit{display:block}
 .grscroll{flex:1;overflow:auto;padding:14px;display:flex;justify-content:center;align-items:flex-start;min-width:0}
 @media (max-width:900px){.grbody{flex-direction:column}.gredit{width:auto;max-height:55%;border-right:0;border-bottom:1px solid #d5dde2}}
+.rp-ev{margin-top:auto;display:flex;gap:14px;align-items:center;border:1.5px solid #03C75A;border-radius:10px;padding:9px 14px;background:#F2FBF5}
+.rp-ev+.rp-foot{margin-top:0}
+.rp.tight{gap:9px}.rp.tight .rp-box{padding:6px 12px;margin-bottom:6px}.rp.tight .rp-box:not(.hl) .t{display:none}
+.rp-ev.sm{padding:6px 12px;gap:10px}.rp-ev.sm .p{display:none}.rp-ev.sm .h{margin:0;font-size:12.5px}
+.rp-ev.sm .q .b{padding:2px}.rp-ev.sm .q .b svg{width:52px!important;height:52px!important}.rp-ev.sm .q span{display:none}
+.rp-ev .tx{flex:1;min-width:0}.rp-ev .h{font-size:13px;font-weight:700;color:#14232B;margin-bottom:3px}
+.rp-ev .p{font-size:10.5px;line-height:1.55;color:#33454E}
+.rp-ev .q{flex:none;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:9.5px;color:#33454E;text-align:center}
+.rp-ev .q .b{background:#fff;padding:3px;border:1px solid #cfe9d9;border-radius:6px}
+.rp-ev .q .c{font-weight:700;font-size:10.5px;color:#14232B}
 .fr-det{margin:0 0 4px}.fr-det>summary{cursor:pointer;list-style:none}.fr-det>summary::-webkit-details-marker{display:none}
 .fr-h{font-size:13px;font-weight:700;margin:14px 0 8px;color:#0B7A85}.fr-h:first-child{margin-top:0}
 .fr-f{display:flex;flex-direction:column;gap:3px;margin-bottom:9px;font-size:12px;color:#5a6b73;font-weight:600;min-width:0}
@@ -2541,6 +2551,17 @@ function drawChart(cv,m){
 }
 
 /* ---- 리포트 HTML ---- */
+var EV_REVIEW='https://m.place.naver.com/my/checkin',EV_FORM='https://docs.google.com/forms/d/e/1FAIpQLSdX_z4WtcV9PupktZoldy5LCrkMAH4O-RnFAcJUflKsJvkaug/viewform';
+function qrSvg(url,px){
+  try{var q=qrcode(0,'M');q.addData(url);q.make();var n=q.getModuleCount(),cs=Math.max(2,Math.floor(px*3/n));
+    return q.createSvgTag(cs,0).replace('<svg','<svg style="width:'+px+'px;height:'+px+'px;display:block"')}catch(e){return''}
+}
+function eventHTML(){
+  var a=qrSvg(EV_REVIEW,74),b=qrSvg(EV_FORM,74);if(!a||!b)return'';
+  var q=function(n,t,s){return'<div class="q"><div class="b">'+s+'</div><div class="c">'+n+'</div><span>'+t+'</span></div>'};
+  return'<div class="rp-ev"><div class="tx"><div class="h">🎁 네이버 영수증 리뷰 이벤트</div><div class="p">진료 후 받으신 <b>영수증</b>으로 네이버 리뷰를 남기고 신청서를 내시면, <b>「보호자 안내서」</b>(성장·성조숙증·비만 Q&amp;A 116개) 이용 코드를 문자로 보내드려요. 신청서에 영수증 사진을 꼭 첨부해 주세요.</div></div>'+
+    q('① 리뷰 쓰기','네이버 리뷰',a)+q('② 신청서 작성','영수증 사진 첨부',b)+'</div>';
+}
 function reportHTML(m){
   if(m.error)return'<div class="rp"><div class="rp-empty">'+esc(m.error)+'</div></div>';
   var st=m.st,cur=m.cur,sexTxt=st.sex==='M'?'남아':'여아',t=new Date(),todayS=t.getFullYear()+'.'+pad(t.getMonth()+1)+'.'+pad(t.getDate());
@@ -2562,7 +2583,7 @@ function reportHTML(m){
     '<div class="rp-who"><span><b>'+esc(st.name||'이름 미입력')+'</b>'+sexTxt+'</span><span>생년월일 '+dots(st.dob)+'</span><span>'+ageTxt(cur.ageM)+' · '+dots(cur.date)+' 측정</span></div>'+
     '<div class="rp-stats">'+s1+s2+s3+s4+'</div>'+
     '<div><h2>우리 아이의 키 성장곡선</h2><canvas class="chart" width="1412" height="636"></canvas></div>'+
-    '<div class="rp-cols"><div><h2>측정 기록</h2><table><thead><tr><th>측정일</th><th>나이</th><th>키(cm)</th><th>몸무게(kg)</th><th>골연령</th></tr></thead><tbody>'+rows+'</tbody></table></div><div>'+boxes+'</div></div>'+cm+
+    '<div class="rp-cols"><div><h2>측정 기록</h2><table><thead><tr><th>측정일</th><th>나이</th><th>키(cm)</th><th>몸무게(kg)</th><th>골연령</th></tr></thead><tbody>'+rows+'</tbody></table></div><div>'+boxes+'</div></div>'+cm+eventHTML()+
     '<div class="rp-foot"><div>삼성자라다 소아청소년과 · 02-523-0111<br>평일 10:00–20:00 · 토 09:00–18:00 (목요일·공휴일 휴진)<br>2017 소아청소년 성장도표(질병관리청) 기준의 참고 자료이며 진단이 아닙니다. 자세한 해석은 진료 시 설명드립니다.</div>'+(st.nextText?'<div class="nx">다음 내원·추적<br>'+esc(st.nextText)+'</div>':'')+'</div></div>';
 }
 function backHTML(m){
@@ -2599,7 +2620,16 @@ function fitPost(root){
   var fs=12.5;pb.style.fontSize=fs+'px';
   while((pb.scrollHeight>pb.clientHeight+1||pb.scrollWidth>pb.clientWidth+1)&&fs>8.5){fs-=0.5;pb.style.fontSize=fs+'px'}
 }
-function paint(root,m){var cv=root.querySelector('canvas.chart');if(cv&&m&&!m.error)drawChart(cv,m);if(m&&!m.error)fitPost(root)}
+function fitFront(root){
+  var pg=root.querySelector('.rp-ev');if(!pg)return;var rp=pg.closest('.rp');if(!rp)return;
+  var over=function(){return rp.scrollHeight>rp.clientHeight+1};
+  if(!over())return;
+  pg.classList.add('sm');
+  if(over())rp.classList.add('tight');
+  var rows=rp.querySelectorAll('.rp-cols table tbody tr');
+  for(var i=rows.length-1;i>=3&&over();i--)rows[i].remove();
+}
+function paint(root,m){var cv=root.querySelector('canvas.chart');if(cv&&m&&!m.error)drawChart(cv,m);if(m&&!m.error){fitPost(root);fitFront(root)}}
 
 /* ---- 화면 ---- */
 var cache=null;
