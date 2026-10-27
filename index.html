@@ -8874,7 +8874,14 @@ function rvRender(p){
       <button class="btn btn-outline" style="flex:1;min-width:90px;font-size:12px;" onclick="rvView()">🖨️ 보기·인쇄</button>
       <button class="btn btn-primary" style="flex:1.4;min-width:120px;font-size:12px;" onclick="rvPdf()">⬇️ PDF 기록지 받기</button>
     </div>
-    <div id="rv_pdfStatus" style="font-size:11px;color:var(--secondary);margin-top:4px;"></div>`;
+    <div id="rv_pdfStatus" style="font-size:11px;color:var(--secondary);margin-top:4px;"></div>
+    <div style="margin-top:10px;padding-top:8px;border-top:1px dashed var(--border,#ddd);">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="btn btn-outline" style="flex:1;min-width:120px;font-size:12px;" onclick="rvPushFlow(fvCur(),{manual:true})">📤 flow로 보내기</button>
+        <button class="btn btn-primary" style="flex:1.4;min-width:150px;font-size:12px;" onclick="rvPushFlow(fvCur(),{manual:true,reviewed:true})">✅ 확인 완료 → 직원 인쇄 가능</button>
+      </div>
+      <div id="rv_flowStatus" style="font-size:11px;color:var(--secondary);margin-top:4px;">AI로 작성하거나 고치면 오늘 flow의 같은 환자 리포트에 자동으로 반영돼요. 직원이 인쇄하려면 위의 「확인 완료」를 눌러 주세요.</div>
+    </div>`;
 }
 function rvRead(p){
   const g = id => { const e = document.getElementById(id); return e ? e.value : ''; };
@@ -8884,7 +8891,51 @@ function rvRead(p){
   return p.rvNote;
 }
 let rvT = null;
-function rvSave(){ clearTimeout(rvT); rvT = setTimeout(()=>{ const p = fvCur(); if(!p || p.firstVisit) return; rvRead(p); try{ savePatientsLocalOnly(); }catch(e){} }, 500); }
+let rvFT = null;
+function rvSave(){ clearTimeout(rvT); rvT = setTimeout(()=>{ const p = fvCur(); if(!p || p.firstVisit) return; rvRead(p); try{ savePatientsLocalOnly(); }catch(e){} clearTimeout(rvFT); rvFT = setTimeout(()=>{ const q = fvCur(); if(q && q === p && !q.firstVisit && rvHasContent((q.rvNote||{}).post)) rvPushFlow(q, {}); }, 1500); }, 500); }
+/* ---- flow 연동: 오늘 flow에 있는 같은 환자의 「성장 리포트」로 내용을 보냅니다 (flow의 [성장 리포트] 탭에서 직원이 인쇄) ---- */
+function rvFlowSay(t, bad){ const e = document.getElementById('rv_flowStatus'); if(e){ e.textContent = t; e.style.color = bad ? 'var(--danger)' : 'var(--ok)'; } }
+function rvRecsText(p){
+  const rows = (p.records||[]).filter(r=>r.date && parseFloat(r.height)>0).slice().sort((a,b)=> a.date < b.date ? -1 : 1).slice(-12);
+  return rows.map(r=>{
+    const ba = r.boneAgeWristMonths!=null ? r.boneAgeWristMonths : (r.boneAgeElbowMonths!=null ? r.boneAgeElbowMonths : null);
+    const w = parseFloat(r.weight);
+    return r.date + '  키 ' + parseFloat(r.height) + (w>0 ? '  몸무게 ' + w : '') + (ba!=null ? '  골연령 ' + Math.floor(ba/12) + '세 ' + (ba%12) + '개월' : '');
+  }).join('\n');
+}
+async function rvPushFlow(p, o){
+  o = o || {};
+  if(!p || p.firstVisit) return;
+  const n = rvRead(p), po = n.post || {};
+  if(!rvHasContent(po)){ if(o.manual) rvFlowSay('먼저 🤖 AI로 작성하거나 내용을 입력해 주세요.', true); return; }
+  if(!getApiUrl()){ if(o.manual) rvFlowSay('연동 설정의 백엔드 URL이 없어요.', true); return; }
+  try{
+    const fl = await bqPost({ action:'flowlist' });
+    if(!fl || fl.status!=='ok' || !Array.isArray(fl.visits)){ rvFlowSay('flow 서버에 연결하지 못했어요. (서버 Flow 기능이 배포돼 있는지 확인)', true); return; }
+    const today = todayStr(), dg = s => String(s||'').replace(/\D/g,'');
+    const cands = fl.visits.filter(v=>v && v.id && v.id!=='config:flow' && v.name && (!v.date || v.date===today) && v.step!==undefined);
+    let m = p.chartNo ? cands.filter(v=>dg(v.chartNo) && dg(v.chartNo)===dg(p.chartNo)) : [];
+    if(!m.length){ const byName = cands.filter(v=>v.name===p.name); if(byName.length===1) m = byName; }
+    if(m.length!==1){ rvFlowSay(m.length ? '오늘 flow에 같은 이름이 여러 명이라 보내지 못했어요. 차트번호를 확인해 주세요.' : '오늘 flow에 이 환자가 없어요. flow에 등록(예약 불러오기·환자 등록)한 뒤 다시 눌러 주세요.', true); return; }
+    const v = m[0], old = v.gr || {};
+    const vids = (po.videos||[]).filter(x=>x && x.no).map(x=>({ no:x.no, title:x.title||'', question:x.question||'' }));
+    const gr = Object.assign({}, old, {
+      name: p.name||'', date: n.date || today,
+      sex: (p.sex==='M'||p.sex==='F') ? p.sex : (old.sex||''),
+      dob: p.dob || old.dob || '',
+      fh: p.fatherHeight!=null && p.fatherHeight!=='' ? String(p.fatherHeight) : (old.fh||''),
+      mh: p.motherHeight!=null && p.motherHeight!=='' ? String(p.motherHeight) : (old.mh||''),
+      recsText: rvRecsText(p) || old.recsText || '',
+      post: { summary:po.summary||'', labs:po.labs||'', xray:po.xray||'', direction:po.direction||'', exercise:po.exercise||'', nutrition:po.nutrition||'', sleep:po.sleep||'', nextDate:po.nextDate||'', tests:po.tests||[], videos:vids },
+      ready:true, at:Date.now(), from:'index'
+    });
+    if(o.reviewed){ gr.reviewed = true; gr.reviewedAt = Date.now(); }
+    else if(o.reset){ gr.reviewed = false; gr.reviewedAt = null; }
+    const d = await bqPost({ action:'flowsave', id:v.id, patch:{ gr:gr, updatedAt:Date.now() } });
+    if(!d || d.status!=='ok'){ rvFlowSay('flow에 저장하지 못했어요: ' + ((d && (d.message||d.code)) || ''), true); return; }
+    rvFlowSay(gr.reviewed ? '✅ flow로 보냈어요 — 직원이 flow의 [성장 리포트] 탭에서 인쇄할 수 있어요.' : '✅ flow에 반영했어요. 직원이 인쇄하려면 「확인 완료」를 눌러 주세요.' + (gr.dob ? '' : ' (생년월일이 없어 flow에서 입력이 필요해요)'));
+  }catch(e){ rvFlowSay('flow로 보내지 못했어요: ' + (e.message||'연결 오류'), true); }
+}
 function rvLoadChart(){
   const p = fvCur(); if(!p) return;
   const recs = (p.records||[]).slice().sort((a,b)=> new Date(b.date||0) - new Date(a.date||0));
@@ -8904,6 +8955,7 @@ async function rvAI(){
   p.rvNote = { date: todayStr(), chart: text, post: Object.assign({}, r.post) };
   try{ savePatientsLocalOnly(); }catch(e){}
   rvRender(p);
+  rvPushFlow(p, { reset:true });
   const s2 = document.getElementById('rv_status');
   if(s2){ s2.style.color = 'var(--ok)'; s2.textContent = (r.ai ? '✅ AI가 정리했어요' : '✅ 정리했어요(AI 없이)') + ' — 읽어보고 고친 뒤 PDF로 뽑으세요.' + (r.warn ? ' · ' + r.warn : ''); }
 }
