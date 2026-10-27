@@ -333,6 +333,7 @@ pre.report{white-space:pre-wrap;word-break:keep-all;overflow-wrap:anywhere;backg
 .grov.editing .gredit{display:block}
 .grscroll{flex:1;overflow:auto;padding:14px;display:flex;justify-content:center;align-items:flex-start;min-width:0}
 @media (max-width:900px){.grbody{flex-direction:column}.gredit{width:auto;max-height:55%;border-right:0;border-bottom:1px solid #d5dde2}}
+.fr-det{margin:0 0 4px}.fr-det>summary{cursor:pointer;list-style:none}.fr-det>summary::-webkit-details-marker{display:none}
 .fr-h{font-size:13px;font-weight:700;margin:14px 0 8px;color:#0B7A85}.fr-h:first-child{margin-top:0}
 .fr-f{display:flex;flex-direction:column;gap:3px;margin-bottom:9px;font-size:12px;color:#5a6b73;font-weight:600;min-width:0}
 .fr-f textarea,.fr-f input,.fr-f select{border:1px solid #d5dfdf;border-radius:8px;padding:7px 9px;background:#fff;color:#14232b;font-weight:400;font-size:13px;width:100%;font-family:inherit}
@@ -2827,6 +2828,12 @@ function findDob(text){
   var a=(Date.now()-new Date(y,mo-1,d))/31557600000;if(a<0||a>25)return'';
   return y+'-'+pad(mo)+'-'+pad(d);
 }
+function findParents(text){
+  var T=String(text||''),num=function(re){var m=T.match(re);return m?m[1]:''};
+  var fh=num(/(?:^|[\s,/(#*＊])(?:아버지|아빠|부)\s*[:：]?\s*(1[5-9]\d(?:\.\d)?)/m),mh=num(/(?:^|[\s,/(#*＊])(?:어머니|어머님|엄마|모)\s*[:：]?\s*(1[4-8]\d(?:\.\d)?)/m);
+  if(!fh||!mh){var pr=T.match(/(1[5-9]\d(?:\.\d)?)\s*\/\s*(1[4-8]\d(?:\.\d)?)/);if(pr){fh=fh||pr[1];mh=mh||pr[2]}}
+  return{fh:fh,mh:mh};
+}
 function compareText(recs){
   if(recs.length<2)return'';
   var cur=recs[recs.length-1],prev=recs[recs.length-2];
@@ -2898,6 +2905,15 @@ function fillEditor(g){
   [].forEach.call(document.querySelectorAll('.frTest'),function(e){e.checked=(po.tests||[]).indexOf(e.value)>=0});
   var vn=(po.videos||[]).map(function(x){return x&&x.no});
   [].forEach.call(document.querySelectorAll('.frVid'),function(e){e.checked=vn.indexOf(+e.value)>=0});
+  var di=document.getElementById('fr-info');if(di)di.open=false;infoSum();
+}
+function infoSum(){
+  var d=document.getElementById('fr-info');if(!d)return;
+  var val=function(id){var e=document.getElementById(id);return e?String(e.value||'').trim():''};
+  var dob=val('fr-dob'),sx=val('fr-sex'),n=val('fr-recs').split('\n').filter(function(x){return x.trim()}).length;
+  var s=document.getElementById('fr-infosum');
+  if(s)s.textContent='② '+(sx==='M'?'남':sx==='F'?'여':'성별 ?')+' · '+(dob||'생년월일 ?')+' · 측정 '+n+'건  (눌러서 확인·수정)';
+  if(!dob||!sx||!n)d.open=true;
 }
 function editorHtml(v){
   var fh=(v.intake&&v.intake.fatherH)||'',mh=(v.intake&&v.intake.motherH)||'';
@@ -2906,10 +2922,10 @@ function editorHtml(v){
     '<label class="fr-f"><textarea id="fr-chart" rows="8" placeholder="EMR에서 이 환자의 차트를 통째로 복사(Ctrl+C)해서 여기에 붙여넣기(Ctrl+V)하세요. 성장기록 표(등록일자·AGE·BA·WT·HT·BMI)도 같이 붙여넣으면 키·몸무게·뼈나이를 자동으로 읽어요."></textarea></label>'+
     '<div class="fr-row"><button class="btn primary" data-fr="ai" id="fr-aibtn">🤖 AI로 정리</button><button class="btn" data-fr="noai">AI 없이 정리</button></div>'+
     '<p class="fr-hint">AI는 차트에서 진료 요약·검사 설명·생활습관 안내 초안을 씁니다. 반드시 읽어 보고 고친 뒤 [원장 확인 완료]를 눌러 주세요.</p>'+
-    '<div class="fr-h">② 환자 정보 · 측정 기록</div>'+
+    '<details class="fr-det" id="fr-info"><summary class="fr-h" id="fr-infosum">② 환자 정보 · 측정 기록</summary>'+
     '<div class="fr-row3"><label class="fr-f">진료일<input type="date" id="fr-date"></label><label class="fr-f">생년월일<input type="date" id="fr-dob"></label><label class="fr-f">성별<select id="fr-sex"><option value="">선택</option><option value="M">남</option><option value="F">여</option></select></label></div>'+
     '<div class="fr-row3"><label class="fr-f">아버지 키(cm)<input type="number" id="fr-fh" inputmode="decimal" step="0.1" placeholder="선택" value="'+esc(fh)+'"></label><label class="fr-f">어머니 키(cm)<input type="number" id="fr-mh" inputmode="decimal" step="0.1" placeholder="선택" value="'+esc(mh)+'"></label></div>'+
-    '<label class="fr-f">측정 기록 (한 줄에 한 번 — 차트 표에서 자동으로 채워져요. 직접 고쳐도 돼요)<textarea id="fr-recs" rows="5" placeholder="2026-10-21  키 162.4  몸무게 58.6  골연령 13세 9개월"></textarea></label>'+
+    '<label class="fr-f">측정 기록 (한 줄에 한 번 — 차트 표에서 자동으로 채워져요. 직접 고쳐도 돼요)<textarea id="fr-recs" rows="5" placeholder="2026-10-21  키 162.4  몸무게 58.6  골연령 13세 9개월"></textarea></label></details>'+
     '<div class="fr-h">③ 진료 후 기록 (보호자용)</div>'+
     ta('summary','오늘 진료 요약')+ta('labs','혈액검사 결과 설명')+ta('xray','엑스레이 결과 설명')+ta('direction','앞으로의 방향')+
     ta('exercise','🏃 운동')+ta('nutrition','🥗 영양')+ta('sleep','😴 수면')+
@@ -2946,6 +2962,7 @@ function refresh(){
 function onEdit(e){
   if(e.target&&e.target.id==='fr-chart')return;
   if(e.target&&e.target.classList&&e.target.classList.contains('frVid')&&e.target.checked&&document.querySelectorAll('.frVid:checked').length>3){e.target.checked=false;toast('영상은 3편까지만 고를 수 있어요.');return}
+  infoSum();
   clearTimeout(ST.timer);
   ST.timer=setTimeout(function(){ST.timer=null;var g=collect();if(!g)return;commit(g,false);refresh()},450);
 }
@@ -2978,6 +2995,8 @@ function open(id){
     else if(k==='noai')run(false);
   });
   o.addEventListener('input',onEdit);o.addEventListener('change',onEdit);
+  var ce=document.getElementById('fr-chart');
+  if(ce)ce.addEventListener('paste',function(){setTimeout(function(){if(!ST.busy&&String(ce.value||'').trim().length>=150)run(true)},60)});
   document.addEventListener('keydown',onKey);
   window.addEventListener('resize',GR.fit);
   refresh();
@@ -3003,7 +3022,15 @@ async function run(useAI){
     g.recsText=mergeRecs(g0.recsText||'',parsed);
     if(!g.dob)g.dob=v.dob||findDob(text)||'';
     if(!g.sex)g.sex=sexOf(v);
+    if((!g.dob||!g.sex)&&/\d{3,}/.test(v.chartNo||'')){
+      try{
+        var pj=await api({action:'flowprepare',chartNo:v.chartNo,chart:text.slice(0,6000)});
+        var idn=pj&&pj.status==='ok'&&pj.source==='patient'&&pj.identity;
+        if(idn){if(!g.dob&&idn.dob)g.dob=String(idn.dob).slice(0,10);if(!g.sex&&idn.sex)g.sex=/^(M|남)/i.test(idn.sex)?'M':/^(F|여)/i.test(idn.sex)?'F':''}
+      }catch(e){}
+    }
     if(!g.date)g.date=todayStr();
+    var par=findParents(text);if(!g.fh&&par.fh)g.fh=par.fh;if(!g.mh&&par.mh)g.mh=par.mh;
     var add=splitAdded(text),draft=localDraft(text,add,g.date),A=null,warn='';
     if(useAI){
       var ai;
