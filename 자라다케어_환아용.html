@@ -1600,7 +1600,7 @@ function renderFirstRoom(rows){
     const k = (x.updatedAt || '') + '|' + (r.timestamp || '');      // 예전 방식으로 쌓인 행이 섞여 있어도 가장 나중에 올린 안내를 씁니다
     if(!d || k > bestKey){ d = x; bestKey = k; }
   });
-  setFirstVisitLock((!!d || FIRST_FLAG) && !(d && d.stage==='done'));
+  setFirstVisitLock((!!d || FIRST_FLAG) && !(d && (d.stage==='done' || d.stage==='post')));   // 진료가 끝난 뒤(post)부터는 질문하기·챗봇·주사기록도 열어둡니다
   if(!d && !FIRST_FLAG){ tab.style.display = 'none'; return; }
   tab.style.display = '';
   const stage = d ? d.stage : 'pre';
