@@ -183,6 +183,11 @@
             border-radius: 10px;
             font-weight: 600;
         }
+        .rvmark { display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin:6px 0 2px; }
+        .rvmark button { border:1px solid #cfd6e4; background:#fff; color:#556; border-radius:16px; padding:5px 11px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; }
+        .rvmark button.on.b { background:#fdecec; border-color:#e8a5a0; color:#b3261e; }
+        .rvmark button.on.x { background:#eaf1fb; border-color:#9dbbe6; color:#1f5fa8; }
+        .rvmark .rvq-note { font-size:11px; color:#8a5a00; font-weight:700; }
         .card-meta {
             font-size: 12px;
             color: #777;
@@ -734,7 +739,66 @@
             if(ok.length) box.value = '';
         }
 
+        // ---- 오늘 혈액검사·엑스레이 한 아이 표시 → 의사 앱(index.html)의 「리포트 대기」로 전달 (같은 기기 localStorage) ----
+        function marksKey(){ return 'rvMarks_' + todayKey(); }
+        function loadMarks(){ try{ return JSON.parse(localStorage.getItem(marksKey()) || '{}') || {}; }catch(e){ return {}; } }
+        function applyStoredMarks(){
+            const m = loadMarks();
+            filteredData.forEach(p=>{
+                if(p._mk) return;                       // 이번에 직접 누르거나 자동 인식한 값이 우선
+                const c = String(p.chartNum || '').trim(), s = m[c];
+                if(s){ p._b = !!s.b; p._x = !!s.x; }
+            });
+        }
+        function saveMarks(){
+            try{
+                const m = loadMarks();
+                filteredData.forEach(p=>{
+                    const c = String(p.chartNum || '').trim(); if(!c || !p._mk) return;
+                    if(p._b || p._x) m[c] = { n:p.name || '', b:p._b ? 1 : 0, x:p._x ? 1 : 0 }; else delete m[c];
+                });
+                localStorage.setItem(marksKey(), JSON.stringify(m));
+                Object.keys(localStorage).forEach(k=>{ if(k.indexOf('rvMarks_') === 0 && k !== marksKey()) localStorage.removeItem(k); });
+                try{ if(window.parent && window.parent !== window && typeof window.parent.rvApplyMarks === 'function'){ window.parent.rvApplyMarks(); window.parent.renderPatientList && window.parent.renderPatientList(); } }catch(e){}
+            }catch(e){}
+        }
+        function paintMark(index){
+            const p = filteredData[index], box = document.getElementById('rvm-' + index); if(!p || !box) return;
+            const b = box.querySelector('button.b'), x = box.querySelector('button.x'), n = document.getElementById('rvn-' + index);
+            if(b) b.classList.toggle('on', !!p._b); if(x) x.classList.toggle('on', !!p._x);
+            if(n) n.textContent = (p._b || p._x) ? '📝 성장 리포트 작성 대기로 올라가요' : '';
+        }
+        function toggleMark(index, kind){
+            const p = filteredData[index]; if(!p) return;
+            if(kind === 'b') p._b = !p._b; else p._x = !p._x;
+            p._mk = true; p._mkTouched = true; paintMark(index); saveMarks();
+        }
+        // EMR 차트를 붙여넣으면, 오늘 날짜 아래에 혈액검사·엑스레이(골연령) 기록이 있는지 읽어서 미리 켜 둬요 (직접 누르면 그 값이 우선)
+        function detectExams(text){
+            const d = new Date(), y = d.getFullYear(), mo = String(d.getMonth()+1).padStart(2,'0'), dd = String(d.getDate()).padStart(2,'0'), yy = String(y).slice(2);
+            const today = [`${y}-${mo}-${dd}`, `${y}.${mo}.${dd}`, `${y}/${mo}/${dd}`, `${yy}-${mo}-${dd}`, `${yy}.${mo}.${dd}`, `${yy}/${mo}/${dd}`];
+            const DATE = /\d{2,4}[-./]\d{1,2}[-./]\d{1,2}/;
+            const BLOOD = /혈액|채혈|IGF|LH\b|FSH|estradiol|TSH|fT4|HbA1c|vit ?D|ferritin|#\s*Lab|DHEA|자극검사/i;
+            const XRAY = /X-?ray|엑스레이|엑스선|골연령|bone ?age|\bBA\b|#\s*CA\/BA|손목/i;
+            let inToday = false, b = false, x = false;
+            String(text || '').split(/\r?\n/).forEach(line=>{
+                if(DATE.test(line)) inToday = today.some(t => line.indexOf(t) >= 0);
+                if(!inToday) return;
+                if(BLOOD.test(line)) b = true;
+                if(XRAY.test(line)) x = true;
+            });
+            return { b, x };
+        }
+        document.addEventListener('input', function(e){
+            if(!(e.target && e.target.classList && e.target.classList.contains('emr-input'))) return;
+            const m = String(e.target.id || '').match(/^emr-(\d+)$/); if(!m) return;
+            const i = +m[1], p = filteredData[i]; if(!p || p._mkTouched) return;
+            const r = detectExams(e.target.value);
+            if(!!p._b !== r.b || !!p._x !== r.x){ p._b = r.b; p._x = r.x; p._mk = true; paintMark(i); saveMarks(); }
+        });
+
         function displayTable() {
+            applyStoredMarks();
             const container = document.getElementById('tableBody');
             const updatedSet = getUpdatedTodaySet();
             document.getElementById('filterBadge').textContent = filteredData.length + '명';
@@ -763,6 +827,11 @@
                             : `<button class="btn-delete" onclick="deleteRow(${index})" title="이 환자 빼기">✕</button>`}
                     </div>
                     <div class="card-meta">${patient.visitDate} · ${patient.diagnosis}${patient.memo ? ' · ' + patient.memo : ''}</div>
+                    <div class="rvmark" id="rvm-${index}">
+                        <button type="button" class="b${patient._b ? ' on' : ''}" onclick="toggleMark(${index},'b')" title="오늘 혈액검사를 한 아이면 누르세요">🩸 오늘 혈액검사</button>
+                        <button type="button" class="x${patient._x ? ' on' : ''}" onclick="toggleMark(${index},'x')" title="오늘 엑스레이를 찍은 아이면 누르세요">🦴 오늘 엑스레이</button>
+                        <span class="rvq-note" id="rvn-${index}">${(patient._b || patient._x) ? '📝 성장 리포트 작성 대기로 올라가요' : ''}</span>
+                    </div>
                     <textarea class="emr-input" id="emr-${index}" placeholder="EMR을 여기에 붙여넣으세요 (Ctrl+C → Ctrl+V)">${patient.emr || ''}</textarea>
                 </div>`;
             }).join('');

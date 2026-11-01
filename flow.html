@@ -1431,6 +1431,7 @@ function renderAll(force){
   if(UI.sel&&!S.items.has(UI.sel))UI.sel=null;
   renderSummary();renderMain();renderDetail(force);renderAlarm();
   document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.view===UI.view)));
+  try{const n=FR.queueCount(),tb=document.querySelector('.tabs button[data-view="report"]');if(tb){const t='성장 리포트'+(n?' 🖨 '+n:'');if(tb.textContent!==t)tb.textContent=t}}catch(e){}
 }
 function tickClock(){
   const d=new Date(),dw='일월화수목금토'[d.getDay()];
@@ -1497,6 +1498,7 @@ function onAction(act,el){
     case 'del-yes':if(v){const i=v.id;UI.sel=null;UI.confirmDel=null;remove(i);renderAll(true)}break;
     case 'gr-open':{const i=id||(v&&v.id);if(i)FR.open(i);break}
     case 'gr-print':{const i=id||(v&&v.id);if(i)FR.print(i);break}
+    case 'gr-unprint':{const i=id||(v&&v.id);if(i)FR.unprint(i);break}
     case 'quick-done':if(v)quickDone(v);break;
     case 'sound':toggleSound();break;
     case 'res-done':{const k=el.dataset.k;if(!v||!k)break;if(!v.lab.results)v.lab.results={};if(!v.lab.at)v.lab.at={};v.lab.results[k]='완료';v.lab.at[k]=Date.now();put(v,true);renderAll(true);break}
@@ -3032,7 +3034,7 @@ function open(id){
 function setReviewed(flag){
   var v=V();if(!v)return;var g=collect();if(!g)return;
   if(flag){var m=modelOf(Object.assign({},v,{gr:g}));if(m.error){say(m.error,true);return}}
-  g.reviewed=!!flag;g.reviewedAt=flag?Date.now():null;commit(g,true);refresh();
+  g.reviewed=!!flag;g.reviewedAt=flag?Date.now():null;g.printedAt=null;commit(g,true);refresh();
   say(flag?'확인 완료 — 이제 직원이 인쇄할 수 있어요.':'확인을 취소했어요.');
 }
 async function run(useAI){
@@ -3084,30 +3086,52 @@ function printFor(id){
   var m=modelOf(v);if(m.error){toast(m.error);return}
   if(!v.gr||!v.gr.reviewed){toast('원장 확인 전인 리포트예요. 원장이 [원장 확인 완료]를 눌러야 인쇄할 수 있어요.');return}
   var old=document.getElementById('grprint');if(old)old.remove();
+  window.__grPrintId=id;
   var host=document.createElement('div');host.id='grprint';host.innerHTML=GR.pagesHTML(m);document.body.appendChild(host);
   (document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(function(){
     GR.paint(host,m);setTimeout(function(){window.print()},80);
   });
 }
-window.addEventListener('afterprint',function(){var h=document.getElementById('grprint');if(h)h.remove()});
+window.addEventListener('afterprint',function(){
+  var h=document.getElementById('grprint');if(h)h.remove();
+  var id=window.__grPrintId;window.__grPrintId=null;
+  var v=id&&S.items.get(id);
+  if(v&&v.gr&&v.gr.reviewed&&!v.gr.printedAt){v.gr=Object.assign({},v.gr,{printedAt:Date.now()});put(v,true);toast((v.name||'')+': 리포트 인쇄 완료로 표시했습니다. (목록의 [미인쇄로 되돌리기]로 취소할 수 있어요)');renderAll(false)}
+});
+function unprint(id){var v=S.items.get(id);if(!v||!v.gr)return;v.gr=Object.assign({},v.gr,{printedAt:null});put(v,true);renderAll(false)}
 
-/* ---- [성장 리포트] 탭: 오늘 환자별 리포트 상태 · 인쇄 ---- */
-function listHtml(){
-  var a=list().filter(function(v){return v.step>=0||(v.gr&&v.gr.ready)});
-  var rank=function(v){var g=v.gr;return g&&g.ready?(g.reviewed?0:1):2};
-  a.sort(function(x,y){var r=rank(x)-rank(y);if(r)return r;return rank(x)<2?((y.gr.at||0)-(x.gr.at||0)):((y.createdAt||0)-(x.createdAt||0))});
-  if(!a.length)return '<div class="empty"><h2>오늘 등록된 환자가 없습니다</h2><p>환자가 등록되면 여기에서 성장 리포트를 만들고 인쇄할 수 있어요.</p></div>';
-  var ready=a.filter(function(v){return v.gr&&v.gr.ready&&v.gr.reviewed}).length;
-  var rows=a.map(function(v){
-    var g=v.gr,st,bt;
-    if(g&&g.ready&&g.reviewed){st='<span class="pill ok">인쇄 가능</span>';bt='<button class="btn sm primary" data-act="gr-print" data-id="'+v.id+'">🖨 인쇄</button><button class="btn sm" data-act="gr-open" data-id="'+v.id+'">미리보기</button>'}
-    else if(g&&g.ready){st='<span class="pill warn">원장 확인 전</span>';bt='<button class="btn sm" data-act="gr-open" data-id="'+v.id+'">열어서 확인</button>'}
-    else{st='<span class="pill ex">리포트 없음</span>';bt='<button class="btn sm" data-act="gr-open" data-id="'+v.id+'">차트 붙여넣어 만들기</button>'}
-    return '<div class="frrow"><div class="frnm"><b>'+esc(v.name||'이름 없음')+'</b><span class="meta">'+esc(age(v))+(v.sex?' · '+esc(v.sex):'')+(v.chartNo?' · '+esc(v.chartNo):'')+'</span></div><div>'+st+'</div><div class="frbt">'+bt+'</div></div>';
-  }).join('');
-  return '<h3 style="margin:0 0 4px">성장 리포트</h3><p class="hint" style="margin:0 0 10px">원장이 환자별로 EMR 차트를 붙여넣어 리포트를 만들고 <b>원장 확인 완료</b>를 누르면, 이 화면에서 직원이 인쇄합니다. (지금 인쇄 가능 <b>'+ready+'</b>건)</p>'+rows;
+/* ---- [성장 리포트] 탭: 인쇄 대기 → 원장 확인 전 → 작성 대기(검사함) → 기타 → 인쇄 완료 ---- */
+function qChips(g){
+  if(!g||!g.q)return '';
+  return (g.q.blood?'<span class="pill" style="background:#fdecec;color:#b3261e">🩸 혈액</span> ':'')+(g.q.xray?'<span class="pill" style="background:#eaf1fb;color:#1f5fa8">🦴 X-ray</span> ':'');
 }
-return{open:open,close:close,listHtml:listHtml,print:printFor};
+function grState(v){
+  var g=v.gr||{};
+  if(g.ready&&g.reviewed)return g.printedAt?4:0;     // 0 인쇄 대기 / 4 인쇄 완료
+  if(g.ready)return 1;                                 // 원장 확인 전
+  if(g.q&&(g.q.blood||g.q.xray))return 2;              // 검사함·원장 작성 대기
+  return 3;                                            // 리포트 없음
+}
+function printQueueCount(){return list().filter(function(v){return grState(v)===0}).length}
+function listHtml(){
+  var a=list().filter(function(v){return v.step>=0||(v.gr&&(v.gr.ready||v.gr.q))});
+  a.sort(function(x,y){var r=grState(x)-grState(y);if(r)return r;var gx=x.gr||{},gy=y.gr||{};return ((gy.reviewedAt||gy.at||0)-(gx.reviewedAt||gx.at||0))||((y.createdAt||0)-(x.createdAt||0))});
+  if(!a.length)return '<div class="empty"><h2>오늘 등록된 환자가 없습니다</h2><p>환자가 등록되면 여기에서 성장 리포트를 만들고 인쇄할 수 있어요.</p></div>';
+  var cnt=[0,0,0,0,0];a.forEach(function(v){cnt[grState(v)]++});
+  var LAB=['🖨 인쇄할 리포트','원장 확인 전','🩸🦴 검사함 · 원장 작성 대기','리포트 없음','인쇄 완료'],cur=-1;
+  var rows=a.map(function(v){
+    var g=v.gr,s=grState(v),st,bt,hd='';
+    if(s===0){st='<span class="pill ok">인쇄 가능</span>';bt='<button class="btn sm primary" data-act="gr-print" data-id="'+v.id+'">🖨 인쇄</button><button class="btn sm" data-act="gr-open" data-id="'+v.id+'">미리보기</button>'}
+    else if(s===4){st='<span class="pill ex">인쇄 완료'+(g.printedAt?' '+new Date(g.printedAt).getHours()+':'+pad(new Date(g.printedAt).getMinutes()):'')+'</span>';bt='<button class="btn sm" data-act="gr-print" data-id="'+v.id+'">다시 인쇄</button><button class="btn sm ghost" data-act="gr-unprint" data-id="'+v.id+'">미인쇄로 되돌리기</button>'}
+    else if(s===1){st='<span class="pill warn">원장 확인 전</span>';bt='<button class="btn sm" data-act="gr-open" data-id="'+v.id+'">열어서 확인</button>'}
+    else if(s===2){st='<span class="pill warn">원장 작성 대기</span>';bt='<button class="btn sm" data-act="gr-open" data-id="'+v.id+'">차트 붙여넣어 만들기</button>'}
+    else{st='<span class="pill ex">리포트 없음</span>';bt='<button class="btn sm" data-act="gr-open" data-id="'+v.id+'">차트 붙여넣어 만들기</button>'}
+    if(s!==cur){cur=s;hd='<div class="hint" style="margin:12px 0 2px;font-weight:700">'+LAB[s]+' ('+cnt[s]+')</div>'}
+    return hd+'<div class="frrow"><div class="frnm"><b>'+esc(v.name||'이름 없음')+'</b><span class="meta">'+esc(age(v))+(v.sex?' · '+esc(v.sex):'')+(v.chartNo?' · '+esc(v.chartNo):'')+' '+qChips(g)+'</span></div><div>'+st+'</div><div class="frbt">'+bt+'</div></div>';
+  }).join('');
+  return '<h3 style="margin:0 0 4px">성장 리포트</h3><p class="hint" style="margin:0 0 6px">오늘 <b>혈액검사·엑스레이를 한 아이</b>는 원장이 의사 앱에서 리포트를 쓰고 <b>작성 완료</b>를 누르면 자동으로 아래 <b>「인쇄할 리포트」</b>에 올라와요. 직원은 🖨 인쇄만 누르면 됩니다. (지금 인쇄할 리포트 <b>'+cnt[0]+'</b>건)</p>'+rows;
+}
+return{open:open,close:close,listHtml:listHtml,print:printFor,unprint:unprint,queueCount:printQueueCount};
 })();
 </script>
 
