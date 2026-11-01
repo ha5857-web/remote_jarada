@@ -11433,7 +11433,8 @@ async function nuBuild(){
   try{ faRowsCache = null; const rows = await faRegRows();
     rows.forEach(r=>{ if(r.type!=='visitNoticeSent') return; let d = null; try{ d = JSON.parse(r.question||'{}'); }catch(e){} if(d && /초진 기록지/.test(d.memo||'') && d.name) guidedByName[ucNm(d.name)] = r.timestamp || '1'; }); }catch(e){}
   const live = bqItems.filter(b=>b && b.status!=='cancel' && b.date>=today && !/재진/.test(b.service||''));
-  const done = new Set(); NU.known = 0;
+  const done = new Set(); NU.known = 0; NU.excl = [];
+  bqItems.forEach(b=>{ if(!b || b.date<today) return; const why = b.status==='cancel' ? '취소된 예약' : /재진/.test(b.service||'') ? '재진 예약' : (b.intake && b.intake.registered) ? '초진 접수까지 끝남' : (b.intake && b.intake.submitted) ? '기록지 작성 완료' + (({nameonly:' (이름만 같음 — 확인 필요)', last4:' (번호 뒤4자리만 같음 — 확인 필요)'})[b.intake.by]||'') : b.known ? '기존 환자 번호로 등록돼 있음' : ''; if(why) NU.excl.push({ name:b.visitor||b.name, guardian:b.name, date:b.date, time:b.time||'', why }); });
   live.forEach(b=>{ if(b.intake && b.intake.submitted){ done.add(nuKey(b.phone, b.visitor||b.name)); done.add('n'+ucNm(b.visitor||b.name)); } });
   const map = new Map(), list = [];
   const addRow = r=>{ list.push(r); map.set(r.k, r); };
@@ -11455,7 +11456,7 @@ async function nuBuild(){
     addRow({ k, name:r.name, guardian:'', phone:r.phone||'', last4:'', date:r.date, time:r.time||'', chart:r.chart||'', src:['EMR'], bqId:'', guided:g });
   });
   const hid = nuHideLoad();
-  for(let i = list.length - 1; i >= 0; i--){ if(hid[list[i].k + '|' + list[i].date]) list.splice(i, 1); }
+  for(let i = list.length - 1; i >= 0; i--){ if(hid[list[i].k + '|' + list[i].date]){ NU.excl.push({ name:list[i].name, guardian:list[i].guardian, date:list[i].date, time:list[i].time, why:'목록에서 직접 지움' }); list.splice(i, 1); } }
   list.sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')));
   const old = {}; (NU.rows||[]).forEach(r=>{ old[r.k] = r.pick; });
   list.forEach(r=>{ r.pick = (r.k in old) ? old[r.k] : (!r.guided && !!ucDg(r.phone)); });
@@ -11479,10 +11480,12 @@ function nuRender(){
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px;"><button type="button" class="uc-act o" data-nu="check" ${NU.busy?'disabled':''}>🔄 지금 다시 점검</button>
       <label style="font-size:12px;display:flex;gap:5px;align-items:center;"><input type="checkbox" data-nu="auto" ${nuAutoOn()?'checked':''}> 앱이 열려 있을 때 자동 발송 <span style="color:var(--secondary);">(기본 꺼짐)</span></label>
       <span style="font-size:11px;color:var(--secondary);">${NU.at ? '마지막 점검 ' + new Date(NU.at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}) : ''}</span></div>`;
-  if(!NU.rows.length){ box.innerHTML = `<div style="margin-bottom:14px;padding-bottom:12px;border-bottom:2px dashed #E3C98E;">${head}<div style="color:var(--ok);font-size:13px;padding:4px 0;">${NU.at ? '✅ 기록지를 안 쓴 예약 환자가 없어요.' : '아직 점검 전이에요. 「지금 다시 점검」을 눌러 주세요.'}</div></div>`; return; }
+  const ex = (NU.excl||[]).slice().sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+  const exH = ex.length ? `<details style="margin:6px 0;font-size:12px;"><summary style="cursor:pointer;color:var(--secondary);">제외된 예약 ${ex.length}명 — 왜 빠졌는지 보기</summary>${ex.map(x=>`<div style="padding:3px 0;border-bottom:1px solid #eee;">${e(x.date.slice(5).replace('-','/'))} ${e(x.time)} <b>${e(x.name||'')}</b>${x.guardian && x.guardian!==x.name ? ' <span style="color:var(--secondary);">보호자 '+e(x.guardian)+'</span>' : ''} → <span style="color:#8A5A00;">${e(x.why)}</span></div>`).join('')}</details>` : '';
+  if(!NU.rows.length){ box.innerHTML = `<div style="margin-bottom:14px;padding-bottom:12px;border-bottom:2px dashed #E3C98E;">${head}${exH}<div style="color:var(--ok);font-size:13px;padding:4px 0;">${NU.at ? '✅ 기록지를 안 쓴 예약 환자가 없어요.' : '아직 점검 전이에요. 「지금 다시 점검」을 눌러 주세요.'}</div></div>`; return; }
   const sendBar = `<div class="uc-bar" style="position:static;box-shadow:none;margin:6px 0;"><label style="font-size:12px;"><input type="checkbox" data-nu="all"${n&&n===NU.rows.filter(r=>ucDg(r.phone)).length?' checked':''}> 전체</label><span style="font-size:12px;color:var(--secondary);">${n}명 선택</span>
     <button type="button" class="uc-act" style="--c:#C2751A;flex:1;padding:11px;" data-nu="send"${(NU.busy||!n)?' disabled':''}>${NU.busy?'📤 보내는 중…':'📨 선택한 '+n+'명에게 기록지 작성 안내 문자 한 번에 보내기'}</button></div>`;
-  box.innerHTML = `<div style="margin-bottom:14px;padding-bottom:12px;border-bottom:2px dashed #E3C98E;">${head}${sendBar}` + NU.rows.map(r=>{
+  box.innerHTML = `<div style="margin-bottom:14px;padding-bottom:12px;border-bottom:2px dashed #E3C98E;">${head}${exH}${sendBar}` + NU.rows.map(r=>{
     const ph = ucDg(r.phone);
     return `<div class="uc-row"><input type="checkbox" data-nu="chk" data-k="${e(r.k)}"${r.pick?' checked':''}${(NU.busy||!ph)?' disabled':''}>
       <div class="uc-main"><div><span class="uc-nm">${e(r.name||'(이름 없음)')}</span>${r.guardian && r.guardian!==r.name ? ` <span class="uc-sub">보호자 ${e(r.guardian)}</span>` : ''} <span class="uc-sub">${e(r.time||'')} · ${ph ? e(bqFmtPhone(r.phone)) : (r.last4 ? '번호 ***'+e(r.last4) : '<span style="color:var(--danger)">연락처 없음</span>')}${r.chart?' · 차트 '+e(r.chart):''}</span></div>
