@@ -11424,6 +11424,8 @@ function nuAutoOn(){ try{ return localStorage.getItem('nu_auto')==='1'; }catch(e
 function nuSentKey(){ return 'nu_sent_' + bqYmd(new Date()); }
 function nuSentLoad(){ try{ return JSON.parse(localStorage.getItem(nuSentKey())||'{}') || {}; }catch(e){ return {}; } }
 function nuSentMark(k){ try{ const m = nuSentLoad(); m[k] = Date.now(); localStorage.setItem(nuSentKey(), JSON.stringify(m)); Object.keys(localStorage).forEach(x=>{ if(x.indexOf('nu_sent_')===0 && x!==nuSentKey()) localStorage.removeItem(x); }); }catch(e){} }
+function nuHideLoad(){ try{ return JSON.parse(localStorage.getItem('nu_hide')||'{}') || {}; }catch(e){ return {}; } }
+function nuHideAdd(r){ try{ const m = nuHideLoad(), lim = Date.now() - 30*86400000; Object.keys(m).forEach(k=>{ if(m[k] < lim) delete m[k]; }); m[r.k + '|' + r.date] = Date.now(); localStorage.setItem('nu_hide', JSON.stringify(m)); }catch(e){} }
 function nuKey(phone, name){ const d = ucDg(phone); return d.length>=9 ? 'p'+d : 'n'+ucNm(name); }
 async function nuBuild(){
   const today = bqYmd(new Date()), sentToday = nuSentLoad();
@@ -11452,6 +11454,8 @@ async function nuBuild(){
     if(hit){ if(hit.src.indexOf('EMR')<0) hit.src.push('EMR'); if(!hit.chart) hit.chart = r.chart||''; if(!hit.phone && r.phone){ hit.phone = r.phone; hit.k = nuKey(r.phone, hit.name); } if(!hit.time) hit.time = r.time||''; if(g && !hit.guided) hit.guided = g; return; }
     addRow({ k, name:r.name, guardian:'', phone:r.phone||'', last4:'', date:r.date, time:r.time||'', chart:r.chart||'', src:['EMR'], bqId:'', guided:g });
   });
+  const hid = nuHideLoad();
+  for(let i = list.length - 1; i >= 0; i--){ if(hid[list[i].k + '|' + list[i].date]) list.splice(i, 1); }
   list.sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')));
   const old = {}; (NU.rows||[]).forEach(r=>{ old[r.k] = r.pick; });
   list.forEach(r=>{ r.pick = (r.k in old) ? old[r.k] : (!r.guided && !!ucDg(r.phone)); });
@@ -11482,7 +11486,8 @@ function nuRender(){
     const ph = ucDg(r.phone);
     return `<div class="uc-row"><input type="checkbox" data-nu="chk" data-k="${e(r.k)}"${r.pick?' checked':''}${(NU.busy||!ph)?' disabled':''}>
       <div class="uc-main"><div><span class="uc-nm">${e(r.name||'(이름 없음)')}</span>${r.guardian && r.guardian!==r.name ? ` <span class="uc-sub">보호자 ${e(r.guardian)}</span>` : ''} <span class="uc-sub">${e(r.time||'')} · ${ph ? e(bqFmtPhone(r.phone)) : (r.last4 ? '번호 ***'+e(r.last4) : '<span style="color:var(--danger)">연락처 없음</span>')}${r.chart?' · 차트 '+e(r.chart):''}</span></div>
-      <div class="uc-bs">${b('📅 '+md(r.date+'T00:00:00')+' 예약','#E8F0FE','#1A4E9B')}${r.src.map(x=>b(x, x==='EMR'?'#EDE7F6':x==='똑닥'?'#DBEAFE':'#DCFCE7', x==='EMR'?'#5E3A87':x==='똑닥'?'#1A4E9B':'#166534')).join('')}${r.guided ? b('📨 안내함 '+md(r.guided),'#DDF0E4','#2B7A4B') : b('기록지 미작성','#FFF4D6','#8A5A00')}${ph ? '' : b('전화번호 필요','#FDECEA','#B3261E')}</div></div></div>`;
+      <div class="uc-bs">${b('📅 '+md(r.date+'T00:00:00')+' 예약','#E8F0FE','#1A4E9B')}${r.src.map(x=>b(x, x==='EMR'?'#EDE7F6':x==='똑닥'?'#DBEAFE':'#DCFCE7', x==='EMR'?'#5E3A87':x==='똑닥'?'#1A4E9B':'#166534')).join('')}${r.guided ? b('📨 안내함 '+md(r.guided),'#DDF0E4','#2B7A4B') : b('기록지 미작성','#FFF4D6','#8A5A00')}${ph ? '' : b('전화번호 필요','#FDECEA','#B3261E')}</div></div>
+      <button type="button" data-nu="del" data-k="${e(r.k)}" aria-label="목록에서 지우기" title="목록에서 지우기" style="border:0;background:none;color:var(--secondary);font-size:17px;cursor:pointer;align-self:flex-start;">✕</button></div>`;
   }).join('') + sendBar + `</div>`;
 }
 async function nuCheck(quiet){
@@ -11538,6 +11543,15 @@ document.addEventListener('click', ev=>{
   else if(k==='send') nuSend();
   else if(k==='chk'){ const r = NU.rows.find(x=>x.k===t.dataset.k); if(r){ r.pick = t.checked; nuRender(); } }
   else if(k==='all'){ NU.rows.forEach(r=>{ r.pick = t.checked && !!ucDg(r.phone); }); nuRender(); }
+  else if(k==='del'){
+    const r = NU.rows.find(x=>x.k===t.dataset.k); if(!r) return;
+    if(!confirm((r.name||'이 아이') + ' (' + r.date.slice(5).replace('-','/') + ' ' + (r.time||'') + ') 을 목록에서 지울까요?' + (r.bqId ? '\n· 예약 대기열의 이 예약도 함께 지워져요' : ''))) return;
+    nuHideAdd(r);
+    const ids = bqItems.filter(b=>b.status!=='cancel' && nuKey(b.phone, b.visitor||b.name)===r.k).map(b=>b.id);
+    NU.rows = NU.rows.filter(x=>x!==r); nuRender();
+    ids.forEach(id=>{ bqPost({ action:'deletebooking', id:id }).catch(()=>{}); });
+    if(ids.length) setTimeout(()=>{ try{ bqLoad(true); }catch(e){} }, 800);
+  }
   else if(k==='auto'){
     if(t.checked && !confirm('자동 발송을 켤까요?\n· 이 앱(원장·원무과 화면)이 열려 있는 동안, 기록지를 안 쓴 예약 환자에게 안내 문자를 자동으로 보냅니다.\n· 아이마다 하루에 한 번, 한 번에 최대 10명까지예요.\n· 앱을 닫으면 보내지 않아요.')){ t.checked = false; return; }
     try{ localStorage.setItem('nu_auto', t.checked ? '1' : '0'); }catch(e){}
