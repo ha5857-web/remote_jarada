@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
+<script>window.JRD_BUILD='20261101a';</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>자라다케어 · 원격 환아 관리</title>
@@ -443,6 +444,7 @@
 
   <button class="btn btn-primary btn-block" style="margin-bottom:6px;" onclick="openFirstIntake2()">🌱 초진 접수 — 새 초진 기록지 불러오기 · 초진방 링크 발송</button>
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><button class="btn btn-outline" style="font-size:11px;padding:5px 10px;" onclick="fvImportPending(true)">🔄 원무과 접수 확인</button><div id="fvImportNote" style="font-size:11.5px;color:var(--secondary);"></div></div>
+  <button type="button" id="nuGo" class="btn btn-outline btn-block" style="margin-bottom:10px;font-size:12.5px;border-color:#C2751A;color:#8A5A00;" onclick="nuOpen()">🔔 초진기록지 미작성 <b id="nuCnt">–</b>명 — 확인 · 안내 문자</button>
   <div id="patientCategoryTabs" style="margin-bottom:10px;">
     <button data-cat="first" onclick="setPatientCategoryTab('first')">초진<br><span id="catCount_first" style="font-weight:400;"></span></button>
     <button class="active" data-cat="growth" onclick="setPatientCategoryTab('growth')">경과관찰/성장<br><span id="catCount_growth" style="font-weight:400;"></span></button>
@@ -770,12 +772,15 @@
 </style>
 <div class="cal-box" id="np_card" style="border-color:#7B4FA3;border-width:2px;">
   <div class="section-title" style="margin:0 0 4px;"><h2 style="margin:0;font-size:17px;">🌱 예약 + 초진기록지 → 초진방 보내기</h2></div>
+  <div id="nu_box"></div>
   <div style="font-size:12px;color:var(--secondary);line-height:1.6;margin-bottom:8px;">EMR 표를 <b>드래그해서 복사(Ctrl+C) → 아래 칸에 붙여넣기(Ctrl+V)</b> 하세요. 엑셀 파일을 <b>끌어다 놓기</b>만 해도 돼요. <b>오늘 이후 예약된 환자</b> 중 <b>구글 초진기록지를 쓴 아이</b>만 골라줘요. 예약 날짜가 언제든 보내고, 이미 보낸 분은 기록이 남아 다음에 새 예약 파일을 올려도 자동으로 빠져요.</div>
-  <textarea id="np_text" rows="4" placeholder="📋 여기에 EMR 표를 붙여넣거나, 엑셀 파일을 끌어다 놓으세요" style="width:100%;box-sizing:border-box;font-size:13px;padding:12px;border:2px dashed #7B4FA3;border-radius:12px;resize:vertical;font-family:inherit;background:#FAF7FD;"></textarea>
+  <textarea id="np_text" rows="4" placeholder="📋 EMR 표 또는 네이버 예약 화면(캡처 사진·드래그한 글자)을 붙여넣거나 끌어다 놓으세요" style="width:100%;box-sizing:border-box;font-size:13px;padding:12px;border:2px dashed #7B4FA3;border-radius:12px;resize:vertical;font-family:inherit;background:#FAF7FD;"></textarea>
   <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">
     <button type="button" class="uc-act" style="--c:#7B4FA3;padding:9px 14px;" id="np_go">🔍 초진 찾기</button>
     <button type="button" class="uc-act o" id="np_clear">지우기</button>
+    <label style="font-size:11.5px;color:var(--secondary);display:flex;align-items:center;gap:4px;">네이버 화면 이용일 <input type="date" id="np_nvDate" style="font-size:12px;padding:4px;"></label>
   </div>
+  <div style="font-size:11px;color:var(--secondary);margin-top:4px;line-height:1.5;">💚 네이버 예약 목록 <b>캡처 사진을 끌어다 놓거나 Ctrl+V</b>, 또는 화면을 <b>드래그해서 복사 후 붙여넣기</b> 하면 예약 대기열에 저장하고 바로 미작성 점검까지 해요. (화면에 날짜가 없으면 위 「이용일」, 비워 두면 오늘)</div>
   <div id="np_list"></div>
   <div id="np_bar"></div>
   <div id="np_need"></div>
@@ -3463,6 +3468,7 @@ async function fvPushVisitGuide(p, po){
   if(!p.accessCode){ p.accessCode = genAccessCode(); savePatients(); }
   const iso = new Date().toISOString();
   const payload = { v:1, date: (p.guideDraft && p.guideDraft.date) || todayStr(), name: p.name, post: Object.assign({}, po, { sentAt: iso }), updatedAt: iso };
+  p.lastGuideKey = iso;                       // 환자 앱이 「읽음」 기록에 같은 키를 남깁니다
   const rowId = 'vg_' + p.accessCode;
   const post = async body => { const r = await fetch(api, { method:'POST', body: JSON.stringify(body) }); let j = null; try{ j = await r.json(); }catch(e){} return j; };
   try{
@@ -4255,6 +4261,7 @@ function openRecordFromInbox(inboxId, date){
 function renderDetail(){
   const p = getPatient(currentPatientId);
   if(!p) return;
+  setTimeout(()=>{ try{ ghxDocLoad(getPatient(currentPatientId)); }catch(e){} }, 0);
   try{ if(p.firstVisit && p.firstVisit.chartPaste && !(p.records||[]).some(r=>r.height||r.weight)){ if(fvMergeGrowth(p, p.firstVisit.chartPaste)) savePatients(); } }catch(e){}   // 붙여둔 차트에 키·몸무게 표가 있으면 그래프용 기록으로 자동 반영
   const lnTa = document.getElementById('lifestyleNoteText');
   if(lnTa) lnTa.value = '';
@@ -4285,6 +4292,7 @@ function renderDetail(){
     </div>
     ${p.notes ? `<div class="item full" style="margin-top:10px;"><label>메모</label><div class="val" style="font-weight:400;white-space:pre-wrap;">${escapeHtml(p.notes)}</div></div>` : ''}
     ${p.remarks ? `<div class="item full" style="margin-top:10px;"><label>비고</label><div class="val" style="font-weight:400;white-space:pre-wrap;">${escapeHtml(p.remarks)}</div></div>` : ''}
+    <div id="ghx_doc"></div>
     <div class="contact-row">
       ${p.phone ? `<a class="btn btn-outline" href="tel:${escapeHtml(p.phone)}">📞 전화</a>` : ''}
       ${p.phone ? `<a class="btn btn-outline" href="https://wa.me/${escapeHtml(p.phone.replace(/[^0-9]/g,''))}" target="_blank">💬 통화 연결</a>` : ''}
@@ -8908,8 +8916,56 @@ function rvRender(p){
       <label style="display:flex;align-items:center;gap:6px;font-size:11.5px;margin-bottom:4px;"><input type="checkbox" id="rv_notify" ${localStorage.getItem('rv_notify')==='0' ? '' : 'checked'} onchange="localStorage.setItem('rv_notify', this.checked ? '1' : '0')"> 카카오 알림톡으로도 알리기${p.phone ? '' : ' <span style="color:var(--danger);">(연락처 없음)</span>'}</label>
       <label style="display:flex;align-items:center;gap:6px;font-size:11.5px;margin-bottom:8px;"><input type="checkbox" id="rv_also" ${localStorage.getItem('rv_also')==='1' ? 'checked' : ''} onchange="localStorage.setItem('rv_also', this.checked ? '1' : '0')"> 「작성 완료」를 누를 때 환자에게도 함께 보내기</label>
       <button class="btn btn-primary btn-block" style="font-size:12.5px;background:#1E7B3A;border-color:#1E7B3A;" onclick="rvSendPatient(fvCur())">📲 환자 앱 「오늘 진료 후 안내」로 보내기</button>
+      <div id="rv_readChip" style="font-size:11.5px;margin-top:6px;"></div>
       <div id="rv_sendStatus" style="font-size:11px;margin-top:6px;color:${n.patientSentAt ? 'var(--ok)' : 'var(--secondary)'};">${n.patientSentAt ? '📲 ' + escapeHtml(new Date(n.patientSentAt).toLocaleString('ko-KR')) + '에 환자에게 보냈어요. 내용을 고쳤다면 다시 보내면 덮어써요.' : '환자 앱에 올라가고(영상 추천 포함), 알림톡으로 확인 안내가 가요. 보내기 전에 내용을 꼭 읽어보세요.'}</div>
     </div>`;
+  try{ rvReadChip(p); }catch(e){}
+}
+
+// 환아 앱이 서버에 올려 둔 성장호르몬 주사 일정(type:'ghPlan')을 상세 화면에 보여줍니다 — 이행률·못 맞음 표시·약 소진 예정일
+async function ghxDocLoad(p){
+  const el = document.getElementById('ghx_doc'); if(!el) return;
+  el.innerHTML = '';
+  if(!p || !p.accessCode || !getApiUrl()) return;
+  try{
+    faRowsCache = null; const rows = await faRegRows();
+    const hit = rows.filter(r=>r.type==='ghPlan' && r.pid===p.accessCode).sort((a,b)=>String(b.timestamp||'').localeCompare(String(a.timestamp||'')))[0];
+    if(!hit) return;
+    let d = null; try{ d = JSON.parse(hit.question||'{}'); }catch(e){}
+    if(!d || d.deleted || !d.start) return;
+    if(getPatient(currentPatientId) !== p) return;
+    const e = escapeHtml, md = s => { const t = new Date(s+'T00:00:00'); return isNaN(t) ? e(s||'') : (t.getMonth()+1)+'/'+t.getDate(); };
+    const ro = d.runOut, soon = ro && ro.days <= 7, up = d.updatedAt ? new Date(d.updatedAt) : null;
+    el.innerHTML = `<div style="margin-top:10px;padding:10px;border:1px solid #E3C98E;border-radius:10px;background:#FFFBF0;font-size:12.5px;line-height:1.6;">
+      <div style="font-weight:800;color:#8A5A00;margin-bottom:3px;">💉 환아 앱 성장호르몬 주사 일정</div>
+      <div>${e(d.penName||'')} · ${e(String(d.dose||''))}${d.n ? ' ('+d.n+'회 세트)' : ''}</div>
+      <div>시작 ${md(d.start)}${d.visit ? ' · 다음 외래 ' + md(d.visit) : ''}${d.supply ? ' · 받은 약 ' + d.supply + '개' : ''}</div>
+      <div>이행: <b>${d.pct==null ? '-' : d.pct + '%'}</b> <span style="color:var(--secondary);">(주사 ${d.injDays||0}일 · 못 맞음 표시 ${d.skipDays||0}일${(d.recentSkips||[]).length ? ' · 최근 2주 ' + d.recentSkips.map(md).join(', ') : ''})</span></div>
+      ${ro ? `<div style="font-weight:700;color:${soon ? 'var(--danger)' : 'var(--ok)'};">${soon ? '⚠️ ' : ''}약 소진 예정 ${md(ro.date)} (${ro.days < 0 ? '지남' : ro.days === 0 ? '오늘' : ro.days + '일 남음'})${soon ? ' — 처방·내원 확인' : ''}</div>` : ''}
+      <div style="font-size:10.5px;color:var(--secondary);margin-top:2px;">※ 환자가 앱에서 「못 맞음」을 누른 날만 집계해요. 누르지 않은 날은 맞은 것으로 계산돼요.${up && !isNaN(up) ? ' 마지막 갱신 ' + up.toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) : ''}</div>
+    </div>`;
+  }catch(err){}
+}
+// 환자가 안내를 열어 봤는지(환자 앱이 남기는 guideRead 행) 확인해서 「👁 읽음 / 미열람」 칩으로 보여줘요
+async function rvReadChip(p){
+  const el = document.getElementById('rv_readChip'); if(!el) return;
+  if(!p || !p.accessCode || !p.lastGuideKey || !(p.rvNote && p.rvNote.patientSentAt)){ el.innerHTML = ''; return; }
+  el.innerHTML = '<span style="color:var(--secondary);">열람 여부 확인 중…</span>';
+  try{
+    faRowsCache = null; const rows = await faRegRows();
+    const hits = rows.filter(r=>r.type==='guideRead' && r.pid===p.accessCode).map(r=>{ try{ return JSON.parse(r.question||'{}'); }catch(e){ return {}; } }).filter(x=>x.key===p.lastGuideKey).sort((a,b)=>String(a.at).localeCompare(String(b.at)));
+    if(document.getElementById('rv_readChip') !== el) return;
+    if(hits.length){ const t = new Date(hits[0].at); el.innerHTML = '<span style="color:var(--ok);font-weight:700;">👁 읽음 ' + (isNaN(t) ? '' : escapeHtml(t.toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}))) + '</span>'; return; }
+    const sent = new Date(p.rvNote.patientSentAt), hrs = Math.max(0, Math.round((Date.now() - sent.getTime())/3600000));
+    el.innerHTML = '<span style="color:var(--danger);font-weight:700;">미열람</span> <span style="color:var(--secondary);">(보낸 지 ' + (hrs < 1 ? '1시간 안' : hrs + '시간') + ')</span> <button type="button" class="btn btn-outline" style="font-size:11px;padding:3px 8px;" onclick="rvRenotify()">🔔 다시 알림</button> <button type="button" class="btn btn-outline" style="font-size:11px;padding:3px 8px;" onclick="rvReadChip(fvCur())">↻</button>';
+  }catch(e){ el.innerHTML = ''; }
+}
+async function rvRenotify(){
+  const p = fvCur(); if(!p) return;
+  if(!p.phone){ alert('연락처가 없어 알림톡을 보낼 수 없어요.'); return; }
+  if(!confirm(p.name + ' 보호자에게 「진료 후 안내가 올라왔어요」 알림톡을 다시 보낼까요?')) return;
+  let ok = false; try{ ok = await fvSendInviteAlimtalk(p); }catch(e){}
+  const el = document.getElementById('rv_readChip'); if(el) el.innerHTML += '<div style="color:' + (ok ? 'var(--ok)' : 'var(--danger)') + ';">' + (ok ? '✅ 알림톡을 다시 보냈어요.' : '❌ 알림톡 발송에 실패했어요.') + '</div>';
 }
 function rvRead(p){
   const g = id => { const e = document.getElementById(id); return e ? e.value : ''; };
@@ -8922,7 +8978,7 @@ let rvT = null;
 let rvFT = null;
 function rvSave(){ clearTimeout(rvT); rvT = setTimeout(()=>{ const p = fvCur(); if(!p || p.firstVisit) return; rvRead(p); try{ savePatientsLocalOnly(); }catch(e){} clearTimeout(rvFT); rvFT = setTimeout(()=>{ const q = fvCur(); if(q && q === p && !q.firstVisit && rvHasContent((q.rvNote||{}).post)) rvPushFlow(q, {}); }, 1500); }, 500); }
 /* ---- flow 연동: 오늘 flow에 있는 같은 환자의 「성장 리포트」로 내용을 보냅니다 (flow의 [성장 리포트] 탭에서 직원이 인쇄) ---- */
-function rvFlowSay(t, bad){ const e = document.getElementById('rv_flowStatus'); if(e){ e.textContent = t; e.style.color = bad ? 'var(--danger)' : 'var(--ok)'; } }
+function rvFlowSay(t, bad){ const e = document.getElementById('rv_flowStatus') || document.getElementById('fv_flowStatus'); if(e){ e.textContent = t; e.style.color = bad ? 'var(--danger)' : 'var(--ok)'; } }
 function rvRecsText(p){
   const rows = (p.records||[]).filter(r=>r.date && parseFloat(r.height)>0).slice().sort((a,b)=> a.date < b.date ? -1 : 1).slice(-12);
   return rows.map(r=>{
@@ -8933,9 +8989,10 @@ function rvRecsText(p){
 }
 async function rvPushFlow(p, o){
   o = o || {};
-  if(!p || p.firstVisit) return;
-  const n = rvRead(p), po = n.post || {};
-  if(!rvHasContent(po)){ if(o.manual) rvFlowSay('먼저 🤖 AI로 작성하거나 내용을 입력해 주세요.', true); return; }
+  if(!p) return;
+  if(p.firstVisit && !o.fv) return;                         // 초진은 「작성 완료」 버튼(fvComplete)에서만 보냅니다
+  const n = p.firstVisit ? { date: p.firstVisit.visitDate || todayStr(), post: p.firstVisit.post || {} } : rvRead(p), po = n.post || {};
+  if(!rvHasContent(po)){ if(o.manual) rvFlowSay('먼저 진료 후 내용을 입력하거나 🤖 AI로 정리해 주세요.', true); return; }
   if(!getApiUrl()){ if(o.manual) rvFlowSay('연동 설정의 백엔드 URL이 없어요.', true); return; }
   try{
     const fl = await bqPost({ action:'flowlist' });
@@ -8974,11 +9031,11 @@ async function rvPushFlow(p, o){
 function rvQWait(p){ return !!(p && p.rvQ && p.rvQ.st==='wait'); }
 function rvMarksKey(){ return 'rvMarks_' + todayStr(); }
 function rvMarksLoad(){ try{ return JSON.parse(localStorage.getItem(rvMarksKey())||'{}') || {}; }catch(e){ return {}; } }
-function rvMarksSet(p, k){
+function rvMarksSet(p, k, manual){
   if(!p || !p.chartNo) return;
   try{
     const m = rvMarksLoad(), c = String(p.chartNo).trim();
-    if(k.blood || k.xray) m[c] = { n:p.name||'', b:k.blood?1:0, x:k.xray?1:0 }; else delete m[c];
+    if(k.blood || k.xray || manual) m[c] = { n:p.name||'', b:k.blood?1:0, x:k.xray?1:0, lock:manual ? 1 : (m[c] && m[c].lock ? 1 : 0) }; else delete m[c];
     localStorage.setItem(rvMarksKey(), JSON.stringify(m));
     Object.keys(localStorage).forEach(x=>{ if(x.indexOf('rvMarks_')===0 && x!==rvMarksKey()) localStorage.removeItem(x); });
   }catch(e){}
@@ -9019,7 +9076,7 @@ function rvQBadge(p){
 function rvQClear(id){
   const p = getPatient(id); if(!p || !p.rvQ) return;
   if(!confirm(p.name + ' 아이를 리포트 대기 목록에서 뺄까요?')) return;
-  delete p.rvQ; p.updatedAt = new Date().toISOString(); rvMarksSet(p, {});
+  delete p.rvQ; p.updatedAt = new Date().toISOString(); rvMarksSet(p, {}, true);
   try{ savePatients(); }catch(e){} renderPatientList(); if(currentPatientId===id) try{ rvRender(p); }catch(e){}
 }
 // ④ 「리포트 대기」 탭에서 차트번호/이름으로 직접 추가
@@ -9035,7 +9092,7 @@ function rvQAdd(kind){
     if(!m.length) m = patients.filter(p=>p.name===t);
     if(m.length!==1){ miss.push(t + (m.length>1 ? '(동명이인 — 차트번호로)' : '')); return; }
     rvQMark(m[0], k, { merge:true });
-    const q = m[0].rvQ; rvMarksSet(m[0], { blood:q.blood, xray:q.xray }); ok.push(m[0].name);
+    const q = m[0].rvQ; rvMarksSet(m[0], { blood:q.blood, xray:q.xray }, true); ok.push(m[0].name);
   });
   try{ savePatients(); }catch(e){}
   renderPatientList();
@@ -9048,7 +9105,7 @@ function rvQToggle(kind){
   try{ rvRead(p); }catch(e){}
   const q = (p.rvQ && p.rvQ.date===todayStr()) ? p.rvQ : { blood:false, xray:false };
   const k = { blood:!!q.blood, xray:!!q.xray }; k[kind] = !k[kind];
-  rvQMark(p, k, {}); rvMarksSet(p, k);
+  rvQMark(p, k, {}); rvMarksSet(p, k, true);
   try{ savePatients(); }catch(e){}
   rvRender(p); renderPatientList();
   rvQPushFlow(p);
@@ -9066,9 +9123,35 @@ async function rvQPushFlow(p, visits){
   }catch(e){}
 }
 window.rvQPushed = window.rvQPushed || {};
+// flow가 이미 기록하는 X-ray·채혈 단계로 "오늘 검사한 아이"를 자동 표시 (원장이 직접 끈 아이는 건드리지 않음)
+function rvFlowExams(v){
+  const lg = (v.log||[]).map(l=>l && l.s);
+  return { blood: !!(v.lab && v.lab.drawn) || lg.indexOf(5) >= 0, xray: !!(v.xray && v.xray.done) || lg.indexOf(4) >= 0 };
+}
+function rvAutoFromFlow(visits){
+  let ch = false; const today = todayStr(), dg = s => String(s||'').replace(/\D/g,'');
+  visits.forEach(v=>{
+    if(!v || !v.id || v.id==='config:flow' || !v.name || (v.date && v.date!==today) || v.step===undefined) return;
+    const ex = rvFlowExams(v); if(!ex.blood && !ex.xray) return;
+    const c = v.chartNo ? String(v.chartNo).trim() : '';
+    const m = rvMarksLoad(), cur = c ? m[c] : null;
+    if(cur && cur.lock) return;
+    let p = c ? patients.find(pp=>pp.chartNo && dg(pp.chartNo)===dg(c)) : null;
+    if(!p){ const byName = patients.filter(pp=>pp.name===v.name); if(byName.length===1) p = byName[0]; }
+    if(p){
+      if(p.rvQ && p.rvQ.date===today && p.rvQ.st==='sent' && (!ex.blood || p.rvQ.blood) && (!ex.xray || p.rvQ.xray)) return;
+      if(rvQMark(p, { blood:ex.blood, xray:ex.xray }, { merge:true })){ rvMarksSet(p, { blood:p.rvQ.blood, xray:p.rvQ.xray }); ch = true; }
+    }else if(c){
+      const nb = !!(ex.blood || (cur && cur.b)), nx = !!(ex.xray || (cur && cur.x));
+      if(!cur || !!cur.b!==nb || !!cur.x!==nx){ try{ m[c] = { n:v.name, b:nb?1:0, x:nx?1:0, lock:0 }; localStorage.setItem(rvMarksKey(), JSON.stringify(m)); }catch(e){} }
+    }
+  });
+  return ch;
+}
 function rvSyncFlow(visits){
   try{
     if(!Array.isArray(visits)) return; let ch = false;
+    try{ if(rvAutoFromFlow(visits)) ch = true; }catch(e){}
     patients.forEach(p=>{
       const q = p.rvQ; if(!q || q.st!=='wait') return;
       const v = fvFlowFindVisit(p, visits); if(!v) return;
@@ -9080,6 +9163,39 @@ function rvSyncFlow(visits){
     if(ch){ try{ savePatients(); }catch(e){} try{ renderPatientList(); }catch(e){} }
   }catch(e){}
 }
+
+/* ---------- 파일 버전 점검: 같은 폴더의 flow.html·외래 명단 도구가 이 화면과 같은 버전인지 확인 (호스팅된 주소에서만) ---------- */
+(function(){
+  if(!/^https?:/.test(location.protocol)) return;
+  const mine = window.JRD_BUILD || '';
+  const files = [['flow.html','flow'],['patient_filter_emr_app.html','외래 명단 도구'],['자라다케어_환아용.html','환아 앱']];
+  async function chk(){
+    const bad = [];
+    for(const [f,label] of files){
+      try{
+        const r = await fetch(f + (f.indexOf('?')<0?'?':'&') + 'vchk=' + Date.now(), { cache:'no-store' });
+        if(!r.ok) continue;                                   // 이 폴더에 없는 파일은 건너뜀
+        const t = await r.text(), m = t.match(/JRD_BUILD\s*=\s*'([^']+)'/);
+        if(!m) bad.push(label + '(버전 표시 없음 — 옛 파일)'); else if(m[1] !== mine) bad.push(label + '(' + m[1] + ')');
+      }catch(e){}
+    }
+    const old = document.getElementById('jrdBuildBanner'); if(old) old.remove();
+    if(!bad.length) return;
+    const d = document.createElement('div'); d.id = 'jrdBuildBanner';
+    d.style.cssText = 'position:fixed;left:8px;right:8px;bottom:70px;z-index:9999;background:#FFF4D6;border:1px solid #E3C98E;color:#7A4B00;border-radius:12px;padding:10px 12px;font-size:12px;line-height:1.5;box-shadow:0 2px 10px rgba(0,0,0,.15);';
+    d.innerHTML = '⚠️ <b>파일 버전이 서로 달라요.</b> 이 화면은 ' + escapeHtml(mine||'?') + ' 인데 ' + escapeHtml(bad.join(', ')) + '. 새 파일을 모두 올렸는지, 브라우저를 새로고침(Ctrl+Shift+R)했는지 확인해 주세요. <button type="button" style="margin-left:6px;border:0;background:none;font-size:15px;cursor:pointer;" onclick="this.parentNode.remove()">✕</button>';
+    document.body.appendChild(d);
+  }
+  setTimeout(chk, 5000);
+})();
+async function rvFlowPoll(){
+  if(document.hidden || !getApiUrl()) return;
+  try{ if(typeof isDoctorAppUnlocked==='function' && !isDoctorAppUnlocked()) return; }catch(e){}
+  try{ const fl = await bqPost({ action:'flowlist' }); if(fl && fl.status==='ok' && Array.isArray(fl.visits)) rvSyncFlow(fl.visits); }catch(e){}
+}
+setTimeout(rvFlowPoll, 7000);
+setInterval(rvFlowPoll, 90000);
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) rvFlowPoll(); });
 // 환자에게 보내기: 환아 앱 「오늘 진료 후 안내」 카드(재진) + 카카오 알림톡. (초진 환자는 초진 카드의 버튼을 씁니다)
 async function rvSendPatient(p, o){
   o = o || {}; p = p || fvCur(); if(!p) return false;
@@ -9106,6 +9222,12 @@ async function rvSendPatient(p, o){
   }
   say(msg + ' (' + new Date().toLocaleTimeString('ko-KR') + ')', 'ok');
   return true;
+}
+async function fvComplete(){
+  const p = fvCur(); if(!p || !p.firstVisit) return;
+  try{ if(document.getElementById('fv_summary')){ fvReadPre(p); fvReadPost(p); } }catch(e){}
+  try{ savePatientsLocalOnly(); }catch(e){}
+  await rvPushFlow(p, { manual:true, reviewed:true, fv:true });
 }
 async function rvComplete(){
   const p = fvCur(); if(!p) return;
@@ -9324,6 +9446,10 @@ function renderFirstVisitBox(p){
       <button class="btn btn-primary" style="flex:1.4;min-width:120px;font-size:12px;" onclick="fvSendReport()">📤 초진방에 PDF 보내기</button>
     </div>
     <div id="fv_rptStatus" style="font-size:11px;color:var(--secondary);margin-top:4px;">${fv.report ? '✅ 보낸 파일: ' + escapeHtml(fv.report.name) + ' (' + Math.round((fv.report.size||0)/1024) + 'KB · ' + fvFmtTime(fv.report.at) + ')' : '아직 보내지 않았어요.'}</div>
+    <div style="margin:8px 0;padding:8px;border:1px dashed var(--border);border-radius:10px;">
+      <button class="btn btn-outline btn-block" style="font-size:12.5px;" onclick="fvComplete()">✅ 작성 완료 → flow 인쇄 대상으로 보내기</button>
+      <div id="fv_flowStatus" style="font-size:11px;color:var(--secondary);margin-top:4px;">리포트를 다 쓰셨으면 눌러 주세요. 오늘 flow의 같은 환자 「성장 리포트」 탭에 인쇄할 리포트로 올라가요. (환자에게 보내는 건 아래 버튼)</div>
+    </div>
         <button class="btn btn-primary btn-block" onclick="fvSendPost()">진료 후 안내 초진방으로 보내기</button>
     <button class="btn btn-outline btn-block" style="margin-top:6px;" onclick="fvFinish()">✔ 초진 완료 (일반 환자 목록으로 이동)</button>
     <div id="fv_status" style="font-size:11px;color:var(--secondary);margin-top:6px;"></div>
@@ -11234,7 +11360,8 @@ async function npNeedSend(){
 }
 async function npGo(){
   const text = document.getElementById('np_text').value;
-  if(!text.trim()){ npSay('EMR 표를 먼저 붙여넣어 주세요.', true); return; }
+  if(!text.trim()){ npSay('EMR 표 또는 네이버 예약 화면을 먼저 붙여넣어 주세요.', true); return; }
+  if(!npIsEmr(text)){ const nt = bqNaverTable(text, npNvDate()); if(nt && nt.rows.length) return npNaver(null, text); }
   try{ cdIngestGrid(text.indexOf('\t')>=0 ? npTsv(text) : []); }catch(e){}
   const parsed = npParse(text);
   const extra = NP.skippedOld ? ' · 지난 예약 ' + NP.skippedOld + '건 제외' : '';
@@ -11288,8 +11415,169 @@ document.addEventListener('click', ev=>{
   else if(k==='ndate'){ const d = t.dataset.date, tg = NP.need.filter(r=>r.date===d && !r.guided && r.phone), allOn = tg.length && tg.every(r=>r.pick); tg.forEach(r=>{ r.pick = !allOn; }); npNeedRender(); }
 });
 
+
+/* ================== 초진기록지 미작성 통합 점검 ==================
+ * 주 자료 = 네이버·똑닥 예약(bqItems, 서버가 구글 초진기록지와 이미 대조) / 보조 = EMR 예약 파일(NP.need)
+ * 보호자 연락처(숫자)로 합치고, 이름이 달라도 번호가 같으면 같은 아이로 봅니다. 앱이 열려 있는 동안에만 자동 점검해요. */
+const NU = { rows:[], busy:false, at:0, known:0 };
+function nuAutoOn(){ try{ return localStorage.getItem('nu_auto')==='1'; }catch(e){ return false; } }
+function nuSentKey(){ return 'nu_sent_' + bqYmd(new Date()); }
+function nuSentLoad(){ try{ return JSON.parse(localStorage.getItem(nuSentKey())||'{}') || {}; }catch(e){ return {}; } }
+function nuSentMark(k){ try{ const m = nuSentLoad(); m[k] = Date.now(); localStorage.setItem(nuSentKey(), JSON.stringify(m)); Object.keys(localStorage).forEach(x=>{ if(x.indexOf('nu_sent_')===0 && x!==nuSentKey()) localStorage.removeItem(x); }); }catch(e){} }
+function nuKey(phone, name){ const d = ucDg(phone); return d.length>=9 ? 'p'+d : 'n'+ucNm(name); }
+async function nuBuild(){
+  const today = bqYmd(new Date()), sentToday = nuSentLoad();
+  const guidedByName = {};
+  try{ faRowsCache = null; const rows = await faRegRows();
+    rows.forEach(r=>{ if(r.type!=='visitNoticeSent') return; let d = null; try{ d = JSON.parse(r.question||'{}'); }catch(e){} if(d && /초진 기록지/.test(d.memo||'') && d.name) guidedByName[ucNm(d.name)] = r.timestamp || '1'; }); }catch(e){}
+  const live = bqItems.filter(b=>b && b.status!=='cancel' && b.date>=today && !/재진/.test(b.service||''));
+  const done = new Set(); NU.known = 0;
+  live.forEach(b=>{ if(b.intake && b.intake.submitted){ done.add(nuKey(b.phone, b.visitor||b.name)); done.add('n'+ucNm(b.visitor||b.name)); } });
+  const map = new Map(), list = [];
+  const addRow = r=>{ list.push(r); map.set(r.k, r); };
+  live.forEach(b=>{
+    if(b.intake && b.intake.submitted) return;
+    if(b.known){ NU.known++; return; }
+    const nm = b.visitor || b.name || '', k = nuKey(b.phone, nm);
+    const prev = map.get(k); const g = (b.status==='guided' ? (b.guidedAt||'1') : '') || guidedByName[ucNm(nm)] || (sentToday[k] ? new Date(sentToday[k]).toISOString() : '');
+    if(prev){ if(b.date < prev.date){ prev.date = b.date; prev.time = b.time||prev.time; prev.bqId = b.id; } if(g && !prev.guided) prev.guided = g; return; }
+    addRow({ k, name:nm, guardian:b.name||'', phone:b.phone||'', last4:b.last4||'', date:b.date, time:b.time||'', chart:'', src:[b.channel && /똑닥/.test(b.channel) ? '똑닥' : /네이버/.test(b.channel||'') ? '네이버' : '예약'], bqId:b.id, guided:g });
+  });
+  (NP.need||[]).forEach(r=>{
+    const k = nuKey(r.phone, r.name); if(done.has(k) || done.has('n'+ucNm(r.name))) return;
+    let hit = map.get(k);
+    if(!hit){ const d4 = ucDg(r.phone).slice(-4);
+      hit = list.find(x=>!ucDg(x.phone) && x.last4 && d4===x.last4 && x.date===r.date) || list.find(x=>ucNm(x.name)===ucNm(r.name) && x.date===r.date) || null; }
+    const g = r.guided || guidedByName[ucNm(r.name)] || '';
+    if(hit){ if(hit.src.indexOf('EMR')<0) hit.src.push('EMR'); if(!hit.chart) hit.chart = r.chart||''; if(!hit.phone && r.phone){ hit.phone = r.phone; hit.k = nuKey(r.phone, hit.name); } if(!hit.time) hit.time = r.time||''; if(g && !hit.guided) hit.guided = g; return; }
+    addRow({ k, name:r.name, guardian:'', phone:r.phone||'', last4:'', date:r.date, time:r.time||'', chart:r.chart||'', src:['EMR'], bqId:'', guided:g });
+  });
+  list.sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')));
+  const old = {}; (NU.rows||[]).forEach(r=>{ old[r.k] = r.pick; });
+  list.forEach(r=>{ r.pick = (r.k in old) ? old[r.k] : (!r.guided && !!ucDg(r.phone)); });
+  return list;
+}
+function nuCount(){ return NU.rows.length; }
+function nuBadge(){
+  const e = document.getElementById('nuCnt'); if(!e) return;
+  const n = NU.rows.length, un = NU.rows.filter(r=>!r.guided).length;
+  e.textContent = NU.at ? n : '–'; e.style.color = un ? 'var(--danger)' : 'var(--ok)';
+  const b = document.getElementById('nuGo'); if(b) b.title = n ? '안내 안 한 아이 ' + un + '명' : '';
+}
+function nuRender(){
+  nuBadge();
+  const box = document.getElementById('nu_box'); if(!box) return;
+  const e = escapeHtml, b = (t,bg,c)=>`<span class="uc-b" style="background:${bg};color:${c};">${e(t)}</span>`;
+  const md = ts => { const d = new Date(ts); return isNaN(d) ? '' : (d.getMonth()+1)+'/'+d.getDate(); };
+  const n = NU.rows.filter(r=>r.pick && ucDg(r.phone)).length, un = NU.rows.filter(r=>!r.guided).length;
+  const head = `<div style="font-size:15px;font-weight:800;color:#8A5A00;">🔔 초진기록지 미작성 점검 — <span style="color:${NU.rows.length?'var(--danger)':'var(--ok)'};">${NU.rows.length}명</span>${NU.rows.length?` <span style="font-size:12px;font-weight:600;color:var(--secondary);">(아직 안내 안 함 ${un}명)</span>`:''}</div>
+    <div style="font-size:11.5px;color:var(--secondary);margin:3px 0 6px;line-height:1.55;">네이버·똑닥 예약을 기준으로 구글 초진기록지를 안 쓴 아이를 모았어요. 위에 EMR 예약 파일을 올리면 <b>보호자 연락처가 같은 예약은 하나로 합쳐서</b>(이름이 달라도) 함께 보여줘요. 이미 보낸 아이는 「안내함」으로 빠지고, 기존 환자 번호${NU.known?'('+NU.known+'명)':''}는 제외해요.</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px;"><button type="button" class="uc-act o" data-nu="check" ${NU.busy?'disabled':''}>🔄 지금 다시 점검</button>
+      <label style="font-size:12px;display:flex;gap:5px;align-items:center;"><input type="checkbox" data-nu="auto" ${nuAutoOn()?'checked':''}> 앱이 열려 있을 때 자동 발송 <span style="color:var(--secondary);">(기본 꺼짐)</span></label>
+      <span style="font-size:11px;color:var(--secondary);">${NU.at ? '마지막 점검 ' + new Date(NU.at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}) : ''}</span></div>`;
+  if(!NU.rows.length){ box.innerHTML = `<div style="margin-bottom:14px;padding-bottom:12px;border-bottom:2px dashed #E3C98E;">${head}<div style="color:var(--ok);font-size:13px;padding:4px 0;">${NU.at ? '✅ 기록지를 안 쓴 예약 환자가 없어요.' : '아직 점검 전이에요. 「지금 다시 점검」을 눌러 주세요.'}</div></div>`; return; }
+  const sendBar = `<div class="uc-bar" style="position:static;box-shadow:none;margin:6px 0;"><label style="font-size:12px;"><input type="checkbox" data-nu="all"${n&&n===NU.rows.filter(r=>ucDg(r.phone)).length?' checked':''}> 전체</label><span style="font-size:12px;color:var(--secondary);">${n}명 선택</span>
+    <button type="button" class="uc-act" style="--c:#C2751A;flex:1;padding:11px;" data-nu="send"${(NU.busy||!n)?' disabled':''}>${NU.busy?'📤 보내는 중…':'📨 선택한 '+n+'명에게 기록지 작성 안내 문자 한 번에 보내기'}</button></div>`;
+  box.innerHTML = `<div style="margin-bottom:14px;padding-bottom:12px;border-bottom:2px dashed #E3C98E;">${head}${sendBar}` + NU.rows.map(r=>{
+    const ph = ucDg(r.phone);
+    return `<div class="uc-row"><input type="checkbox" data-nu="chk" data-k="${e(r.k)}"${r.pick?' checked':''}${(NU.busy||!ph)?' disabled':''}>
+      <div class="uc-main"><div><span class="uc-nm">${e(r.name||'(이름 없음)')}</span>${r.guardian && r.guardian!==r.name ? ` <span class="uc-sub">보호자 ${e(r.guardian)}</span>` : ''} <span class="uc-sub">${e(r.time||'')} · ${ph ? e(bqFmtPhone(r.phone)) : (r.last4 ? '번호 ***'+e(r.last4) : '<span style="color:var(--danger)">연락처 없음</span>')}${r.chart?' · 차트 '+e(r.chart):''}</span></div>
+      <div class="uc-bs">${b('📅 '+md(r.date+'T00:00:00')+' 예약','#E8F0FE','#1A4E9B')}${r.src.map(x=>b(x, x==='EMR'?'#EDE7F6':x==='똑닥'?'#DBEAFE':'#DCFCE7', x==='EMR'?'#5E3A87':x==='똑닥'?'#1A4E9B':'#166534')).join('')}${r.guided ? b('📨 안내함 '+md(r.guided),'#DDF0E4','#2B7A4B') : b('기록지 미작성','#FFF4D6','#8A5A00')}${ph ? '' : b('전화번호 필요','#FDECEA','#B3261E')}</div></div></div>`;
+  }).join('') + sendBar + `</div>`;
+}
+async function nuCheck(quiet){
+  if(NU.busy || !getApiUrl()) return;
+  try{
+    if(typeof isDoctorAppUnlocked==='function' && !isDoctorAppUnlocked()) return;
+    await ucLoad(true);
+    NU.rows = await nuBuild(); NU.at = Date.now();
+  }catch(e){ if(!quiet) npSay('점검하지 못했어요: ' + (e.message||'연결 오류'), true); }
+  nuRender();
+  if(nuAutoOn()) nuAutoRun();
+}
+async function nuSendRows(sel, o){
+  o = o || {};
+  if(!sel.length || NU.busy) return { ok:[], bad:[] };
+  if(!document.getElementById('an_name')) return { ok:[], bad:['안내 문자 칸이 없는 화면이에요'] };
+  NU.busy = true; nuRender();
+  const ok = [], bad = [];
+  for(let i=0;i<sel.length;i++){
+    const r = sel[i]; npSay((o.auto?'🤖 자동 ':'📤 ') + '안내 문자 ' + (i+1) + '/' + sel.length + ' ' + r.name + ' 보내는 중…');
+    try{
+      npFillGuide({ name:r.name, date:r.date, time:r.time, phone:r.phone });
+      if(!document.getElementById('an_msgOutput').value) throw new Error('안내 문자를 만들지 못했어요');
+      await sendApptMsg();
+      const t = document.getElementById('an_sendStatus').textContent || '';
+      if(/^✅/.test(t)){ r.guided = new Date().toISOString(); r.pick = false; nuSentMark(r.k); ok.push(r.name); if(r.bqId){ try{ await bqPatch(r.bqId, { status:'guided', guidedAt:r.guided }); }catch(e){} } }
+      else bad.push(r.name + ' (' + t.replace(/^[✅❌]\s*/,'') + ')');
+    }catch(err){ bad.push(r.name + ' (' + (err.message||'오류') + ')'); }
+    if(i < sel.length-1) await ucSleep(600);
+  }
+  const sb = document.getElementById('an_sendBtn'); if(sb){ sb.disabled = false; sb.textContent = '🚀 즉시 발송'; }
+  NU.busy = false; nuRender();
+  npSay((ok.length ? '✅ 기록지 작성 안내 ' + ok.length + '명 발송: ' + ok.join(', ') : '') + (bad.length ? (ok.length?'\n':'') + '❌ ' + bad.length + '명 못 보냄\n' + bad.join('\n') : ''), bad.length>0 && !ok.length);
+  return { ok, bad };
+}
+async function nuSend(){
+  const sel = NU.rows.filter(r=>r.pick && ucDg(r.phone)); if(!sel.length) return;
+  if(!confirm(sel.length + '명에게 「초진 기록지 작성」 안내 문자를 보낼까요?\n' + sel.map(r=>r.name+'('+r.date.slice(5).replace('-','/')+')').join(', '))) return;
+  await nuSendRows(sel);
+}
+// 자동 발송(옵트인): 안 보낸 아이만, 하루 한 번씩, 한 번에 최대 10명
+async function nuAutoRun(){
+  if(!nuAutoOn() || NU.busy) return;
+  const sent = nuSentLoad();
+  const sel = NU.rows.filter(r=>!r.guided && ucDg(r.phone) && !sent[r.k]).slice(0, 10);
+  if(sel.length) await nuSendRows(sel, { auto:true });
+}
+function nuOpen(){ try{ showView('appt'); }catch(e){} nuRender(); setTimeout(()=>{ const c = document.getElementById('nu_box'); if(c && c.scrollIntoView) c.scrollIntoView({ behavior:'smooth', block:'start' }); }, 50); if(!NU.at) nuCheck(false); }
+document.addEventListener('click', ev=>{
+  const t = ev.target.closest && ev.target.closest('#nu_box [data-nu]'); if(!t) return;
+  const k = t.dataset.nu;
+  if(k==='check') nuCheck(false);
+  else if(k==='send') nuSend();
+  else if(k==='chk'){ const r = NU.rows.find(x=>x.k===t.dataset.k); if(r){ r.pick = t.checked; nuRender(); } }
+  else if(k==='all'){ NU.rows.forEach(r=>{ r.pick = t.checked && !!ucDg(r.phone); }); nuRender(); }
+  else if(k==='auto'){
+    if(t.checked && !confirm('자동 발송을 켤까요?\n· 이 앱(원장·원무과 화면)이 열려 있는 동안, 기록지를 안 쓴 예약 환자에게 안내 문자를 자동으로 보냅니다.\n· 아이마다 하루에 한 번, 한 번에 최대 10명까지예요.\n· 앱을 닫으면 보내지 않아요.')){ t.checked = false; return; }
+    try{ localStorage.setItem('nu_auto', t.checked ? '1' : '0'); }catch(e){}
+    if(t.checked) nuAutoRun();
+  }
+});
+// EMR 파일을 새로 올리면 통합 목록도 다시 합치기
+(function(){ const _g = npGo; npGo = async function(){ await _g.apply(this, arguments); try{ NU.rows = await nuBuild(); NU.at = Date.now(); nuRender(); }catch(e){} }; })();
+setTimeout(()=>nuCheck(true), 6000);
+setInterval(()=>{ if(!document.hidden) nuCheck(true); }, 10*60*1000);
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden && Date.now()-NU.at > 5*60*1000) nuCheck(true); });
+
+
+/* ---------- 네이버 예약 화면(캡처 사진 / 드래그한 글자) → 예약 대기열 저장 → 미작성 점검 ---------- */
+function npNvDate(){ const v = (document.getElementById('np_nvDate') || {}).value; return v || bqYmd(new Date()); }
+function npIsEmr(text){ return /수진자명/.test(text); }
+async function npNaver(files, text){
+  try{
+    bqCancelNos = []; const day = npNvDate(); let rows = [], canc = 0;
+    for(let i=0;i<(files||[]).length;i++){
+      npSay('📷 네이버 화면 읽는 중… (' + (i+1) + '/' + files.length + ') — 사진은 10~40초 걸려요');
+      const r = await bqFileText(files[i]);
+      if(r.pre){ rows = rows.concat(r.pre.rows); canc += r.pre.cancelled||0; }
+      else if(r.text){ const nt = bqNaverTable(r.text, day); if(nt){ rows = rows.concat(nt.rows); canc += nt.cancelled; } }
+    }
+    if(text){ const nt = bqNaverTable(text, day); if(nt){ rows = rows.concat(nt.rows); canc += nt.cancelled; } }
+    rows.forEach(r=>{ if(!r.date) r.date = day; });
+    const seen = {}; rows = rows.filter(r=>{ const k = r.bookingNo || (r.name+r.phone+r.date+r.time); if(seen[k]) return false; seen[k] = 1; return true; });
+    if(!rows.length){ npSay('네이버 예약을 읽지 못했어요. 예약자·전화번호·예약번호가 같이 보이게 캡처하거나, 화면 표를 드래그해서 붙여넣어 주세요.', true); return; }
+    if(!confirm('네이버 예약 ' + rows.length + '건을 예약 대기열에 저장할까요?' + (canc ? '\n(취소 ' + canc + '건은 제외)' : '') + '\n\n' + rows.map(r=>(r.time||'') + ' ' + (r.visitor ? r.visitor + '(보호자 ' + r.name + ')' : r.name) + ' ' + (r.phone||'')).join('\n'))){ npSay('저장을 취소했어요.'); return; }
+    await bqSave(rows.map(r=>({ dob:r.dob||'', sex:r.sex||'', name:r.name||'', visitor:r.visitor||'', phone:r.phone||'', last4:r.last4||'', memo:r.memo||'', date:r.date, time:r.time||'', service:r.service||'', bookingNo:r.bookingNo, source:'naver' })));
+    if(bqCancelNos.length){ try{ await bqApplyCancels(true); }catch(e){} }
+    NU.at = 0; await nuCheck(false);
+    npSay('✅ 네이버 예약 ' + rows.length + '건을 저장하고 미작성 점검을 마쳤어요. 위 「🔔 초진기록지 미작성」 목록을 확인하세요.');
+    const ta = document.getElementById('np_text'); if(ta) ta.value = '';
+  }catch(e){ npSay('❌ 네이버 화면을 처리하지 못했어요: ' + (e.message||e), true); }
+}
 async function npFile(f){
   if(!f) return;
+  if(/^image\//.test(f.type) || /\.(png|jpe?g|webp|heic|gif|bmp)$/i.test(f.name||'')) return npNaver([f]);
   try{
     npSay('엑셀을 읽는 중…');
     const buf = await f.arrayBuffer();
@@ -11301,14 +11589,14 @@ async function npFile(f){
   }catch(e){ npSay('❌ 엑셀을 읽지 못했어요: ' + (e.message||e), true); }
 }
 document.addEventListener('dragover', ev=>{ if(ev.target && ev.target.closest && ev.target.closest('#np_card')) ev.preventDefault(); });
-document.addEventListener('drop', ev=>{ if(ev.target && ev.target.closest && ev.target.closest('#np_card') && ev.dataTransfer && ev.dataTransfer.files.length){ ev.preventDefault(); npFile(ev.dataTransfer.files[0]); } });
+document.addEventListener('drop', ev=>{ if(ev.target && ev.target.closest && ev.target.closest('#np_card') && ev.dataTransfer && ev.dataTransfer.files.length){ ev.preventDefault(); const fl = Array.from(ev.dataTransfer.files), im = fl.filter(x=>/^image\//.test(x.type)); if(im.length) npNaver(im); else npFile(fl[0]); } });
 document.addEventListener('paste', ev=>{
   const t = ev.target, inCard = t && t.closest && t.closest('#np_card'), card = document.getElementById('np_card');
   const typing = t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) && t.id!=='np_text';
   if(typing || !card || !card.offsetParent) return;
   const cd = ev.clipboardData; if(!cd) return;
-  if(cd.files && cd.files.length){ ev.preventDefault(); npFile(cd.files[0]); return; }
-  if(t.id!=='np_text'){ const txt = cd.getData('text'); if(txt && txt.indexOf('\t')>=0){ ev.preventDefault(); document.getElementById('np_text').value = txt; npGo(); } return; }
+  if(cd.files && cd.files.length){ ev.preventDefault(); const fl = Array.from(cd.files), im = fl.filter(x=>/^image\//.test(x.type)); if(im.length) npNaver(im); else npFile(fl[0]); return; }
+  if(t.id!=='np_text'){ const txt = cd.getData('text'); if(txt && (txt.indexOf('\t')>=0 || /(^|[^\d-])[1-9]\d{8,11}([^\d-]|$)/.test(txt))){ ev.preventDefault(); document.getElementById('np_text').value = txt; npGo(); } return; }
   setTimeout(npGo, 60);
 });
 
