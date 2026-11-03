@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<script>window.JRD_BUILD='20261101a';</script>
+<title>성장호르몬 제품 규격 편집</title>
+<style>
+:root{--ink:#1B3A4B;--mut:#5b6b73;--line:#DED5C6;--bg:#FBF8F1;--acc:#C0902C}
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;color:var(--ink);background:var(--bg);font-size:14px}
+.wrap{max-width:960px;margin:0 auto;padding:16px}h1{font-size:18px;margin:4px 0 6px}.sub{color:var(--mut);font-size:12.5px;line-height:1.6;margin-bottom:12px}
+.card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:12px}
+.bar{position:sticky;top:0;background:var(--bg);padding:8px 0;z-index:5;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button{border:0;border-radius:8px;padding:9px 12px;font-weight:700;font-size:13px;cursor:pointer;background:var(--ink);color:#fff;font-family:inherit}button.o{background:#fff;color:var(--ink);border:1px solid var(--line)}
+table{width:100%;border-collapse:collapse;font-size:12.5px}th,td{padding:5px 4px;border-bottom:1px solid #eee;text-align:left;vertical-align:middle}th{font-size:11px;color:var(--mut)}
+input[type=text],input[type=number],select,textarea{width:100%;padding:6px;border:1px solid var(--line);border-radius:6px;font-family:inherit;font-size:12.5px}input.ch,input[type=number].ch{background:#FFF4D6;border-color:var(--acc)}
+.pill{font-size:10.5px;background:#EEF2F0;border-radius:6px;padding:1px 6px}.msg{font-size:12.5px;font-weight:700;color:#2E7D4F;margin-left:6px}
+.gh-panel,.sup-panel{display:none!important}
+.row{display:flex;gap:8px;flex-wrap:wrap}.row>label{flex:1;min-width:110px;font-size:11px;font-weight:700;color:var(--mut)}
+</style></head><body><div class="wrap">
+<h1>💉 성장호르몬 제품 규격 편집</h1>
+<div class="sub">노란색으로 바뀐 칸만 <b>덮어쓰기</b>로 저장돼요. 편집이 끝나면 <b>「gh-spec.json 내려받기」</b>로 파일을 받아 <b>달력·환아 앱과 같은 폴더(저장소)에 올려</b> 주세요 — 코드는 건드리지 않아요.<br>
+먼저 <b>「이 브라우저에서 테스트」</b>를 누르고 환아 앱/달력을 열어 값을 확인한 뒤 올리는 걸 권장해요. (1클릭 mg 값은 IU 제품의 경우 IU÷3 mg 로 적어요. 예: 0.5IU 단위 → 0.1667)</div>
+<div class="bar"><button id="dl">⬇️ gh-spec.json 내려받기</button><button class="o" id="test">🧪 이 브라우저에서 테스트</button><button class="o" id="untest">테스트 해제</button><button class="o" id="imp">JSON 불러오기</button><span class="msg" id="msg"></span></div>
+<div class="card"><b>기존 제품</b> <span class="sub" id="cnt"></span><div style="overflow-x:auto"><table id="tb"></table></div></div>
+<div class="card"><b>➕ 새 제품 추가</b>
+<div class="row" style="margin-top:6px"><label>제품 ID(영문·숫자)<input type="text" id="n_id" placeholder="예: nd20"></label><label>종류<select id="n_type"><option value="gen">펜·카트리지(gen)</option><option value="vial">바이알(vial)</option></select></label><label>회사<select id="n_co"></select></label></div>
+<div class="row"><label>제품 이름<input type="text" id="n_name"></label></div>
+<div class="row" id="n_f"></div>
+<div style="margin-top:8px"><button id="n_add">추가</button></div><div id="n_list" class="sub" style="margin-top:8px"></div></div>
+<textarea id="imp_ta" rows="6" style="display:none" placeholder="gh-spec.json 내용을 붙여넣으세요"></textarea>
+</div>
+<script src="gh-cycle.js"></script>
+<script>
+(function(){
+var G=window.jrdGh, COs=[['dong','동아에스티'],['lg','LG화학'],['pfizer','한국화이자'],['novo','노보노디스크'],['merck','한국머크'],['scigen','싸이젠코리아'],['ferring','페링']];
+var GEN=[['mg','1클릭 mg'],['total','총 mg'],['minMg','최소 mg'],['maxMg','최대 mg'],['step','설정 간격(IU)'],['inuse','사용기한(일)']];
+var VIAL=[['total','바이알 용량'],['conc','1mL당(모르면 비움)'],['days','사용기한(일)'],['stepMl','눈금 mL'],['step','용량 간격'],['min','최소'],['max','최대']];
+var st={version:1,override:{},add:[]}, base={};
+function $(i){return document.getElementById(i)}
+function say(t){$('msg').textContent=t;setTimeout(function(){if($('msg').textContent===t)$('msg').textContent=''},4000)}
+function raw(id){var p=G.PENS[id];return p.gen?p.gen:p.vial}
+function fields(id){return G.PENS[id].gen?GEN:VIAL}
+function init(){
+  Object.keys(G.PENS).forEach(function(id){var p=G.PENS[id];if(!p.gen&&!p.vial)return;var o={name:p.name};fields(id).forEach(function(f){var v=raw(id)[f[0]];o[f[0]]=(v==null?'':v)});base[id]=o});
+  fetch('gh-spec.json?v='+Date.now()).then(function(r){return r.ok?r.json():null}).then(function(j){if(j){st.override=j.override||{};st.add=j.add||[];st.version=(j.version||1)}render();renderAdd()}).catch(function(){render();renderAdd()});
+  $('n_co').innerHTML=COs.map(function(c){return '<option value="'+c[0]+'">'+c[1]+'</option>'}).join('');
+  nf();
+}
+function render(){
+  var ids=Object.keys(base).filter(function(id){return !st.add.some(function(a){return a.id===id})}), h='<tr><th>ID</th><th style="min-width:210px">이름</th><th>값 (노란색=덮어쓰기)</th></tr>';
+  ids.forEach(function(id){
+    var o=st.override[id]||{}, b=base[id], nm=(o.name!=null?o.name:b.name);
+    h+='<tr><td><span class="pill">'+id+'</span></td><td><input type="text" data-id="'+id+'" data-k="name" value="'+esc(nm)+'" class="'+(o.name!=null&&o.name!==b.name?'ch':'')+'"></td><td><div class="row" style="flex-wrap:nowrap">';
+    fields(id).forEach(function(f){var v=(o[f[0]]!=null?o[f[0]]:b[f[0]]);h+='<label style="min-width:70px">'+f[1]+'<input type="number" step="any" data-id="'+id+'" data-k="'+f[0]+'" value="'+(v===''?'':v)+'" class="'+(o[f[0]]!=null&&o[f[0]]!==b[f[0]]?'ch':'')+'"></label>'});
+    h+='</div></td></tr>';
+  });
+  $('tb').innerHTML=h;$('cnt').textContent='('+ids.length+'개)';
+}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;')}
+$('tb').addEventListener('change',function(e){
+  var t=e.target,id=t.dataset.id,k=t.dataset.k;if(!id)return;
+  var b=base[id], o=st.override[id]||(st.override[id]={});
+  var v=k==='name'?t.value.trim():(t.value===''?null:parseFloat(t.value));
+  if(v===null||v===b[k]) delete o[k]; else o[k]=v;
+  // 덮어쓰기에 값이 하나라도 있으면 나머지 칸도 함께 저장(부분 값이 섞이지 않게)
+  var keys=Object.keys(o); if(!keys.length) delete st.override[id];
+  t.classList.toggle('ch',v!==null&&v!==b[k]);
+});
+function nf(){
+  var gen=$('n_type').value==='gen', fs=gen?GEN:VIAL;
+  $('n_f').innerHTML=fs.map(function(f){return '<label>'+f[1]+'<input type="number" step="any" data-nf="'+f[0]+'"></label>'}).join('')+'<label style="min-width:80px"><input type="checkbox" id="n_iu"> IU 제품</label>'+(gen?'<label style="min-width:100px"><input type="checkbox" id="n_cart"> 카트리지형</label>':'<label style="min-width:100px"><input type="checkbox" id="n_liq"> 액상(재조제 불필요)</label>');
+}
+$('n_type').addEventListener('change',nf);
+function renderAdd(){
+  $('n_list').innerHTML=st.add.length?('추가된 제품: '+st.add.map(function(a,i){return '<span class="pill">'+esc(a.id)+' · '+esc(a.name)+' <a href="#" data-del="'+i+'">✕</a></span>'}).join(' ')):'';
+}
+$('n_list').addEventListener('click',function(e){var i=e.target.dataset&&e.target.dataset.del;if(i==null)return;e.preventDefault();st.add.splice(+i,1);renderAdd();say('삭제했어요(내려받기 전까지 반영 안 됨)')});
+$('n_add').addEventListener('click',function(){
+  var id=$('n_id').value.trim(), nm=$('n_name').value.trim(), type=$('n_type').value;
+  if(!/^[a-z][a-z0-9]{1,11}$/i.test(id)){say('ID는 영문으로 시작하는 2~12자 영문·숫자로 적어 주세요');return}
+  if(G.PENS[id]||st.add.some(function(a){return a.id===id})){say('이미 있는 ID예요');return}
+  if(!nm){say('이름을 적어 주세요');return}
+  var p={};document.querySelectorAll('#n_f [data-nf]').forEach(function(i){if(i.value!=='')p[i.dataset.nf]=parseFloat(i.value)});
+  if($('n_iu').checked)p.iu=true; if(type==='gen'){if($('n_cart').checked)p.cart=true}else if($('n_liq').checked)p.liquid=true;
+  var need=type==='gen'?['mg','total','minMg','maxMg','step']:['total','days','min','max'];
+  var miss=need.filter(function(k){return p[k]==null});if(miss.length){say('빈 칸이 있어요: '+miss.join(', '));return}
+  if(type==='vial'&&p.stepMl==null&&p.step==null){say('눈금 mL 또는 용량 간격 중 하나는 필요해요');return}
+  st.add.push({id:id,type:type,name:nm,company:$('n_co').value,p:p});renderAdd();say('추가했어요 — 내려받기 전까지 반영 안 됨');
+  $('n_id').value='';$('n_name').value='';
+});
+function out(){
+  var o={version:(st.version||1)+1,"_설명":"성장호르몬 제품 규격 덮어쓰기. gh-spec.html 에서 편집한 파일입니다.",override:st.override,add:st.add};return JSON.stringify(o,null,2)
+}
+$('dl').addEventListener('click',function(){
+  var a=document.createElement('a');a.href='data:application/json;charset=utf-8,'+encodeURIComponent(out());a.download='gh-spec.json';document.body.appendChild(a);a.click();a.remove();say('내려받았어요 → 달력·환아 앱과 같은 폴더에 올려 주세요')
+});
+$('test').addEventListener('click',function(){try{localStorage.setItem('jrdGhSpec',out());say('이 브라우저에서만 적용됐어요. 같은 주소의 환아 앱/달력을 새로고침해서 확인하세요 (같은 사이트 주소에서만 적용)')}catch(e){say('저장할 수 없어요')}});
+$('untest').addEventListener('click',function(){try{localStorage.removeItem('jrdGhSpec');say('테스트 적용을 해제했어요')}catch(e){}});
+$('imp').addEventListener('click',function(){var ta=$('imp_ta');if(ta.style.display==='none'){ta.style.display='block';say('붙여넣은 뒤 다시 한 번 누르세요');return}
+  try{var j=JSON.parse(ta.value);st.override=j.override||{};st.add=j.add||[];st.version=j.version||1;ta.style.display='none';ta.value='';render();renderAdd();say('불러왔어요')}catch(e){say('JSON 형식이 올바르지 않아요')}});
+init();
+})();
+</script></body></html>
