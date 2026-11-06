@@ -347,7 +347,28 @@ pre.report{white-space:pre-wrap;word-break:keep-all;overflow-wrap:anywhere;backg
 .fr-checks{display:flex;gap:6px 14px;flex-wrap:wrap;font-size:12.5px;margin-bottom:6px}.fr-checks.col{flex-direction:column}
 .fr-checks label{display:flex;gap:6px;align-items:center}
 .frrow{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:12px;align-items:center;padding:9px 4px;border-bottom:1px solid var(--line)}
-.frnm{display:flex;flex-direction:column;min-width:0}.frbt{display:flex;gap:6px}
+.frnm{display:flex;flex-direction:column;min-width:0}.frbt{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.grq{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:10px;margin:2px 0 8px}
+.grq>div{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:12px 14px}
+.grq-k{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.02em;margin-bottom:4px}
+.grq-paste{border:2px dashed var(--accent)!important;background:var(--accent-soft)!important;cursor:pointer}
+.grq-paste b{display:block;font-size:16px;margin-bottom:3px}.grq-paste span{font-size:12.5px;color:var(--muted)}
+.grq-staff{display:flex;flex-direction:column;gap:8px;justify-content:center}
+.grq-staff label,.grq-opts label{font-size:12.5px;display:flex;gap:6px;align-items:center;cursor:pointer}
+.btn.big{padding:10px 16px;font-size:15px;font-weight:700}
+.grq-opts{display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-size:12.5px;color:var(--muted);margin:0 0 4px}
+.grwhy{font-size:11px;color:var(--muted)}
+.grbtn-blood{font-size:12px}
+.grwho{font-weight:500;color:#5a6b73;font-size:12.5px;margin-left:6px}
+.grtip{padding:8px 14px;background:#fdf1e3;border-bottom:1px solid #f0d9b8;font-size:13px;color:#6b4300}
+.grtip .btn{margin-left:6px}
+.grpick{position:fixed;inset:0;z-index:320;background:rgba(10,20,25,.45);display:flex;align-items:center;justify-content:center;padding:16px}
+.grpick-box{background:var(--surface);color:var(--ink);border-radius:14px;max-width:560px;width:100%;max-height:86vh;overflow:auto;padding:16px 18px;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+.grpick-box p{font-size:13px;color:var(--muted);margin:4px 0 10px}
+.grpick-list{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+.grpick-list .btn{text-align:left;display:flex;gap:8px;align-items:baseline;padding:10px 12px}
+.grpick-list .btn span{font-size:12px;color:var(--muted)}
+@media (max-width:760px){.grq{grid-template-columns:1fr}}
 .qd{align-self:flex-end;font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:1px 7px;cursor:pointer;background:var(--surface)}
 .qd:hover{border-color:var(--accent);color:var(--accent)}
 #grprint{position:fixed;left:-10000px;top:0;width:794px;background:#fff}
@@ -359,6 +380,8 @@ pre.report{white-space:pre-wrap;word-break:keep-all;overflow-wrap:anywhere;backg
   #grprint{position:static!important;left:auto!important;width:794px!important;display:block!important}
   #grprint .rp{break-after:page;page-break-after:always;box-shadow:none}
   #grprint .rp:last-child{break-after:auto;page-break-after:auto}
+  #grprint .grpj{break-after:page;page-break-after:always}
+  #grprint .grpj:last-child{break-after:auto;page-break-after:auto}
   .rp{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
 </style>
@@ -1433,6 +1456,7 @@ function renderAll(force){
   renderSummary();renderMain();renderDetail(force);renderAlarm();
   document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.view===UI.view)));
   try{const n=FR.queueCount(),tb=document.querySelector('.tabs button[data-view="report"]');if(tb){const t='성장 리포트'+(n?' 🖨 '+n:'');if(tb.textContent!==t)tb.textContent=t}}catch(e){}
+  try{FR.autoTick()}catch(e){}
 }
 function tickClock(){
   const d=new Date(),dw='일월화수목금토'[d.getDay()];
@@ -1500,6 +1524,12 @@ function onAction(act,el){
     case 'gr-open':{const i=id||(v&&v.id);if(i)FR.open(i);break}
     case 'gr-print':{const i=id||(v&&v.id);if(i)FR.print(i);break}
     case 'gr-unprint':{const i=id||(v&&v.id);if(i)FR.unprint(i);break}
+    case 'gr-blood':{const i=id||(v&&v.id);if(i)FR.toggleBlood(i);break}
+    case 'gr-printall':FR.printAll();break;
+    case 'gr-optpdf':FR.setOpt('pdf',!!el.checked);renderAll(false);break;
+    case 'gr-optauto':FR.setOpt('autoprint',!!el.checked);renderAll(false);if(el.checked)toast('이 기기에서 자동 인쇄를 켰어요. 원장 확인이 끝난 리포트가 올라오면 바로 인쇄 창이 떠요.');break;
+    case 'gr-paste':FR.pasteClick();break;
+    case 'gr-booked':UI.grBooked=!UI.grBooked;renderAll(false);break;
     case 'quick-done':if(v)quickDone(v);break;
     case 'sound':toggleSound();break;
     case 'res-done':{const k=el.dataset.k;if(!v||!k)break;if(!v.lab.results)v.lab.results={};if(!v.lab.at)v.lab.at={};v.lab.results[k]='완료';v.lab.at[k]=Date.now();put(v,true);renderAll(true);break}
@@ -2641,16 +2671,16 @@ function saveBlob(blob,name){var a=document.createElement('a');a.href=URL.create
 function toBlob(c){return new Promise(function(ok){c.toBlob(ok,'image/png')})}
 function stack(cs){var W=cs[0].width,g=28,H=cs.reduce(function(a,c){return a+c.height},0)+g*(cs.length-1),o=document.createElement('canvas');o.width=W;o.height=H;var x=o.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,W,H);var y=0;cs.forEach(function(c){x.drawImage(c,0,y);y+=c.height+g});return o}
 function act(kind){
-  if(!cache||cache.m.error){say('먼저 생년월일과 계측값을 확인해 주세요.');return}
+  if(!cache||cache.m.error){say('먼저 생년월일과 계측값을 확인해 주세요.');return Promise.resolve(false)}
   var m=cache.m;say('파일을 만드는 중입니다…');
-  libs(kind==='pdf').then(function(){return capture(m)}).then(function(cs){
-    if(kind==='pdf'){var pdf=new window.jspdf.jsPDF({unit:'mm',format:'a4',compress:true});cs.forEach(function(c,i){if(i)pdf.addPage();pdf.addImage(c.toDataURL('image/jpeg',0.95),'JPEG',0,0,210,297)});saveBlob(pdf.output('blob'),fname(m,'pdf'));say('PDF를 저장했습니다. (앞장·뒷장 2쪽, 양면 인쇄용)');return}
+  return libs(kind==='pdf').then(function(){return capture(m)}).then(function(cs){
+    if(kind==='pdf'){var pdf=new window.jspdf.jsPDF({unit:'mm',format:'a4',compress:true});cs.forEach(function(c,i){if(i)pdf.addPage();pdf.addImage(c.toDataURL('image/jpeg',0.95),'JPEG',0,0,210,297)});saveBlob(pdf.output('blob'),fname(m,'pdf'));say('PDF를 저장했습니다. (앞장·뒷장 2쪽, 양면 인쇄용)');return true}
     if(kind==='png'){return Promise.all(cs.map(toBlob)).then(function(bs){bs.forEach(function(b,i){setTimeout(function(){saveBlob(b,fname(m,'png',i?'_뒷장':'_앞장'))},i*400)});say('이미지를 저장했습니다. (앞장·뒷장)')})}
     return toBlob(stack(cs)).then(function(b){
       try{return navigator.clipboard.write([new ClipboardItem({'image/png':b})]).then(function(){say('앞장·뒷장 이미지를 복사했습니다. 메시지 창에 붙여 넣으세요.')},function(){saveBlob(b,fname(m,'png'));say('복사가 막혀 있어 이미지로 저장했습니다.')})}
       catch(e){saveBlob(b,fname(m,'png'));say('복사가 막혀 있어 이미지로 저장했습니다.')}
     });
-  }).catch(function(){say('파일을 만들지 못했습니다. 인터넷 연결을 확인해 주세요.')});
+  }).catch(function(){say('파일을 만들지 못했습니다. 인터넷 연결을 확인해 주세요.');return false});
 }
 return{setM:setM,act:act,build:build,compute:compute,pagesHTML:pagesHTML,paint:paint,fit:fit,parsePast:parsePast};
 })();
@@ -2939,7 +2969,7 @@ function editorHtml(v){
   return '<div class="fr-h">① EMR 차트 붙여넣기</div>'+
     '<label class="fr-f"><textarea id="fr-chart" rows="8" placeholder="EMR에서 이 환자의 차트를 통째로 복사(Ctrl+C)해서 여기에 붙여넣기(Ctrl+V)하세요. 성장기록 표(등록일자·AGE·BA·WT·HT·BMI)도 같이 붙여넣으면 키·몸무게·뼈나이를 자동으로 읽어요."></textarea></label>'+
     '<div class="fr-row"><button class="btn primary" data-fr="ai" id="fr-aibtn">🤖 AI로 정리</button><button class="btn" data-fr="noai">AI 없이 정리</button></div>'+
-    '<p class="fr-hint">AI는 차트에서 진료 요약·검사 설명·생활습관 안내 초안을 씁니다. 반드시 읽어 보고 고친 뒤 [원장 확인 완료]를 눌러 주세요.</p>'+
+    '<p class="fr-hint">AI는 차트에서 진료 요약·검사 설명·생활습관 안내 초안을 씁니다. 읽어 보고 필요한 곳만 고친 뒤 위의 ✅ 확인(Ctrl+Enter)을 누르세요. 차트는 저장되지 않아요.</p>'+
     '<details class="fr-det" id="fr-info"><summary class="fr-h" id="fr-infosum">② 환자 정보 · 측정 기록</summary>'+
     '<div class="fr-row3"><label class="fr-f">진료일<input type="date" id="fr-date"></label><label class="fr-f">생년월일<input type="date" id="fr-dob"></label><label class="fr-f">성별<select id="fr-sex"><option value="">선택</option><option value="M">남</option><option value="F">여</option></select></label></div>'+
     '<div class="fr-row3"><label class="fr-f">아버지 키(cm)<input type="number" id="fr-fh" inputmode="decimal" step="0.1" placeholder="선택" value="'+esc(fh)+'"></label><label class="fr-f">어머니 키(cm)<input type="number" id="fr-mh" inputmode="decimal" step="0.1" placeholder="선택" value="'+esc(mh)+'"></label></div>'+
@@ -2953,13 +2983,15 @@ function editorHtml(v){
     '<div class="fr-checks col">'+VIDEOS.map(function(x){return '<label><input type="checkbox" class="frVid" value="'+x.no+'"> '+x.no+'. '+esc(x.title)+'</label>'}).join('')+'</div>';
 }
 function shellHtml(v){
-  return '<div class="grbar"><b>성장 리포트 · '+esc(v.name||'이름 없음')+'</b><span id="grmsg"></span><div class="grbtns">'+
+  var who=[age(v),v.sex,v.chartNo?'등록번호 '+v.chartNo:''].filter(Boolean).join(' · ');
+  return '<div class="grbar"><b>성장 리포트 · '+esc(v.name||'이름 없음')+(who?'<span class="grwho">'+esc(who)+'</span>':'')+'</b><span id="grmsg"></span><div class="grbtns">'+
     '<button class="btn" data-fr="edit" id="fr-editbtn">✏️ 내용 수정</button>'+
-    '<button class="btn primary" data-fr="review" id="fr-revbtn">✅ 원장 확인 완료</button>'+
+    '<button class="btn primary big" data-fr="ok" id="fr-okbtn" title="단축키 Ctrl+Enter">✅ 확인 · PDF 저장</button>'+
     '<button class="btn ghost" data-fr="unreview" id="fr-unrevbtn" hidden>확인 취소</button>'+
-    '<button class="btn primary" data-fr="print" id="fr-printbtn">🖨 인쇄</button>'+
-    '<button class="btn" data-fr="pdf" id="fr-pdfbtn">PDF 저장</button>'+
+    '<button class="btn" data-fr="print" id="fr-printbtn" hidden>🖨 인쇄</button>'+
+    '<button class="btn" data-fr="pdf" id="fr-pdfbtn" hidden>PDF 다시 저장</button>'+
     '<button class="btn ghost" data-fr="close">닫기</button></div></div>'+
+    '<div class="grtip" id="fr-tip" hidden></div>'+
     '<div class="grbody"><div class="gredit" id="gredit">'+editorHtml(v)+'</div>'+
     '<div class="grscroll"><div class="gr-wrap" id="gr-wrap"><div class="gr-inner" id="gr-inner"></div></div></div></div>';
 }
@@ -2967,10 +2999,10 @@ function syncBar(){
   var v=V(),g=v&&v.gr,o=document.getElementById('grov');if(!o)return;
   var m=modelOf(v),ok=!m.error,rev=!!(g&&g.reviewed);
   var s=function(id,fn){var e=document.getElementById(id);if(e)fn(e)};
-  s('fr-revbtn',function(e){e.hidden=rev;e.disabled=!ok||!(g&&g.ready)});
+  s('fr-okbtn',function(e){e.hidden=rev;e.disabled=ST.busy||SAVING||!ok||!(g&&g.ready);e.textContent=pdfOn()?'✅ 확인 · PDF 저장':'✅ 확인 완료'});
   s('fr-unrevbtn',function(e){e.hidden=!rev});
-  s('fr-printbtn',function(e){e.disabled=!(ok&&rev);e.title=rev?'':'원장이 [원장 확인 완료]를 누르면 인쇄할 수 있어요.'});
-  s('fr-pdfbtn',function(e){e.disabled=!(ok&&rev)});
+  s('fr-printbtn',function(e){e.hidden=!rev;e.disabled=!(ok&&rev)});
+  s('fr-pdfbtn',function(e){e.hidden=!rev;e.disabled=!(ok&&rev)});
   s('fr-editbtn',function(e){e.textContent=o.classList.contains('editing')?'✏️ 수정창 닫기':'✏️ 내용 수정'});
 }
 function refresh(){
@@ -2984,14 +3016,14 @@ function onEdit(e){
   clearTimeout(ST.timer);
   ST.timer=setTimeout(function(){ST.timer=null;var g=collect();if(!g)return;commit(g,false);refresh()},450);
 }
-function onKey(e){if(e.key==='Escape')close()}
+function onKey(e){if(e.key==='Escape')close();else if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();confirmSave()}}
 function close(){
   var pend=ST.timer;clearTimeout(ST.timer);ST.timer=null;
   if(pend&&document.getElementById('grov')){var g=collect();if(g&&V())commit(g,true)}
   var o=document.getElementById('grov');if(o)o.remove();
   document.removeEventListener('keydown',onKey);ST.id=null;
 }
-function open(id){
+function open(id,opt){
   var v=S.items.get(id);if(!v){toast('환자를 찾을 수 없습니다.');return}
   var o0=document.getElementById('grov');if(o0)o0.remove();
   ST.id=id;ST.busy=false;
@@ -3017,6 +3049,8 @@ function open(id){
     else if(k==='edit'){o.classList.toggle('editing');syncBar();setTimeout(function(){GR.fit();autosizeAll()},30)}
     else if(k==='print')printFor(ST.id);
     else if(k==='pdf')GR.act('pdf');
+    else if(k==='ok')confirmSave();
+    else if(k==='tolater')toLater();
     else if(k==='review')setReviewed(true);
     else if(k==='unreview')setReviewed(false);
     else if(k==='ai')run(true);
@@ -3029,8 +3063,10 @@ function open(id){
   window.addEventListener('resize',function(){GR.fit();autosizeAll()});
   o.addEventListener('toggle',autosizeAll,true);
   refresh();
-  say(v.gr&&v.gr.ready?(v.gr.reviewed?'원장 확인이 끝난 리포트예요. 인쇄하세요.':'원장 확인 전이에요. 내용을 읽고 [원장 확인 완료]를 눌러 주세요.'):'EMR 차트를 붙여넣고 [AI로 정리]를 눌러 주세요.');
+  say(v.gr&&v.gr.ready?(v.gr.reviewed?'원장 확인이 끝난 리포트예요.':'내용을 읽고 ✅ 확인'+(pdfOn()?' · PDF 저장':'')+' (Ctrl+Enter)을 눌러 주세요.'):'EMR 차트를 붙여넣으면(Ctrl+V) AI가 바로 정리해요.');
+  showTip(isBlood(v)&&!(v.gr&&v.gr.reviewed)?'blood':'');
   setTimeout(GR.fit,60);
+  if(opt&&opt.chart){var ce3=document.getElementById('fr-chart');if(ce3){ce3.value=opt.chart;o.classList.add('editing');run(true)}}
 }
 function setReviewed(flag){
   var v=V();if(!v)return;var g=collect();if(!g)return;
@@ -3044,7 +3080,7 @@ async function run(useAI){
   if(!text){say('EMR 차트를 먼저 붙여넣어 주세요.',true);return}
   var g0=collect()||{};
   if(hasPost(g0.post)&&!confirm('이미 입력된 내용을 이번 정리 결과로 덮어쓸까요?'))return;
-  ST.busy=true;var bb=document.getElementById('fr-aibtn');if(bb)bb.disabled=true;
+  ST.busy=true;var bb=document.getElementById('fr-aibtn');if(bb)bb.disabled=true;syncBar();
   say(useAI?'차트를 읽고 AI가 정리하는 중… (10~20초)':'차트를 읽는 중…');
   try{
     var parsed=extractGrowthTableFromNote(text),g=Object.assign({},g0);
@@ -3076,63 +3112,228 @@ async function run(useAI){
     commit(g,true);fillEditor(g);refresh();
     var m=modelOf(V()),notes=[];
     if(m.error)notes.push(m.error);
-    say((A?'✅ AI가 정리했어요':'✅ 정리했어요(AI 없이)')+' — 읽고 고친 뒤 [원장 확인 완료]를 눌러 주세요.'+(warn?' · '+warn:'')+(notes.length?' · '+notes.join(' '):''),!!(warn||notes.length));
+    say((A?'✅ AI가 정리했어요':'✅ 정리했어요(AI 없이)')+' — 읽어 보고 ✅ 확인'+(pdfOn()?' · PDF 저장':'')+' (Ctrl+Enter)'+(warn?' · '+warn:'')+(notes.length?' · '+notes.join(' '):''),!!(warn||notes.length));
+    var cb=chartBlood(text),vv=V();showTip(vv&&isBlood(vv)?'blood':(cb?cb:''));
   }catch(e){say('정리하지 못했어요: '+((e&&e.message)||'차트 형식을 확인해 주세요'),true)}
-  finally{ST.busy=false;var b2=document.getElementById('fr-aibtn');if(b2)b2.disabled=false}
+  finally{ST.busy=false;var b2=document.getElementById('fr-aibtn');if(b2)b2.disabled=false;syncBar()}
 }
 
 /* ---- 인쇄 (A4 2쪽, 양면) ---- */
 function printFor(id){
   var v=S.items.get(id);if(!v)return;
   var m=modelOf(v);if(m.error){toast(m.error);return}
-  if(!v.gr||!v.gr.reviewed){toast('원장 확인 전인 리포트예요. 원장이 [원장 확인 완료]를 눌러야 인쇄할 수 있어요.');return}
-  var old=document.getElementById('grprint');if(old)old.remove();
-  window.__grPrintId=id;
-  var host=document.createElement('div');host.id='grprint';host.innerHTML=GR.pagesHTML(m);document.body.appendChild(host);
+  if(!v.gr||!v.gr.reviewed){toast('원장 확인 전인 리포트예요. 원장이 [✅ 확인]을 눌러야 인쇄할 수 있어요.');return}
+  printMany([id]);
+}
+/* 여러 명을 한 번의 인쇄로 (한 명 = 앞장·뒷장 2쪽, 양면 인쇄하면 1장) */
+function printMany(ids,quiet){
+  if(document.getElementById('grprint'))return;
+  var vs=ids.map(function(i){return S.items.get(i)}).filter(function(v){return v&&v.gr&&v.gr.reviewed&&!modelOf(v).error});
+  if(!vs.length){if(!quiet)toast('인쇄할 리포트가 없어요.');return}
+  window.__grPrintIds=vs.map(function(v){return v.id});
+  var ms=vs.map(modelOf);
+  var host=document.createElement('div');host.id='grprint';
+  host.innerHTML=ms.map(function(m){return '<div class="grpj">'+GR.pagesHTML(m)+'</div>'}).join('');
+  document.body.appendChild(host);
   (document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(function(){
-    GR.paint(host,m);setTimeout(function(){window.print()},80);
+    [].forEach.call(host.children,function(el,i){GR.paint(el,ms[i])});setTimeout(function(){window.print()},120);
   });
 }
+function printAll(){var ids=list().filter(function(v){return grState(v)===0}).map(function(v){return v.id});if(!ids.length){toast('인쇄할 리포트가 없어요.');return}printMany(ids)}
 window.addEventListener('afterprint',function(){
   var h=document.getElementById('grprint');if(h)h.remove();
-  var id=window.__grPrintId;window.__grPrintId=null;
-  var v=id&&S.items.get(id);
-  if(v&&v.gr&&v.gr.reviewed&&!v.gr.printedAt){v.gr=Object.assign({},v.gr,{printedAt:Date.now()});put(v,true);toast((v.name||'')+': 리포트 인쇄 완료로 표시했습니다. (목록의 [미인쇄로 되돌리기]로 취소할 수 있어요)');renderAll(false)}
+  var ids=window.__grPrintIds||[];window.__grPrintIds=null;var now=Date.now(),names=[];
+  ids.forEach(function(id){
+    var v=S.items.get(id);if(!(v&&v.gr&&v.gr.reviewed&&!v.gr.printedAt))return;
+    v.gr=Object.assign({},v.gr,{printedAt:now});
+    if(v.report&&!v.report.sent){v.report.sent=true;v.report.sentAt=now}
+    if(v.step===9){v.step=10;v.log.push({s:10,t:now})}
+    put(v,true);names.push(v.name||'');
+  });
+  if(names.length){toast((names.length>1?names.length+'명 ':names[0]+': ')+'리포트 인쇄 완료로 표시했습니다. (목록의 [미인쇄로 되돌리기]로 취소할 수 있어요)');renderAll(false)}
 });
 function unprint(id){var v=S.items.get(id);if(!v||!v.gr)return;v.gr=Object.assign({},v.gr,{printedAt:null});put(v,true);renderAll(false)}
 
-/* ---- [성장 리포트] 탭: 인쇄 대기 → 원장 확인 전 → 작성 대기(검사함) → 기타 → 인쇄 완료 ---- */
-function qChips(g){
-  if(!g||!g.q)return '';
-  return (g.q.blood?'<span class="pill" style="background:#fdecec;color:#b3261e">🩸 혈액</span> ':'')+(g.q.xray?'<span class="pill" style="background:#eaf1fb;color:#1f5fa8">🦴 X-ray</span> ':'');
+/* ---- 확인 한 번: 원장 확인 + PDF 저장 + 직원 인쇄 대기 ---- */
+var SAVING=false;
+function opt(k,d){try{var x=localStorage.getItem('jrd_gr_'+k);return x==null?d:x==='1'}catch(e){return d}}
+function setOpt(k,on){try{localStorage.setItem('jrd_gr_'+k,on?'1':'0')}catch(e){}}
+function pdfOn(){return opt('pdf',true)}
+function autoOn(){return opt('autoprint',false)}
+function confirmSave(){
+  var v=V();if(!v||ST.busy||SAVING)return;
+  var b=document.getElementById('fr-okbtn');if(!b||b.hidden||b.disabled)return;
+  var g=collect();if(!g)return;
+  if(!hasPost(g.post)){say('진료 후 기록이 비어 있어요. EMR 차트를 붙여넣어 주세요.',true);return}
+  var m=modelOf(Object.assign({},v,{gr:g}));if(m.error){say(m.error,true);var di=document.getElementById('fr-info');if(di)di.open=true;return}
+  g.reviewed=true;g.reviewedAt=Date.now();g.printedAt=null;commit(g,true);refresh();
+  var name=v.name||'환자',done=function(msg){close();toast(msg);renderAll(false);try{focusScan()}catch(e){}};
+  if(!pdfOn()){done(name+': 확인 완료 — 직원 화면 「인쇄할 리포트」에 올라갔어요.');return}
+  SAVING=true;syncBar();
+  Promise.resolve(GR.act('pdf')).then(function(ok){
+    SAVING=false;
+    if(ok)done(name+': 확인 · PDF 저장 완료 — 직원 인쇄 대기에 올렸어요.');
+    else{syncBar();say('확인은 끝났고 직원 인쇄 대기에 올렸어요. PDF는 저장하지 못했어요(인터넷 확인) — [PDF 다시 저장]을 눌러 주세요.',true)}
+  });
+}
+function toLater(){
+  var v=V();if(!v)return;var g=collect()||Object.assign({},v.gr||{});
+  g.blood=true;g.reviewed=false;g.reviewedAt=null;commit(g,true);
+  var n=v.name||'환자';close();toast(n+': 🩸 혈액검사 결과 나오면 보고로 옮겼어요.');renderAll(false);
+}
+function showTip(x){
+  var t=document.getElementById('fr-tip');if(!t)return;
+  if(!x){t.hidden=true;t.innerHTML='';return}
+  t.hidden=false;
+  t.innerHTML=x==='blood'?'🩸 혈액검사 결과 나오면 보고하기로 분류된 아이예요. 지금 확인하면 바로 직원 인쇄 대기로 넘어가요.'
+    :'🩸 차트 플랜에 혈액검사가 보여요: <i>'+esc(x)+'</i> — 결과가 나온 뒤 보고할 아이라면 <button class="btn sm" data-fr="tolater">결과 나오면 보고로 보내기</button>';
+}
+
+/* ---- 혈액검사 분류: 있으면 「결과 나오면 보고」, 없으면 바로 리포트 (X-ray만 한 아이는 바로) ---- */
+function bloodWhy(v){
+  var g=v.gr||{};
+  if(g.blood===false)return '';
+  if(g.blood===true)return '직접 표시';
+  if(g.q&&g.q.blood)return '의사 앱';
+  if(v.lab&&v.lab.drawn)return '채혈 기록';
+  if((v.log||[]).some(function(l){return l&&l.s===5}))return '채혈실 기록';
+  return '';
+}
+function isBlood(v){return !!bloodWhy(v)}
+function toggleBlood(id){
+  var v=S.items.get(id);if(!v)return;
+  v.gr=Object.assign({},v.gr||{},{blood:!isBlood(v)});put(v,true);
+  toast((v.name||'')+(v.gr.blood?': 🩸 결과 나오면 보고로 옮겼어요.':': 바로 리포트 목록으로 옮겼어요.'));renderAll(false);
+}
+var BLOOD_RE=/(혈액\s*검사|채혈|피\s*검사|\blabs?\b|LHRH|GnRH\s*(stim|자극)|자극\s*검사|IGF|CBC|호르몬\s*검사|갑상선\s*검사|\bTFT\b)/i;
+var LATER_RE=/(다음|next|f\s*\/\s*u|follow|개월\s*(후|뒤)|주\s*(후|뒤)|년\s*(후|뒤)|후에|뒤에|예정|내원\s*시)/i;
+function chartBlood(text){
+  try{var p=String(splitAdded(text).plan||'').split('\n');
+    for(var i=0;i<p.length;i++){var l=p[i];if(BLOOD_RE.test(l)&&!LATER_RE.test(l))return l.trim().slice(0,80)}}catch(e){}
+  return '';
+}
+
+/* ---- 붙여넣은 차트 → 환자 찾기 (등록번호·이름·생년월일) ---- */
+function looksLikeChart(t){t=String(t||'').trim();return t.length>=150||(t.length>=60&&/\n/.test(t))}
+function matchChart(txt){
+  var T=String(txt||''),dob=findDob(T);
+  var hit=list().filter(function(v){
+    var c=String(v.chartNo||'').replace(/\D/g,'');
+    if(c.length>=4&&new RegExp('(^|\\D)'+c+'(\\D|$)').test(T))return true;
+    var n=String(v.name||'').replace(/\s+/g,'');
+    return n.length>=2&&!/^등록번호/.test(n)&&T.replace(/\s+/g,'').indexOf(n)>=0;
+  });
+  if(hit.length>1&&dob){var h2=hit.filter(function(v){return v.dob===dob||(v.gr&&v.gr.dob===dob)});if(h2.length)hit=h2}
+  if(hit.length>1){var h3=hit.filter(function(v){return !(v.gr&&v.gr.reviewed)});if(h3.length)hit=h3}
+  return hit;
+}
+function lastT(v){var l=v.log&&v.log.length?v.log[v.log.length-1].t:0;return l||v.updatedAt||v.createdAt||0}
+function fromChart(txt){
+  if(!S.canWrite){toast('보기 전용 화면에서는 리포트를 만들 수 없어요.');return}
+  var c=matchChart(txt);
+  if(c.length===1){open(c[0].id,{chart:txt});return}
+  pickSheet(txt,c);
+}
+function pasteIntoOpen(txt){
+  var c=matchChart(txt);
+  if(c.length===1&&c[0].id!==ST.id){close();open(c[0].id,{chart:txt});return}
+  var ce=document.getElementById('fr-chart'),o=document.getElementById('grov');if(!ce||!o)return;
+  o.classList.add('editing');ce.value=txt;syncBar();run(true);
+}
+function pasteClick(){
+  if(!navigator.clipboard||!navigator.clipboard.readText){toast('EMR 차트를 복사한 뒤 Ctrl+V를 눌러 주세요.');return}
+  navigator.clipboard.readText().then(function(t){if(looksLikeChart(t))fromChart(t);else toast('복사된 차트가 없어요. EMR에서 차트를 복사(Ctrl+C)한 뒤 다시 눌러 주세요.')},
+    function(){toast('클립보드 읽기가 막혀 있어요. Ctrl+V로 붙여넣어 주세요.')});
+}
+var PICK='';
+function pickSheet(txt,cands){
+  var old=document.getElementById('grpick');if(old)old.remove();
+  var a=(cands.length?cands:list().filter(function(v){return !(v.gr&&v.gr.reviewed)})).slice();
+  a.sort(function(x,y){var bx=x.step<0?1:0,by=y.step<0?1:0;if(bx!==by)return bx-by;if(!bx)return lastT(y)-lastT(x);return String(x.appt||'99').localeCompare(String(y.appt||'99'))});
+  PICK=txt;
+  var o=document.createElement('div');o.id='grpick';o.className='grpick';
+  o.innerHTML='<div class="grpick-box" role="dialog" aria-label="환자 고르기"><b>누구의 차트인가요?</b><p>'+(cands.length?'이름·등록번호가 같은 환자가 여러 명이에요.':'차트에서 이름·등록번호를 찾지 못했어요.')+' 누르면 바로 리포트를 만들어요.</p>'+
+    (a.length?'<div class="grpick-list">'+a.slice(0,40).map(function(v){
+      var where=v.step<0?(v.appt?'예약 '+v.appt:'도착 전'):(STEPS[v.step]?STEPS[v.step].short:'귀가');
+      return '<button class="btn" data-pick="'+v.id+'"><b>'+esc(v.name||'이름 없음')+'</b><span>'+esc([age(v),v.sex,v.chartNo,where].filter(Boolean).join(' · '))+(isBlood(v)?' · 🩸':'')+'</span></button>'}).join('')+'</div>'
+     :'<p>오늘 등록된 환자가 없어요. 먼저 환자를 등록해 주세요.</p>')+
+    '<button class="btn ghost" data-pick="">취소</button></div>';
+  o.addEventListener('click',function(e){var b=e.target.closest('[data-pick]');if(!b){if(e.target===o){o.remove();PICK=''}return}var id=b.dataset.pick,t=PICK;o.remove();PICK='';if(id)open(id,{chart:t})});
+  document.addEventListener('keydown',function k(e){if(e.key==='Escape'){var x=document.getElementById('grpick');if(x)x.remove();document.removeEventListener('keydown',k)}});
+  document.body.appendChild(o);
+}
+
+/* ---- 직원: 이 기기 자동 인쇄 ---- */
+var AUTO_DONE=new Set();
+function autoTick(){
+  if(!autoOn()||!S.canWrite||!S.loaded||document.getElementById('grprint')||document.getElementById('grov'))return;
+  var ids=list().filter(function(v){return grState(v)===0&&!AUTO_DONE.has(v.id)}).map(function(v){return v.id});
+  if(!ids.length)return;
+  ids.forEach(function(i){AUTO_DONE.add(i)});
+  setTimeout(function(){printMany(ids,true)},500);
+}
+
+/* ---- [성장 리포트] 탭: 인쇄 대기 → 원장 확인 전 → 지금 리포트(혈액검사 없음) → 혈액검사 결과 후 보고 → 인쇄 완료 ---- */
+function qChips(v){
+  var g=v.gr||{},w=bloodWhy(v);
+  return (w?'<span class="pill" style="background:#fdecec;color:#b3261e">🩸 혈액</span> ':'')+((g.q&&g.q.xray)||(v.xray&&v.xray.done)?'<span class="pill" style="background:#eaf1fb;color:#1f5fa8">🦴 X-ray</span> ':'');
 }
 function grState(v){
   var g=v.gr||{};
   if(g.ready&&g.reviewed)return g.printedAt?4:0;     // 0 인쇄 대기 / 4 인쇄 완료
-  if(g.ready)return 1;                                 // 원장 확인 전
-  if(g.q&&(g.q.blood||g.q.xray))return 2;              // 검사함·원장 작성 대기
-  return 3;                                            // 리포트 없음
+  if(isBlood(v))return 3;                              // 혈액검사 → 결과 나오면 보고
+  if(g.ready)return 1;                                 // AI 정리됨 · 원장 확인 전
+  return 2;                                            // 지금 리포트 · 차트 붙여넣기 대기
 }
 function printQueueCount(){return list().filter(function(v){return grState(v)===0}).length}
-function listHtml(){
-  var a=list().filter(function(v){return v.step>=0||(v.gr&&(v.gr.ready||v.gr.q))});
-  a.sort(function(x,y){var r=grState(x)-grState(y);if(r)return r;var gx=x.gr||{},gy=y.gr||{};return ((gy.reviewedAt||gy.at||0)-(gx.reviewedAt||gx.at||0))||((y.createdAt||0)-(x.createdAt||0))});
-  if(!a.length)return '<div class="empty"><h2>오늘 등록된 환자가 없습니다</h2><p>환자가 등록되면 여기에서 성장 리포트를 만들고 인쇄할 수 있어요.</p></div>';
-  var cnt=[0,0,0,0,0];a.forEach(function(v){cnt[grState(v)]++});
-  var LAB=['🖨 인쇄할 리포트','원장 확인 전','🩸🦴 검사함 · 원장 작성 대기','리포트 없음','인쇄 완료'],cur=-1;
-  var rows=a.map(function(v){
-    var g=v.gr,s=grState(v),st,bt,hd='';
-    if(s===0){st='<span class="pill ok">인쇄 가능</span>';bt='<button class="btn sm primary" data-act="gr-print" data-id="'+v.id+'">🖨 인쇄</button><button class="btn sm" data-act="gr-open" data-id="'+v.id+'">미리보기</button>'}
-    else if(s===4){st='<span class="pill ex">인쇄 완료'+(g.printedAt?' '+new Date(g.printedAt).getHours()+':'+pad(new Date(g.printedAt).getMinutes()):'')+'</span>';bt='<button class="btn sm" data-act="gr-print" data-id="'+v.id+'">다시 인쇄</button><button class="btn sm ghost" data-act="gr-unprint" data-id="'+v.id+'">미인쇄로 되돌리기</button>'}
-    else if(s===1){st='<span class="pill warn">원장 확인 전</span>';bt='<button class="btn sm" data-act="gr-open" data-id="'+v.id+'">열어서 확인</button>'}
-    else if(s===2){st='<span class="pill warn">원장 작성 대기</span>';bt='<button class="btn sm" data-act="gr-open" data-id="'+v.id+'">차트 붙여넣어 만들기</button>'}
-    else{st='<span class="pill ex">리포트 없음</span>';bt='<button class="btn sm" data-act="gr-open" data-id="'+v.id+'">차트 붙여넣어 만들기</button>'}
-    if(s!==cur){cur=s;hd='<div class="hint" style="margin:12px 0 2px;font-weight:700">'+LAB[s]+' ('+cnt[s]+')</div>'}
-    return hd+'<div class="frrow"><div class="frnm"><b>'+esc(v.name||'이름 없음')+'</b><span class="meta">'+esc(age(v))+(v.sex?' · '+esc(v.sex):'')+(v.chartNo?' · '+esc(v.chartNo):'')+' '+qChips(g)+'</span></div><div>'+st+'</div><div class="frbt">'+bt+'</div></div>';
-  }).join('');
-  return '<h3 style="margin:0 0 4px">성장 리포트</h3><p class="hint" style="margin:0 0 6px">오늘 <b>혈액검사·엑스레이를 한 아이</b>는 원장이 의사 앱에서 리포트를 쓰고 <b>작성 완료</b>를 누르면 자동으로 아래 <b>「인쇄할 리포트」</b>에 올라와요. 직원은 🖨 인쇄만 누르면 됩니다. (지금 인쇄할 리포트 <b>'+cnt[0]+'</b>건)</p>'+rows;
+function rowHtml(v){
+  var g=v.gr||{},s=grState(v),st,bt;
+  var bl='<button class="btn sm ghost grbtn-blood" data-act="gr-blood" data-id="'+v.id+'" title="혈액검사 결과 리포트가 있는 아이는 결과가 나온 뒤 보고해요">'+(s===3?'🩸 해제 → 바로 리포트':'🩸 혈액검사 있음')+'</button>';
+  if(s===0){st='<span class="pill ok">인쇄 가능</span>';bt='<button class="btn sm primary" data-act="gr-print" data-id="'+v.id+'">🖨 인쇄</button><button class="btn sm" data-act="gr-open" data-id="'+v.id+'">미리보기</button>'}
+  else if(s===4){st='<span class="pill ex">인쇄 완료'+(g.printedAt?' '+new Date(g.printedAt).getHours()+':'+pad(new Date(g.printedAt).getMinutes()):'')+'</span>';bt='<button class="btn sm" data-act="gr-print" data-id="'+v.id+'">다시 인쇄</button><button class="btn sm ghost" data-act="gr-unprint" data-id="'+v.id+'">미인쇄로 되돌리기</button>'}
+  else if(s===1){st='<span class="pill warn">원장 확인 전</span>';bt='<button class="btn sm primary" data-act="gr-open" data-id="'+v.id+'">열어서 확인</button>'+bl}
+  else if(s===3){st='<span class="pill warn">결과 나오면 보고</span> <span class="grwhy">'+esc(bloodWhy(v))+'</span>';bt='<button class="btn sm" data-act="gr-open" data-id="'+v.id+'">지금 만들기</button>'+bl}
+  else{st='<span class="pill ex">차트 대기</span>';bt='<button class="btn sm" data-act="gr-open" data-id="'+v.id+'">차트 붙여넣기</button>'+bl}
+  return '<div class="frrow"><div class="frnm"><b>'+esc(v.name||'이름 없음')+'</b><span class="meta">'+esc(age(v))+(v.sex?' · '+esc(v.sex):'')+(v.chartNo?' · '+esc(v.chartNo):'')+(v.step<0&&v.appt?' · 예약 '+esc(v.appt):'')+' '+qChips(v)+'</span></div><div>'+st+'</div><div class="frbt">'+bt+'</div></div>';
 }
-return{open:open,close:close,listHtml:listHtml,print:printFor,unprint:unprint,queueCount:printQueueCount};
+function listHtml(){
+  var all=list();
+  var a=all.filter(function(v){var g=v.gr||{};return v.step>=0||g.ready||g.q||g.blood!=null});
+  var booked=all.filter(function(v){return a.indexOf(v)<0}).sort(function(x,y){return String(x.appt||'99').localeCompare(String(y.appt||'99'))});
+  a.sort(function(x,y){var r=grState(x)-grState(y);if(r)return r;var gx=x.gr||{},gy=y.gr||{};return ((gy.reviewedAt||gy.at||0)-(gx.reviewedAt||gx.at||0))||(lastT(y)-lastT(x))});
+  var cnt=[0,0,0,0,0];a.forEach(function(v){cnt[grState(v)]++});
+  var pdf=pdfOn(),auto=autoOn();
+  var top='<div class="grq">'+
+    '<div class="grq-paste" data-act="gr-paste" role="button" tabindex="0" title="눌러도 클립보드의 차트를 가져와요">'+
+      '<div class="grq-k">원장님</div><b>📋 EMR 차트 복사 → 이 화면 아무 데서나 Ctrl+V</b>'+
+      '<span>차트의 이름·등록번호로 환자를 찾아 AI가 바로 정리해요. 읽어 보고 <b style="display:inline;font-size:inherit">✅ 확인'+(pdf?' · PDF 저장':'')+'</b>(Ctrl+Enter) 한 번이면 직원 인쇄 대기로 넘어가요. 다른 탭에서 붙여넣어도 돼요.</span></div>'+
+    '<div class="grq-staff"><div class="grq-k">직원</div>'+
+      '<button class="btn primary big" data-act="gr-printall"'+(cnt[0]?'':' disabled')+'>🖨 모두 인쇄 ('+cnt[0]+')</button>'+
+      '<label><input type="checkbox" data-act="gr-optauto"'+(auto?' checked':'')+'> 이 기기에서 자동 인쇄 (리포트가 올라오면 바로 인쇄 창)</label></div>'+
+  '</div>'+
+  '<div class="grq-opts"><label><input type="checkbox" data-act="gr-optpdf"'+(pdf?' checked':'')+'> 확인할 때 PDF도 저장 (이 기기)</label>'+
+    '<span>지금 리포트 대기 <b>'+cnt[2]+'</b> · 원장 확인 전 <b>'+cnt[1]+'</b> · 🩸 결과 나오면 보고 <b>'+cnt[3]+'</b> · 🖨 인쇄 대기 <b>'+cnt[0]+'</b></span></div>';
+  var LAB=['🖨 인쇄할 리포트','원장 확인 전','📋 지금 리포트 · 혈액검사 없음 (진료 끝나면 차트 붙여넣기)','🩸 혈액검사 · 결과 나오면 보고','인쇄 완료'],cur=-1;
+  var rows=a.map(function(v){var s=grState(v),hd='';if(s!==cur){cur=s;hd='<div class="hint" style="margin:12px 0 2px;font-weight:700">'+LAB[s]+' ('+cnt[s]+')</div>'+(s===3?'<div class="hint" style="margin:0 0 2px">결과가 나오면 의사 앱(재진 기록지)에서 쓰거나, 여기서 차트를 붙여넣으면 돼요. 혈액검사가 없는 아이면 [🩸 해제]를 누르세요.</div>':'')}return hd+rowHtml(v)}).join('');
+  var bk='';
+  if(booked.length){
+    bk='<div class="hint" style="margin:14px 0 2px;font-weight:700">도착 처리 전 예약 환자 ('+booked.length+') <button class="btn sm ghost" data-act="gr-booked">'+(UI.grBooked?'접기':'펼치기')+'</button></div>'+
+      '<div class="hint" style="margin:0 0 2px">도착 처리를 안 해도 차트를 붙여넣으면 이름·등록번호로 찾아 리포트를 만들어요.</div>'+
+      (UI.grBooked?booked.map(rowHtml).join(''):'');
+  }
+  if(!a.length&&!booked.length)return top+'<div class="empty"><h2>오늘 등록된 환자가 없습니다</h2><p>환자가 등록되면 여기에서 성장 리포트를 만들고 인쇄할 수 있어요.</p></div>';
+  return top+rows+bk;
+}
+return{open:open,close:close,listHtml:listHtml,print:printFor,unprint:unprint,queueCount:printQueueCount,printAll:printAll,toggleBlood:toggleBlood,setOpt:setOpt,pasteClick:pasteClick,fromChart:fromChart,pasteIntoOpen:pasteIntoOpen,looksLikeChart:looksLikeChart,autoTick:autoTick};
 })();
+/* 어디서든 EMR 차트를 Ctrl+V → 성장 리포트 (스캔 칸에 커서가 있어도 됨, 다른 입력칸은 그대로) */
+document.addEventListener('paste',function(e){try{
+  var txt=(e.clipboardData&&e.clipboardData.getData('text/plain'))||'';if(!FR.looksLikeChart(txt))return;
+  var t=e.target||document.body,tag=String(t.tagName||'').toUpperCase();
+  var editable=t.isContentEditable||tag==='TEXTAREA'||tag==='SELECT'||(tag==='INPUT'&&t.id!=='scan');
+  if(document.getElementById('grov')){if(editable)return;e.preventDefault();FR.pasteIntoOpen(txt);return}
+  if(editable||document.getElementById('grpick')||!S.loaded)return;
+  e.preventDefault();FR.fromChart(txt);
+}catch(err){}},true);
 </script>
 
