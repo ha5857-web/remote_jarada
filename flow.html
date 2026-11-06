@@ -384,6 +384,7 @@ pre.report{white-space:pre-wrap;word-break:keep-all;overflow-wrap:anywhere;backg
 .fr-chgb{align-self:flex-start;display:inline-block;font-size:10.5px;font-weight:700;color:#fff;background:#2B7A4B;border-radius:6px;padding:0 6px;margin-left:6px}
 .fr-old{margin:-4px 0 8px;font-size:12px;color:#5a6b73}.fr-old summary{cursor:pointer}.fr-old div{white-space:pre-wrap;background:#f5f7f8;border-radius:8px;padding:6px 8px;margin-top:4px}
 @media (max-width:760px){.grq{grid-template-columns:1fr}}
+.cno{cursor:copy;border-bottom:1px dashed currentColor;padding:0 1px;border-radius:3px}.cno:hover{background:var(--accent-soft);color:var(--accent)}.cno:hover::after{content:' 📋';font-size:.9em}
 .qd{align-self:flex-end;font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:1px 7px;cursor:pointer;background:var(--surface)}
 .qd:hover{border-color:var(--accent);color:var(--accent)}
 #grprint{position:fixed;left:-10000px;top:0;width:794px;background:#fff}
@@ -485,6 +486,11 @@ const PROTOS={single:{name:'일반 채혈',offs:[]},gnrh:{name:'GnRH 자극검�
 
 /* ---------- 유틸 ---------- */
 const $=(s,r=document)=>r.querySelector(s);
+/* 등록번호 복사 (눌러서 EMR 검색창에 붙여넣기) */
+function copyText(t){t=String(t||'').trim();if(!t)return;
+  const fb=()=>{const a=document.createElement('textarea');a.value=t;a.style.cssText='position:fixed;left:-9999px';document.body.appendChild(a);a.select();let ok=false;try{ok=document.execCommand('copy')}catch(e){}a.remove();toast(ok?'등록번호 '+t+' 복사했어요':'복사하지 못했어요')};
+  try{if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(t).then(()=>toast('등록번호 '+t+' 복사했어요'),fb);return}}catch(e){}fb()}
+const cnoHtml=(c,pre)=>c?`<span class="cno" role="button" tabindex="0" data-act="copy-chart" data-c="${esc(c)}" title="눌러서 등록번호 복사">${pre||''}${esc(c)}</span>`:'';
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const clone=o=>JSON.parse(JSON.stringify(o));
 const pad=n=>String(n).padStart(2,'0');
@@ -765,7 +771,7 @@ function cardHtml(v,now){
   else if(needNotify(v)){dl=`<span class="pill warn">결과 안내 필요</span>`}
   return `<button class="card${sel?' sel':''}${w?' warn':''}" data-sel="${v.id}">
     <span class="nm">${esc(v.name||'이름 없음')}${exTag(v)}${invTag(v)}${grPill(v)}</span>
-    <span class="meta">${esc(age(v))}${v.sex?' · '+esc(v.sex):''}${v.chartNo?' · '+esc(v.chartNo):''}${v.card&&isTodayV(v)?' · <b>🎫 '+esc(v.card)+'</b>':''}</span>
+    <span class="meta">${esc(age(v))}${v.sex?' · '+esc(v.sex):''}${v.chartNo?' · '+cnoHtml(v.chartNo):''}${v.card&&isTodayV(v)?' · <b>🎫 '+esc(v.card)+'</b>':''}</span>
     <span class="st" style="${w?'color:var(--warn);font-weight:600':''}">${st}</span>
     ${dl}${v.step<0&&!v.card?`<span class="qd" role="button" data-act="card-next" data-id="${v.id}" title="카드를 주면서 누르면 연결 + 도착 처리">🎫 ${esc(nextCard())} 주기</span>`:''}${v.step>=0&&v.step<10?`<span class="qd" role="button" data-act="quick-done" data-id="${v.id}" title="남은 단계를 건너뛰고 바로 완료 처리">바로 완료 ▸</span>`:''}<span class="bar">${bar}</span></button>`;
 }
@@ -1466,7 +1472,7 @@ function detailHtml(){
     stepper+=`<button class="${cls}" data-view-step="${i}"${skipStep(v,i)?' style="opacity:.45;text-decoration:line-through" title="재진 환자는 건너뜁니다"':''}><b>${i+1}</b>${STEPS[i].short}</button>`;
   }
   let head=`<div class="dh"><div><h2>${esc(v.name||'이름 없음')}${exTag(v)}</h2>
-    <div class="sub">${esc(age(v))}${v.sex?' · '+esc(v.sex):''}${v.chartNo?' · 등록번호 '+esc(v.chartNo):''}${v.appt?' · 예약 '+esc(v.appt):''}</div></div>
+    <div class="sub">${esc(age(v))}${v.sex?' · '+esc(v.sex):''}${v.chartNo?' · '+cnoHtml(v.chartNo,'등록번호 '):''}${v.appt?' · 예약 '+esc(v.appt):''}</div></div>
     <button class="btn sm ghost" data-act="close">닫기</button></div>
     <button class="btn primary" data-act="gr-open" style="width:100%;margin-top:8px;font-size:15px">📄 성장 리포트 ${v.gr&&v.gr.ready?(v.gr.reviewed?'보기 ✓':(v.gr.src&&v.gr.src!=='today'?'열기 (가안)':'열어서 확인')):'만들기'}</button>
     <details class="more" style="margin-top:8px"><summary>초진·대기 영상 설정${v.first?' (초진)':''}${v.rev?' (재진)':''}${v.vids?' · 영상 '+esc(v.vids):''}</summary>
@@ -1602,6 +1608,7 @@ function onAction(act,el){
     case 'gr-paste':FR.pasteClick();break;
     case 'gr-booked':UI.grBooked=!UI.grBooked;renderAll(false);break;
     case 'gr-room':{const i=id||(v&&v.id);if(i)FR.roomRetry(i);break}
+    case 'copy-chart':copyText(el.dataset.c);break;
     case 'card-next':if(v){if(v.card){toast((v.name||'')+': 이미 카드 '+v.card+'가 연결돼 있어요.');break}linkCard(v,nextCard())}break;
     case 'card-unlink':if(v){v.card='';put(v,true);renderAll(true);toast((v.name||'')+': 카드 연결을 풀었어요.')}break;
     case 'quick-done':if(v)quickDone(v);break;
@@ -3090,8 +3097,8 @@ function editorHtml(v){
     '<div class="fr-checks col">'+VIDEOS.map(function(x){return '<label><input type="checkbox" class="frVid" value="'+x.no+'"> '+x.no+'. '+esc(x.title)+'</label>'}).join('')+'</div>';
 }
 function shellHtml(v){
-  var who=[age(v),v.sex,v.chartNo?'등록번호 '+v.chartNo:''].filter(Boolean).join(' · ');
-  return '<div class="grbar"><b>성장 리포트 · '+esc(v.name||'이름 없음')+(who?'<span class="grwho">'+esc(who)+'</span>':'')+'</b><span id="grmsg"></span><div class="grbtns">'+
+  var who=[age(v),v.sex].filter(Boolean).join(' · ');
+  return '<div class="grbar"><b>성장 리포트 · '+esc(v.name||'이름 없음')+'<span class="grwho">'+esc(who)+(v.chartNo?(who?' · ':'')+'<span class="cno" role="button" data-fr="copyno" data-c="'+esc(v.chartNo)+'" title="눌러서 등록번호 복사">등록번호 '+esc(v.chartNo)+'</span>':'')+'</span></b><span id="grmsg"></span><div class="grbtns">'+
     '<button class="btn" data-fr="edit" id="fr-editbtn">✏️ 내용 수정</button>'+
     '<button class="btn primary big" data-fr="ok" id="fr-okbtn" title="단축키 Ctrl+Enter">✅ 확인 · PDF 저장</button>'+
     '<button class="btn ghost" data-fr="unreview" id="fr-unrevbtn" hidden>확인 취소</button>'+
@@ -3158,6 +3165,7 @@ function open(id,opt){
     else if(k==='print')printFor(ST.id);
     else if(k==='pdf')GR.act('pdf');
     else if(k==='ok')confirmSave();
+    else if(k==='copyno')copyText(b.dataset.c);
     else if(k==='xv')toggleXv(b.dataset.n);
     else if(k==='tolater')toLater();
     else if(k==='review')setReviewed(true);
@@ -3624,7 +3632,7 @@ function rowHtml(v){
   else if(s===2){st='<span class="pill">📝 가안 · '+(g.src==='intake'?'초진기록지':'지난 차트')+'</span>'+(g.srcAt?' <span class="grwhy">'+hm(g.srcAt)+'</span>':'');bt='<button class="btn sm" data-act="gr-open" data-id="'+v.id+'">열기</button>'+bl}
   else if(s===4){st='<span class="pill warn">결과 나오면 보고</span> <span class="grwhy">'+esc(bloodWhy(v))+'</span>';bt='<button class="btn sm" data-act="gr-open" data-id="'+v.id+'">지금 만들기</button>'+bl}
   else{st='<span class="pill ex">차트 대기</span>';bt='<button class="btn sm" data-act="gr-open" data-id="'+v.id+'">차트 붙여넣기</button>'+bl}
-  return '<div class="frrow"><div class="frnm"><b>'+esc(v.name||'이름 없음')+(v.temp?' <span class="pill" style="background:#fdeccc;color:#8a4b00">당일접수</span>':'')+'</b><span class="meta">'+esc(age(v))+(v.sex?' · '+esc(v.sex):'')+(v.chartNo?' · '+esc(v.chartNo):'')+(v.step<0&&v.appt?' · 예약 '+esc(v.appt):'')+' '+qChips(v)+'</span></div><div>'+st+'</div><div class="frbt">'+bt+'</div></div>';
+  return '<div class="frrow"><div class="frnm"><b>'+esc(v.name||'이름 없음')+(v.temp?' <span class="pill" style="background:#fdeccc;color:#8a4b00">당일접수</span>':'')+'</b><span class="meta">'+esc(age(v))+(v.sex?' · '+esc(v.sex):'')+(v.chartNo?' · '+cnoHtml(v.chartNo):'')+(v.step<0&&v.appt?' · 예약 '+esc(v.appt):'')+' '+qChips(v)+'</span></div><div>'+st+'</div><div class="frbt">'+bt+'</div></div>';
 }
 function listHtml(){
   var all=todayList();
