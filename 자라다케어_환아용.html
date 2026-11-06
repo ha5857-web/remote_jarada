@@ -1614,7 +1614,8 @@ function renderFirstRoom(rows){
     const k = (x.updatedAt || '') + '|' + (r.timestamp || '');      // 예전 방식으로 쌓인 행이 섞여 있어도 가장 나중에 올린 안내를 씁니다
     if(!d || k > bestKey){ d = x; bestKey = k; }
   });
-  setFirstVisitLock((!!d || FIRST_FLAG) && !(d && (d.stage==='done' || d.stage==='post')));   // 진료가 끝난 뒤(post)부터는 질문하기·챗봇·주사기록도 열어둡니다
+  setFirstVisitLock((!!d || FIRST_FLAG) && !(d && (d.stage==='done' || d.stage==='post')));
+  window._frGuide = (d && d.guide) || null; try{ renderReceiptCard(); }catch(e){}   // 🎁 성장 리포트와 함께 온 보호자 안내서 1회용 코드   // 진료가 끝난 뒤(post)부터는 질문하기·챗봇·주사기록도 열어둡니다
   if(!d && !FIRST_FLAG){ tab.style.display = 'none'; return; }
   tab.style.display = '';
   const stage = d ? d.stage : 'pre';
@@ -1763,8 +1764,42 @@ const RECEIPT_EVENT = {
   formUrl: 'https://docs.google.com/forms/d/e/1FAIpQLSdX_z4WtcV9PupktZoldy5LCrkMAH4O-RnFAcJUflKsJvkaug/viewform',   // 영수증 리뷰 확인 신청서(구글폼)
   guideUrl: 'https://jaradacare.com/#reader'           // 보호자 안내서 → 이용 코드 입력 화면으로 바로 이동
 };
+/* 🎁 원장 확인된 성장 리포트에는 아이마다 1회용 안내서 코드가 붙어 옵니다(flow).
+ *  코드가 있으면 「네이버 리뷰 참여하기」 한 번 → 리뷰 창을 닫고 돌아오면 jaradacare.com 에서 안내서가 자동으로 열립니다. */
+function frGuide(){ const g = window._frGuide; return g && /^[A-Z0-9]{6,12}$/.test(String(g.code||'')) && /^https:\/\/jaradacare\.com\//.test(String(g.url||'')) ? g : null; }
+function rcGuideGo(){
+  const g = frGuide(); if(!g) return;
+  try{ sessionStorage.setItem('jrd_rc_went', JSON.stringify({url:g.url, t:Date.now()})); }catch(e){}
+  let w = null; try{ w = window.open(RECEIPT_EVENT.reviewUrl, '_blank'); }catch(e){}
+  const ob = document.getElementById('rcOpenBtn'); if(ob) ob.style.display = 'block';
+  const gh = document.getElementById('rcGoHint'); if(gh) gh.textContent = '리뷰를 남기고 창을 닫으면 안내서가 자동으로 열려요. 안 열리면 아래 버튼을 눌러 주세요.';
+  if(!w) location.href = RECEIPT_EVENT.reviewUrl;
+}
+function rcGuideOpen(){ const g = frGuide(); if(!g) return; try{ sessionStorage.removeItem('jrd_rc_went'); }catch(e){} location.href = g.url + (g.url.indexOf('?') < 0 ? '?' : '&') + 'go=1'; }
+function rcGuideBack(){
+  let x = null; try{ x = JSON.parse(sessionStorage.getItem('jrd_rc_went')||'null'); }catch(e){}
+  if(!x || !x.url || Date.now() - x.t < 2500) return;
+  try{ sessionStorage.removeItem('jrd_rc_went'); }catch(e){}
+  location.href = x.url + (x.url.indexOf('?') < 0 ? '?' : '&') + 'go=1';
+}
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) rcGuideBack(); });
+window.addEventListener('pageshow', ()=>setTimeout(rcGuideBack, 200));
+window.addEventListener('focus', rcGuideBack);
 function renderReceiptCard(){
   if(IS_OVERSEAS || !RECEIPT_EVENT.formUrl) return;
+  const g = frGuide();
+  if(g){
+    const gk = 'g:' + g.code;
+    const gh = `<div class="card receipt-card" data-k="${gk}" style="border-color:#03C75A;">
+    <h2>🎁 보호자 안내서 선물</h2>
+    <p class="notice" style="font-size:13px;line-height:1.7;"><b>네이버 영수증 리뷰</b>에 참여해 주시면 <b>「보호자 안내서」</b>(성장·성조숙증·비만 Q&amp;A 116개)가 바로 열려요.</p>
+    <button type="button" class="btn" onclick="rcGuideGo()" style="display:block;width:100%;margin-top:8px;padding:13px 12px;font-size:15px;font-weight:800;background:#03C75A;border-color:#03C75A;color:#fff;">네이버 리뷰 참여하기</button>
+    <p class="notice" id="rcGoHint" style="font-size:12px;color:var(--secondary);margin-top:8px;">리뷰를 남기고 창을 닫으면 안내서가 자동으로 열려요 · 이 아이 전용 · 한 번만 사용</p>
+    <button type="button" class="btn btn-outline" id="rcOpenBtn" onclick="rcGuideOpen()" style="display:none;width:100%;margin-top:6px;padding:11px 12px;font-size:14px;">📖 보호자 안내서 열기</button>
+  </div>`;
+    ['v-measure','v-first'].forEach(id=>{ const v = document.getElementById(id); if(!v) return; const old = v.querySelector('.receipt-card'); if(old && old.dataset.k === gk) return; if(old) old.remove(); v.insertAdjacentHTML('beforeend', gh); });
+    return;
+  }
   const step = (n, title, desc, label, url)=> `<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--border);">
       <div style="flex:0 0 26px;height:26px;border-radius:50%;background:#03C75A;color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;">${n}</div>
       <div style="flex:1;min-width:0;"><div style="font-size:13.5px;font-weight:700;">${title}</div>
@@ -1779,7 +1814,7 @@ function renderReceiptCard(){
     ${step(4, t('rc4'), t('rc4d'), t('rc4b'), RECEIPT_EVENT.guideUrl)}
     <p class="notice" style="font-size:11px;color:var(--secondary);margin-top:6px;">${t('rcNote')}</p>
   </div>`;
-  ['v-measure','v-first'].forEach(id=>{ const v = document.getElementById(id); if(v && !v.querySelector('.receipt-card')) v.insertAdjacentHTML('beforeend', html); });
+  ['v-measure','v-first'].forEach(id=>{ const v = document.getElementById(id); if(!v) return; const old = v.querySelector('.receipt-card'); if(old && !old.dataset.k) return; if(old) old.remove(); v.insertAdjacentHTML('beforeend', html); });
 }
 renderReceiptCard();
 if(FIRST_FLAG){

@@ -8837,6 +8837,7 @@ async function fvPushToPatientApp(p){
     const mine = (await readRows()).filter(r=>r.pid===p.accessCode && r.type==='firstvisit');
     // flow(동선 관리)에서 원장 확인 후 올린 성장 리포트·진료 후 안내가 있으면, 이 앱에 아직 내용이 없을 때 지우지 않고 그대로 둡니다
     try{ const cur = mine.find(r=>r.id===rowId); const x = cur ? JSON.parse(cur.question||'{}') : null;
+      if(x && x.guide && !payload.guide) payload.guide = x.guide;   // flow가 붙인 🎁 보호자 안내서 1회용 코드는 그대로
       if(x && x.fromFlow){ if(!payload.post && x.post){ payload.post = x.post; if(payload.stage==='pre') payload.stage = x.stage || 'post'; payload.fromFlow = true; } if(!payload.report && x.report) payload.report = x.report; }
     }catch(e){}
     let res = null;

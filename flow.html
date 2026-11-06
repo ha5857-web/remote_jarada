@@ -336,6 +336,11 @@ pre.report{white-space:pre-wrap;word-break:keep-all;overflow-wrap:anywhere;backg
 .rp-foot>div:first-child{flex:1;min-width:0}
 .rp-foot .ftqr{flex:none;display:flex;flex-direction:column;align-items:center;gap:1px;font-size:8px;color:var(--p-mute);line-height:1.2}
 .rp-foot .ftqr .b{background:#fff;border:1px solid var(--p-line);border-radius:4px;padding:2px}
+.rp-foot .ftgd{flex:none;display:flex;gap:7px;align-items:center;border:1.5px solid #03C75A;border-radius:8px;padding:4px 9px 4px 4px;width:272px}
+.rp-foot .ftgd .b{flex:none;background:#fff;padding:1px}
+.rp-foot .ftgd .t{font-size:9.5px;line-height:1.45;color:var(--p-ink);min-width:0}
+.rp-foot .ftgd .t b{display:block;font-size:11.5px;color:#02994A;margin-bottom:1px}
+.rp-foot .ftgd .t i{display:block;font-style:normal;color:var(--p-mute);font-size:8.5px;margin-top:2px;letter-spacing:.2px}
 .fr-det{margin:0 0 4px}.fr-det>summary{cursor:pointer;list-style:none}.fr-det>summary::-webkit-details-marker{display:none}
 .fr-h{font-size:13px;font-weight:700;margin:14px 0 8px;color:#0B7A85}.fr-h:first-child{margin-top:0}
 .fr-f{display:flex;flex-direction:column;gap:3px;margin-bottom:9px;font-size:12px;color:#5a6b73;font-weight:600;min-width:0}
@@ -2027,13 +2032,15 @@ const PM_RECEIPT={
   guideUrl:'https://jaradacare.com/#reader'
 };
 function pmReceiptHtml(){
-  const st=(n,t,desc,label,url)=>`<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line)"><div style="flex:0 0 28px;height:28px;border-radius:50%;background:#03C75A;color:#fff;font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center">${n}</div><div style="flex:1;min-width:0"><div style="font-size:17px;font-weight:700">${t}</div>${desc?`<div style="font-size:14px;color:var(--muted);line-height:1.55;margin-top:2px">${desc}</div>`:''}${url?`<a href="${url}" target="_blank" rel="noopener" style="display:block;text-align:center;text-decoration:none;margin-top:8px;padding:11px 12px;font-size:16px;font-weight:700;border-radius:10px;background:#03C75A;color:#fff">${label}</a>`:''}</div></div>`;
-  return `<div class="keta" style="border-color:#03C75A;margin-top:18px"><h2 style="font-size:22px;margin:0 0 6px">🎁 네이버 영수증 리뷰 이벤트</h2><p style="margin:0 0 6px;font-size:16px;line-height:1.6">진료 후 <b>네이버 영수증 리뷰</b>를 남겨 주시면 <b>「보호자 안내서」</b>(성장·성조숙증·비만 Q&amp;A 116개)를 드려요. 수납 후 받으시는 <b>영수증</b>을 준비해 주세요.</p>`+
+  const st=(n,t,desc,label,url)=>`<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line)"><div style="flex:0 0 26px;height:26px;border-radius:50%;background:#03C75A;color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center">${n}</div><div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:700">${t}</div>${desc?`<div style="font-size:14px;color:var(--muted);line-height:1.55;margin-top:2px">${desc}</div>`:''}${url?`<a href="${url}" target="_blank" rel="noopener" style="display:block;text-align:center;text-decoration:none;margin-top:8px;padding:10px 12px;font-size:15px;font-weight:700;border-radius:10px;background:#03C75A;color:#fff">${label}</a>`:''}</div></div>`;
+  /* 🎁 아이마다 1회용 코드는 성장 리포트 뒷장 아래 QR에만 싣습니다(카드 번호는 C001…처럼 추측할 수 있어 이 화면엔 싣지 않음).
+     QR → 「네이버 리뷰 참여하기」 → 리뷰 창을 닫으면 안내서가 자동으로 열립니다. 리포트가 없을 때만 예전 방식(신청서 → 문자 코드). */
+  return `<div class="keta" style="border-color:#03C75A;margin-top:18px"><h2 style="font-size:22px;margin:0 0 6px">🎁 보호자 안내서 선물</h2><p style="margin:0;font-size:17px;line-height:1.65">진료 후 받으시는 <b>성장 리포트 뒷장 아래 🎁 QR</b>을 휴대폰 카메라로 찍어 주세요.<br><b>「네이버 리뷰 참여하기」</b>를 누르고 리뷰를 남긴 뒤 창을 닫으면 <b>「보호자 안내서」</b>(성장·성조숙증·비만 Q&amp;A 116개)가 바로 열려요.</p>`+
+    `<details style="margin-top:10px"><summary style="cursor:pointer;font-size:14px;color:var(--muted)">성장 리포트를 받지 않으셨나요? (신청서로 코드 받기)</summary>`+
     st(1,'네이버 영수증 리뷰 남기기','','네이버에서 리뷰 쓰기',PM_RECEIPT.reviewUrl)+
-    st(2,'리뷰 확인 신청서 내기','영수증 사진을 꼭 첨부해 주세요. 리뷰가 확인되지 않으면 안내서 이용이 중단될 수 있어요.','신청서 작성하기',PM_RECEIPT.formUrl)+
-    st(3,'이용 코드를 문자로 받기','신청서를 내시면 이용 코드가 문자로 발송돼요. 코드는 한 번만 사용할 수 있어요.','','')+
-    st(4,'보호자 안내서 열기','받은 코드를 입력하면 열려요.','코드 입력하러 가기',PM_RECEIPT.guideUrl)+
-    '<p style="margin:8px 0 0;font-size:13px;color:var(--muted)">코드 문의 02-523-0111</p></div>';
+    st(2,'리뷰 확인 신청서 내기','영수증 사진을 꼭 첨부해 주세요.','신청서 작성하기',PM_RECEIPT.formUrl)+
+    st(3,'문자로 받은 코드 입력하기','코드는 한 번만 사용할 수 있어요.','코드 입력하러 가기',PM_RECEIPT.guideUrl)+
+    '</details><p style="margin:8px 0 0;font-size:13px;color:var(--muted)">문의 02-523-0111</p></div>';
 }
 function pmRender(force){
   const el=$('#kiosk'),d=PM.d,now=Date.now()+PM.off;
@@ -2599,9 +2606,10 @@ function itemsOf(p){
   });
   return o;
 }
+function vidNos(po){return((po&&po.videos)||[]).map(function(x){return x&&x.no}).filter(function(n){return n>=1&&n<=7}).join('')}
 function build(g){
-  var po=g.post||{},items=itemsOf(po),recs=parsePast(g.recsText||'');
-  return{st:{post:items.length?{date:g.date||'',items:items}:null,name:g.name||'',sex:g.sex==='M'||g.sex==='F'?g.sex:'',dob:g.dob||'',fh:num(g.fh),mh:num(g.mh),recs:recs,nextText:nextText(po),comment:''}};
+  var po=g.post||{},items=itemsOf(po),recs=parsePast(g.recsText||''),gc=String(g.gc||'');
+  return{st:{guide:/^[A-Z0-9]{6,12}$/.test(gc)?{code:gc,url:guideUrl(gc,vidNos(po))}:null,post:items.length?{date:g.date||'',items:items}:null,name:g.name||'',sex:g.sex==='M'||g.sex==='F'?g.sex:'',dob:g.dob||'',fh:num(g.fh),mh:num(g.mh),recs:recs,nextText:nextText(po),comment:''}};
 }
 
 function compute(st){
@@ -2685,7 +2693,13 @@ function qrSvg(url,px){
   try{var q=qrcode(0,'M');q.addData(url);q.make();var n=q.getModuleCount(),cs=Math.max(2,Math.floor(px*3/n));
     return q.createSvgTag(cs,0).replace('<svg','<svg style="width:'+px+'px;height:'+px+'px;display:block"')}catch(e){return''}
 }
-function footQR(){var s=qrSvg(EV_REVIEW,44);return s?'<div class="ftqr"><div class="b">'+s+'</div><span>네이버 리뷰</span></div>':''}
+/* 🎁 보호자 안내서: 아이마다 1회용 코드(원장 확인 때 붙음) → QR을 찍고 네이버 리뷰에 참여했다 돌아오면 jaradacare.com 에서 안내서가 바로 열립니다 */
+var GUIDE_SITE='https://jaradacare.com/app.html';
+function guideUrl(code,nos){return GUIDE_SITE+'?rv='+encodeURIComponent(code)+(nos?'&v='+nos:'')}
+function footQR(st){
+  if(st&&st.guide){var g=qrSvg(st.guide.url,80);if(g)return'<div class="ftgd"><div class="b">'+g+'</div><div class="t"><b>🎁 보호자 안내서 선물</b>QR을 찍고 <u>네이버 영수증 리뷰</u>에 참여해 주시면 성장·성조숙증·비만 Q&amp;A 안내서가 바로 열려요.<i>이 아이 전용 1회용 · 코드 '+esc(st.guide.code)+'</i></div></div>'}
+  var s=qrSvg(EV_REVIEW,44);return s?'<div class="ftqr"><div class="b">'+s+'</div><span>네이버 리뷰</span></div>':'';
+}
 function reportHTML(m){
   if(m.error)return'<div class="rp"><div class="rp-empty">'+esc(m.error)+'</div></div>';
   var st=m.st,cur=m.cur,sexTxt=st.sex==='M'?'남아':'여아',t=new Date(),todayS=t.getFullYear()+'.'+pad(t.getMonth()+1)+'.'+pad(t.getDate());
@@ -2735,7 +2749,7 @@ function backHTML(m){
     h+='<div class="rp-sec rp-post"><h2>오늘 진료 후 기록'+(po.date?' <small>'+dots(po.date)+'</small>':'')+'</h2><div class="rp-pb" id="rp-pb">'+
       po.items.map(function(x){return'<div class="it"><div class="l">'+esc(x.l)+'</div><div class="t">'+esc(x.t)+'</div></div>'}).join('')+'</div></div><p class="rp-p mute" style="margin:6px 0 0">이 안내는 담당 의료진이 확인한 내용입니다.</p>';
   }else h+='<div class="rp-sec rp-post" style="flex:1"></div>';
-  h+='<div class="rp-foot"><div>삼성자라다 소아청소년과 · 02-523-0111<br>평일 10:00–20:00 · 토 09:00–18:00 (목요일·공휴일 휴진)<br>궁금한 점이나 아이 상태가 달라지면 병원으로 문의해 주세요.</div>'+footQR()+(st.nextText?'<div class="nx">다음 내원·추적<br>'+esc(st.nextText)+'</div>':'')+'</div></div>';
+  h+='<div class="rp-foot"><div>삼성자라다 소아청소년과 · 02-523-0111<br>평일 10:00–20:00 · 토 09:00–18:00 (목요일·공휴일 휴진)<br>궁금한 점이나 아이 상태가 달라지면 병원으로 문의해 주세요.</div>'+footQR(st)+(st.nextText?'<div class="nx">다음 내원·추적<br>'+esc(st.nextText)+'</div>':'')+'</div></div>';
   return h;
 }
 function pagesHTML(m){return m.error?reportHTML(m):reportHTML(m)+backHTML(m)}
@@ -2793,7 +2807,7 @@ function act(kind){
     });
   }).catch(function(){say('파일을 만들지 못했습니다. 인터넷 연결을 확인해 주세요.');return false});
 }
-return{setM:setM,act:act,build:build,compute:compute,pagesHTML:pagesHTML,paint:paint,fit:fit,parsePast:parsePast,pdfOf:pdfOf,saveBlob:saveBlob};
+return{setM:setM,act:act,build:build,compute:compute,pagesHTML:pagesHTML,paint:paint,fit:fit,parsePast:parsePast,pdfOf:pdfOf,saveBlob:saveBlob,guideUrl:guideUrl,vidNos:vidNos};
 })();
 const FR=(function(){
 function todayList(){return list().filter(function(v){return isTodayV(v)})}   // 리포트는 오늘 방문만
@@ -3142,6 +3156,7 @@ function open(id,opt){
   var v=S.items.get(id);if(!v){toast('환자를 찾을 수 없습니다.');return}
   if(document.getElementById('grov'))close();
   ST.id=id;ST.busy=!!BUSY[id];
+  if(!(GD.pool&&Date.now()-GD.at<600000)&&!GD.p&&authToken())gdLoad(false).catch(function(){});
   var o=document.createElement('div');o.className='grov';o.id='grov';o.innerHTML=shellHtml(v);
   if(!(v.gr&&v.gr.ready))o.classList.add('editing');
   document.body.appendChild(o);
@@ -3397,16 +3412,24 @@ function confirmSave(){
   var g=collect();if(!g)return;
   if(!hasPost(g.post)){say('진료 후 기록이 비어 있어요. EMR 차트를 붙여넣어 주세요.',true);return}
   var m=modelOf(Object.assign({},v,{gr:g}));if(m.error){say(m.error,true);var di=document.getElementById('fr-info');if(di)di.open=true;return}
-  g.reviewed=true;g.reviewedAt=Date.now();g.printedAt=null;commit(g,true);refresh();
-  var name=v.name||'환자',vid=v.id,room=hasRoom(v),done=function(msg){close();toast(msg);renderAll(false);try{focusScan()}catch(e){}};
-  if(!pdfOn()&&!room){done(name+': 확인 완료 — 직원 화면 「인쇄할 리포트」에 올라갔어요.');return}
-  SAVING=true;syncBar();say('PDF 만드는 중…');
-  GR.pdfOf(modelOf(S.items.get(vid)),0.72).then(function(pdf){return pdf},function(){return null}).then(function(pdf){
+  var name=v.name||'환자',vid=v.id,mine=function(){return ST.id===vid&&!!document.getElementById('grov')};
+  SAVING=true;syncBar();
+  if(!g.gc&&!GD.pool)say('🎁 보호자 안내서 코드 붙이는 중…');
+  (g.gc?Promise.resolve(g.gc):gdFor(Object.assign({},v,{gr:g}))).then(function(code){
     SAVING=false;
-    if(pdf&&pdfOn())GR.saveBlob(pdf.blob,pdf.name);
-    if(!pdf&&pdfOn()&&!room){syncBar();say('확인은 끝났고 직원 인쇄 대기에 올렸어요. PDF는 저장하지 못했어요(인터넷 확인) — [PDF 다시 저장]을 눌러 주세요.',true);return}
-    done(name+': 확인'+(pdf&&pdfOn()?' · PDF 저장':'')+' 완료 — 직원 인쇄 대기'+(room?' · 초진방에 올리는 중…':''));
-    if(room)roomPush(vid,pdf);
+    var cur=S.items.get(vid);if(!cur)return;
+    if(code)g.gc=code;
+    g.reviewed=true;g.reviewedAt=Date.now();g.printedAt=null;commitTo(vid,g,true);if(mine())refresh();
+    var room=hasRoom(cur),gt=code?' · 🎁 안내서 QR':'',done=function(msg){if(mine())close();toast(msg);renderAll(false);try{focusScan()}catch(e){}};
+    if(!pdfOn()&&!room){done(name+': 확인 완료'+gt+' — 직원 화면 「인쇄할 리포트」에 올라갔어요.');return}
+    SAVING=true;syncBar();if(mine())say('PDF 만드는 중…');
+    GR.pdfOf(modelOf(S.items.get(vid)),0.72).then(function(pdf){return pdf},function(){return null}).then(function(pdf){
+      SAVING=false;
+      if(pdf&&pdfOn())GR.saveBlob(pdf.blob,pdf.name);
+      if(!pdf&&pdfOn()&&!room){syncBar();if(mine())say('확인은 끝났고 직원 인쇄 대기에 올렸어요. PDF는 저장하지 못했어요(인터넷 확인) — [PDF 다시 저장]을 눌러 주세요.',true);else toast(name+': 확인 완료 · PDF는 저장하지 못했어요');return}
+      done(name+': 확인'+(pdf&&pdfOn()?' · PDF 저장':'')+gt+' 완료 — 직원 인쇄 대기'+(room?' · 초진방에 올리는 중…':''));
+      if(room)roomPush(vid,pdf);
+    });
   });
 }
 function toLater(){
@@ -3572,7 +3595,7 @@ async function roomPublish(id,pdf){
   var payload=Object.assign({v:1,visitDate:today,name:v.name||'',dob:v.dob||g.dob||'',preVideos:[],prep:''},x,{
     stage:'post',visitDate:x.visitDate||today,
     post:{summary:po.summary||'',labs:po.labs||'',xray:po.xray||'',direction:po.direction||'',exercise:po.exercise||'',nutrition:po.nutrition||'',sleep:po.sleep||'',nextDate:po.nextDate||'',tests:po.tests||[],videos:po.videos||[]},
-    report:rep||x.report||null,fromFlow:true,updatedAt:new Date().toISOString()});
+    report:rep||x.report||null,guide:g.gc?{code:g.gc,url:GR.guideUrl(g.gc,GR.vidNos(po))}:(x.guide||null),fromFlow:true,updatedAt:new Date().toISOString()});
   var res=cur?await api({action:'update',id:rowId,date:today,question:JSON.stringify(payload)}):null;
   if(!(res&&res.status==='ok'&&res.updated!==false))res=await api({id:rowId,pid:pid,type:'firstvisit',date:today,question:JSON.stringify(payload)});
   if(!res||res.status!=='ok')throw new Error((res&&res.message)||'초진방을 갱신하지 못했어요');
@@ -3598,6 +3621,65 @@ function roomTag(v){
   if(!hasRoom(v)||!v.gr||!v.gr.reviewed)return '';
   var g=v.gr;if(g.roomAt){var d=new Date(g.roomAt);return ' <span class="pill ok" title="초진방에 올림">초진방 ✓ '+d.getHours()+':'+pad(d.getMinutes())+'</span>'}
   return ' <button class="btn sm" data-act="gr-room" data-id="'+v.id+'" title="'+esc(g.roomErr||'')+'">'+(g.roomErr?'⚠️ ':'')+'초진방에 올리기</button>';
+}
+/* ---- 🎁 보호자 안내서 1회용 코드 — 리포트 뒷장 아래 QR ----
+   · 코드 목록은 원장 계정에서만 읽히는 서버 행(type 'guidepool')에 한 번 넣어 둡니다:
+     코드 파일을 열어 전체 복사 → flow 아무 데서나 Ctrl+V (첫 줄 #JRD-GUIDE-CODES)
+   · 원장 확인 때 아이마다 하나씩 붙이고(같은 등록번호면 같은 코드), 붙인 기록은 서버 행(type 'guidecode')
+   · 직원 계정·인터넷 오류·코드 소진이면 예전처럼 네이버 리뷰 QR만 들어갑니다 */
+var GD={pool:null,used:{},kid:{},at:0,p:null,pend:[],tried:false};
+function gdKid(v){var c=String(v.chartNo||'').replace(/\D/g,'');if(c)return 'c'+c;var nm=String(v.name||'').replace(/\s/g,''),dob=v.dob||(v.gr&&v.gr.dob)||'';return nm&&dob&&!/^등록번호/.test(nm)?'n'+nm+'|'+dob:''}
+function gdLoad(force){
+  if(!force&&GD.pool&&Date.now()-GD.at<600000)return Promise.resolve(GD);
+  if(GD.p)return GD.p;
+  GD.p=rowsGet().then(function(rows){
+    var pool=[],seen={},used={},kid={};
+    rows.forEach(function(r){
+      if(r.type==='guidepool')(qOf(r).codes||[]).forEach(function(c){c=String(c).toUpperCase();if(/^[A-Z0-9]{8}$/.test(c)&&!seen[c]){seen[c]=1;pool.push(c)}});
+      else if(r.type==='guidecode'){var x=qOf(r);if(x.code){used[x.code]=x;if(x.kid)kid[x.kid]=x.code}}
+    });
+    GD.pend.forEach(function(x){used[x.code]=x;if(x.kid)kid[x.kid]=x.code});
+    GD.pool=pool;GD.used=used;GD.kid=kid;GD.at=Date.now();GD.p=null;
+    gdFlush();return GD;
+  },function(e){GD.p=null;throw e});
+  return GD.p;
+}
+function gdLeft(){if(!GD.pool)return null;var n=0;GD.pool.forEach(function(c){if(!GD.used[c])n++});return n}
+function gdSave(rec){return api({id:'gc_'+rec.code,pid:'guidecode',type:'guidecode',date:todayStr(),question:JSON.stringify(rec)}).then(function(j){if(!j||j.status!=='ok')throw new Error((j&&j.message)||'save')})}
+function gdFlush(){var q=GD.pend.splice(0);q.forEach(function(rec){gdSave(rec).catch(function(){GD.pend.push(rec)})})}
+function gdPick(v){
+  var k=gdKid(v);if(k&&GD.kid[k])return GD.kid[k];
+  var free=GD.pool.filter(function(c){return !GD.used[c]});if(!free.length)return '';
+  var c=free[Math.floor(Math.random()*free.length)],rec={code:c,kid:k,name:v.name||'',chartNo:v.chartNo||'',vid:v.id,at:new Date().toISOString()};
+  GD.used[c]=rec;if(k)GD.kid[k]=c;
+  gdSave(rec).catch(function(){GD.pend.push(rec);setTimeout(gdFlush,15000)});   // 기록은 뒤에서 — 확인이 기다리지 않게
+  return c;
+}
+function gdFor(v){
+  if(GD.pool&&Date.now()-GD.at<600000)return Promise.resolve(gdPick(v));
+  return Promise.race([gdLoad(false).then(function(){return gdPick(v)}),new Promise(function(ok){setTimeout(function(){ok('')},7000)})]).catch(function(){return ''});
+}
+function gdPill(){
+  if(!GD.pool){if(!GD.tried&&S.loaded&&authToken()){GD.tried=true;gdLoad(false).then(function(){if(GD.pool.length)renderAll(false)},function(){})}return ''}
+  if(!GD.pool.length)return '';
+  var n=gdLeft();
+  return ' <span class="pill'+(n<20?' warn':'')+'" title="원장 확인 때 리포트 뒷장 아래에 아이마다 하나씩 QR로 붙어요. 새 코드 파일을 열어 전체 복사 → 이 화면에서 Ctrl+V 하면 채워져요.">🎁 안내서 코드 '+(n?n+'개 남음':'다 썼어요 — 새 코드 파일을 붙여넣어 주세요')+'</span>';
+}
+function importCodes(txt){
+  var codes=[],seen={};
+  String(txt).split(/\r?\n/).filter(function(l){return !/^\s*#/.test(l)}).join('\n').toUpperCase().replace(/\b[A-Z0-9]{8}\b/g,function(c){if(!seen[c]){seen[c]=1;codes.push(c)}return c});
+  if(!codes.length){toast('코드를 찾지 못했어요.');return}
+  gdLoad(true).catch(function(){return null}).then(function(){
+    var known={};(GD.pool||[]).forEach(function(c){known[c]=1});
+    var add=codes.filter(function(c){return !known[c]});
+    if(!add.length){toast('🎁 이미 넣어 둔 코드예요 (남은 코드 '+gdLeft()+'개).');return}
+    if(!confirm('보호자 안내서 코드 '+add.length+'개를 넣을까요?\n원장 확인 때 성장 리포트 뒷장 아래에 아이마다 하나씩 QR로 붙어요.'))return;
+    return api({id:'gp_'+Date.now().toString(36),pid:'guidepool',type:'guidepool',date:todayStr(),question:JSON.stringify({v:1,codes:add,at:new Date().toISOString()})}).then(function(j){
+      if(!j||j.status!=='ok'){toast('코드를 넣지 못했어요 — '+((j&&j.message)||'원장 계정으로 들어왔는지 확인해 주세요'));return}
+      GD.pool=(GD.pool||[]).concat(add);GD.at=Date.now();GD.tried=true;
+      toast('🎁 안내서 코드 '+add.length+'개를 넣었어요 — 남은 코드 '+gdLeft()+'개');renderAll(false);
+    });
+  }).catch(function(e){if(e&&e.code==='AUTH_REQUIRED')return;toast('코드를 넣지 못했어요 — '+((e&&e.message)||'연결 오류'))});
 }
 /* ---- 직원: 이 기기 자동 인쇄 ---- */
 var AUTO_DONE=new Set();
@@ -3650,7 +3732,7 @@ function listHtml(){
       '<button class="btn primary big" data-act="gr-printall"'+(cnt[0]?'':' disabled')+'>🖨 모두 인쇄 ('+cnt[0]+')</button>'+
       '<label><input type="checkbox" data-act="gr-optauto"'+(auto?' checked':'')+'> 이 기기에서 자동 인쇄 (리포트가 올라오면 바로 인쇄 창)</label></div>'+
   '</div>'+
-  '<div class="grq-opts"><label><input type="checkbox" data-act="gr-optpdf"'+(pdf?' checked':'')+'> 확인할 때 PDF도 저장 (이 기기)</label>'+
+  '<div class="grq-opts"><label><input type="checkbox" data-act="gr-optpdf"'+(pdf?' checked':'')+'> 확인할 때 PDF도 저장 (이 기기)</label>'+gdPill()+
     '<span>📝 가안 <b>'+cnt[2]+'</b> · 차트 대기 <b>'+cnt[3]+'</b> · 원장 확인 전 <b>'+cnt[1]+'</b> · 🩸 결과 나오면 보고 <b>'+cnt[4]+'</b> · 🖨 인쇄 대기 <b>'+cnt[0]+'</b></span></div>';
   var LAB=['🖨 인쇄할 리포트','원장 확인 전 · 오늘 EMR 반영됨','📝 진료 전 가안 · 진료 끝나면 EMR 다시 붙여넣기','📋 차트 대기 · 혈액검사 없음','🩸 혈액검사 · 결과 나오면 보고','인쇄 완료'],cur=-1;
   var rows=a.map(function(v){var s=grState(v),hd='';if(s!==cur){cur=s;hd='<div class="hint" style="margin:12px 0 2px;font-weight:700">'+LAB[s]+' ('+cnt[s]+')</div>'+(s===4?'<div class="hint" style="margin:0 0 2px">결과가 나오면 의사 앱(재진 기록지)에서 쓰거나, 여기서 차트를 붙여넣으면 돼요. 혈액검사가 없는 아이면 [🩸 해제]를 누르세요.</div>':'')}return hd+rowHtml(v)}).join('');
@@ -3663,13 +3745,15 @@ function listHtml(){
   if(!a.length&&!booked.length)return top+'<div class="empty"><h2>오늘 등록된 환자가 없습니다</h2><p>환자가 등록되면 여기에서 성장 리포트를 만들고 인쇄할 수 있어요.</p></div>';
   return top+rows+bk;
 }
-return{open:open,close:close,listHtml:listHtml,print:printFor,unprint:unprint,queueCount:printQueueCount,printAll:printAll,toggleBlood:toggleBlood,roomRetry:roomRetry,setOpt:setOpt,pasteClick:pasteClick,fromChart:fromChart,pasteIntoOpen:pasteIntoOpen,looksLikeChart:looksLikeChart,autoTick:autoTick};
+return{open:open,close:close,listHtml:listHtml,print:printFor,unprint:unprint,queueCount:printQueueCount,printAll:printAll,toggleBlood:toggleBlood,roomRetry:roomRetry,setOpt:setOpt,pasteClick:pasteClick,fromChart:fromChart,pasteIntoOpen:pasteIntoOpen,looksLikeChart:looksLikeChart,autoTick:autoTick,importCodes:importCodes};
 })();
 /* 어디서든 EMR 차트를 Ctrl+V → 성장 리포트 (스캔 칸에 커서가 있어도 됨, 다른 입력칸은 그대로) */
 document.addEventListener('paste',function(e){try{
-  var txt=(e.clipboardData&&e.clipboardData.getData('text/plain'))||'';if(!FR.looksLikeChart(txt))return;
+  var txt=(e.clipboardData&&e.clipboardData.getData('text/plain'))||'';
   var t=e.target||document.body,tag=String(t.tagName||'').toUpperCase();
   var editable=t.isContentEditable||tag==='TEXTAREA'||tag==='SELECT'||(tag==='INPUT'&&t.id!=='scan');
+  if(/^#JRD-GUIDE-CODES/m.test(txt)){if(editable||!S.loaded)return;e.preventDefault();FR.importCodes(txt);return}   // 🎁 보호자 안내서 코드 파일
+  if(!FR.looksLikeChart(txt))return;
   if(document.getElementById('grov')){if(editable)return;e.preventDefault();FR.pasteIntoOpen(txt);return}
   if(editable||document.getElementById('grpick')||!S.loaded)return;
   e.preventDefault();FR.fromChart(txt);
