@@ -368,6 +368,24 @@ pre.report{white-space:pre-wrap;word-break:keep-all;overflow-wrap:anywhere;backg
 .grpick-list{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
 .grpick-list .btn{text-align:left;display:flex;gap:8px;align-items:baseline;padding:10px 12px}
 .grpick-list .btn span{font-size:12px;color:var(--muted)}
+.grnew{border:1px solid var(--accent);background:var(--accent-soft);border-radius:10px;padding:10px 12px;margin:0 0 10px}
+.grnew .f2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0}
+.grnew input{font:inherit;padding:8px;border:1px solid var(--line);border-radius:8px;width:100%;background:var(--surface);color:var(--ink)}
+.grxv{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:8px 14px;background:#fff;border-bottom:1px solid #d5dde2;font-size:12.5px;color:#14232B}
+.grxv b{margin-right:4px}.grxv .meta{color:#5a6b73}
+.grxv .xvchip{background:#fff;color:#14232B;border-color:#d5dde2}
+.grxv .xvchip.on{background:#0B7A85;border-color:#0B7A85;color:#fff}
+.grdiff{border:1px solid #9cd3b0;background:#f1faf4;border-radius:10px;padding:8px 10px;margin:0 0 10px;font-size:12.5px;color:#14232B}
+.grdiff summary{font-weight:700;cursor:pointer;color:#1f6b3d}
+.grdiff ol{margin:6px 0 0;padding-left:20px;max-height:220px;overflow:auto}.grdiff li{margin:2px 0;white-space:pre-wrap}
+.fr-f.chg textarea{border-color:#2B7A4B!important;background:#f6fcf8}
+.fr-chgb{align-self:flex-start;display:inline-block;font-size:10.5px;font-weight:700;color:#fff;background:#2B7A4B;border-radius:6px;padding:0 6px;margin-left:6px}
+.fr-old{margin:-4px 0 8px;font-size:12px;color:#5a6b73}.fr-old summary{cursor:pointer}.fr-old div{white-space:pre-wrap;background:#f5f7f8;border-radius:8px;padding:6px 8px;margin-top:4px}
+.camov{position:fixed;inset:0;z-index:330;background:rgba(5,15,20,.7);display:flex;align-items:center;justify-content:center;padding:16px}
+.cambox{background:var(--surface);color:var(--ink);border-radius:14px;width:min(560px,100%);padding:12px 14px;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+.camh{display:flex;gap:8px;align-items:center;margin-bottom:8px}.camh b{flex:0 0 auto}.camh span{flex:1;font-size:13px;color:var(--muted)}
+.cambox video{width:100%;border-radius:10px;background:#000;aspect-ratio:4/3;object-fit:cover}
+.camok{color:var(--ok)!important;font-weight:700}.cambad{color:var(--bad)!important}
 @media (max-width:760px){.grq{grid-template-columns:1fr}}
 .qd{align-self:flex-end;font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:1px 7px;cursor:pointer;background:var(--surface)}
 .qd:hover{border-color:var(--accent);color:var(--accent)}
@@ -403,6 +421,7 @@ pre.report{white-space:pre-wrap;word-break:keep-all;overflow-wrap:anywhere;backg
       <select id="station"><option value="">사용 안 함</option></select></label>
     <label class="meta" id="labmode-wrap" hidden>채혈실 검사 <select id="labmode"><option value="single">일반 채혈</option><option value="gnrh">GnRH 자극검사</option><option value="gh">GH 자극검사</option></select></label>
     <input type="text" id="scan" placeholder="여기에 카드를 스캔하세요" autocomplete="off" autocapitalize="off" spellcheck="false" hidden>
+    <button class="btn sm" id="btn-cam" type="button" hidden title="스캐너가 없어도 카메라로 카드 QR을 읽어요">📷 카메라</button>
     <span id="scan-msg" role="status" aria-live="polite"></span>
     <span class="meta" id="pfx-legend" hidden></span>
     <button class="btn sm" id="btn-sound" type="button">알람 소리 켜기</button>
@@ -1406,7 +1425,8 @@ function detailHtml(){
     <label class="l" style="margin-top:8px">초진 안내 문자 붙여넣기<textarea data-paste rows="2" placeholder="1순위) 1. … 2순위) 7. …"></textarea></label>
     <label class="l" style="margin-top:8px">대기 영상 번호 (예: 172)<input type="text" data-path="vids" inputmode="numeric" maxlength="7" value="${esc(v.vids||'')}" placeholder="초진 접수에서 고른 영상 번호"></label></details>
     ${xvPanel(v)}
-    <label class="l" style="margin-top:8px">카드 번호<input type="text" data-card value="${esc(v.card||'')}" placeholder="카드를 스캔하세요" autocomplete="off"></label>`;
+    <label class="l" style="margin-top:8px">카드 번호<input type="text" data-card value="${esc(v.card||'')}" placeholder="카드를 스캔하세요" autocomplete="off"></label>
+    <div class="actions" style="margin-top:4px"><button type="button" class="btn sm${v.card?'':' primary'}" data-act="cam-link">📷 카메라로 카드 ${v.card?'바꾸기':'연결'}${v.step<0?' + 도착 처리':''}</button></div>`;
   if(v.step<0){
     return head+`<div class="sect"><p style="margin:0 0 10px">아직 도착 전입니다. 보호자와 함께 내원하면 도착 처리하세요.</p>
       <div class="actions" style="margin-top:0"><button class="btn primary" data-act="arrive">내원 확인 (도착 처리)</button>${delBtn(v)}</div></div>`;
@@ -1478,7 +1498,7 @@ function advance(v,force){
   put(v,true);renderAll(true);
 }
 function grMark(v){return v.gr&&v.gr.ready?(v.gr.reviewed?' ✓':' (확인 전)'):''}
-function grPill(v){return v.gr&&v.gr.ready?(v.gr.reviewed?'<span class="pill ok">리포트 ✓</span>':'<span class="pill warn">리포트 확인 전</span>'):''}
+function grPill(v){return v.gr&&v.gr.ready?(v.gr.reviewed?'<span class="pill ok">리포트 ✓</span>':(v.gr.src&&v.gr.src!=='today'?'<span class="pill">📝 가안</span>':'<span class="pill warn">리포트 확인 전</span>')):''}
 /* 바로 완료: 남은 단계(계측·X-ray·채혈·진료·수납 등)를 건너뛰고 완료로 보냅니다. 되돌리면 원래 단계로 돌아갑니다. */
 function quickDone(v){
   if(!v||v.step<0||v.step>=10)return;
@@ -1530,6 +1550,7 @@ function onAction(act,el){
     case 'gr-optauto':FR.setOpt('autoprint',!!el.checked);renderAll(false);if(el.checked)toast('이 기기에서 자동 인쇄를 켰어요. 원장 확인이 끝난 리포트가 올라오면 바로 인쇄 창이 떠요.');break;
     case 'gr-paste':FR.pasteClick();break;
     case 'gr-booked':UI.grBooked=!UI.grBooked;renderAll(false);break;
+    case 'cam-link':if(v)CAM.open('link',v.id);break;
     case 'quick-done':if(v)quickDone(v);break;
     case 'sound':toggleSound();break;
     case 'res-done':{const k=el.dataset.k;if(!v||!k)break;if(!v.lab.results)v.lab.results={};if(!v.lab.at)v.lab.at={};v.lab.results[k]='완료';v.lab.at[k]=Date.now();put(v,true);renderAll(true);break}
@@ -1564,7 +1585,7 @@ const PREFIX_ROOM={W:'wait',F:'fluid',P:'clin',B:'lab',X:'xray',D:'doctor',E:'ex
 function prefixLegend(){return Object.keys(PREFIX_ROOM).filter(k=>ROOMS[PREFIX_ROOM[k]]).map(k=>k+'- '+ROOMS[PREFIX_ROOM[k]].label).join(' · ')}
 function focusScan(){const s=$('#scan');if(!s.hidden)s.focus()}
 function setStation(val,save){
-  $('#station').value=val;$('#scan').hidden=!val;$('#labmode-wrap').hidden=!(val==='lab'||val==='multi');$('#pfx-legend').hidden=val!=='multi';
+  $('#station').value=val;$('#scan').hidden=!val;try{$('#btn-cam').hidden=!val}catch(e){}$('#labmode-wrap').hidden=!(val==='lab'||val==='multi');$('#pfx-legend').hidden=val!=='multi';
   if(save){try{localStorage.setItem(STATION_KEY,val)}catch(e){}}
   if(val==='multi')$('#pfx-legend').textContent='스캐너 접두어: '+prefixLegend();
   if(val)focusScan();else $('#scan-msg').textContent='';
@@ -1573,9 +1594,23 @@ function scanMsg(t,bad){
   const m=$('#scan-msg');m.textContent=t;m.style.color=bad?'var(--bad)':'var(--ok)';
   clearTimeout(scanMsg.t);scanMsg.t=setTimeout(()=>{m.textContent=''},7000);
 }
+/* 카드는 재사용하므로 오늘 방문에만 유효합니다 (지난 방문에 남은 연결은 무시) */
+const isTodayV=v=>{const d=v.date||(v.createdAt?(()=>{const t=new Date(v.createdAt);return t.getFullYear()+'-'+pad(t.getMonth()+1)+'-'+pad(t.getDate())})():'');return d===todayYmd()};
+function cardCode(raw){let c=String(raw||'').trim();const m=c.match(/[?&]c=([^&#\s]+)/);if(m){try{c=decodeURIComponent(m[1])}catch(e){c=m[1]}}return c.trim()}
+/* 카드 연결: 같은 카드가 지난 방문에 남아 있으면 풀고, 도착 전이면 도착 처리까지 */
+function linkCard(v,raw){
+  const code=cardCode(raw);if(!v||!code)return false;
+  const lc=code.toLowerCase(),dup=list().find(x=>x.id!==v.id&&isTodayV(x)&&x.step<10&&x.card&&x.card.toLowerCase()===lc);
+  if(dup){toast('이미 '+(dup.name||'다른')+' 환자에게 연결된 카드예요: '+code);return false}
+  S.items.forEach(x=>{if(x.id!==v.id&&x.card&&x.card.toLowerCase()===lc){x.card='';put(x,false)}});
+  v.card=code;let arrived=false;if(v.step<0){v.step=0;v.log=[{s:0,t:Date.now()}];arrived=true}
+  put(v,true);renderAll(true);
+  toast((v.name||'환자')+': 카드 '+code+' 연결'+(arrived?' · 도착 처리':'')+' — 보호자 폰으로 QR을 찍으면 대기 현황과 영상이 떠요.');
+  return true;
+}
 function findByCard(code){
   const c=code.trim().toLowerCase();
-  const act=list().filter(v=>v.step<10).sort((a,b)=>b.createdAt-a.createdAt);
+  const act=list().filter(v=>v.step<10&&isTodayV(v)).sort((a,b)=>b.createdAt-a.createdAt);
   /* 카드 번호가 먼저, 없으면 EMR 라벨 등으로 읽은 등록번호로 찾습니다 */
   return act.find(v=>v.card&&v.card.toLowerCase()===c)||act.find(v=>v.chartNo&&String(v.chartNo).toLowerCase()===c);
 }
@@ -1597,13 +1632,17 @@ function handleScan(raw){
   else if(sel==='multi'){scanMsg('방 접두어가 없는 스캔입니다: '+code+' · 스캐너 설정을 확인해 주세요 ('+prefixLegend()+')',true);return}
   if(!st){scanMsg('이 단말의 위치를 먼저 선택해 주세요.',true);return}
   if(st==='kiosk'){
-    const kv=findByCard(code)||list().filter(x=>x.card&&x.card.toLowerCase()===code.toLowerCase()).sort((a,b)=>b.createdAt-a.createdAt)[0];
+    const kv=findByCard(code)||list().filter(x=>isTodayV(x)&&x.card&&x.card.toLowerCase()===code.toLowerCase()).sort((a,b)=>b.createdAt-a.createdAt)[0];
     if(!kv){scanMsg('연결된 환자가 없는 카드입니다.',true);return}
     showKiosk(kv);return;
   }
   if(!S.canWrite){scanMsg('보기 전용 화면에서는 기록할 수 없습니다.',true);return}
   const v=findByCard(code);
-  if(!v){scanMsg('연결된 환자가 없는 카드입니다: '+code,true);return}
+  if(!v){
+    /* 연결 안 된 카드: 환자를 먼저 눌러 둔 상태면 그 환자에게 연결(+도착 처리) */
+    const sv=UI.sel&&S.items.get(UI.sel);
+    if(sv&&isTodayV(sv)&&!sv.card&&sv.step<10){if(linkCard(sv,code))scanMsg(sv.name+' · 카드 '+code+' 연결');return}
+    scanMsg('연결된 환자가 없는 카드입니다: '+code+' — 환자를 먼저 누르고 찍으면 연결돼요.',true);return}
   const now=Date.now();
   if(v.step<0){
     if(st!=='exit'){scanMsg(v.name+': 아직 도착 전입니다. 출입구에서 먼저 스캔해 주세요.',true);return}
@@ -1788,10 +1827,9 @@ function bindEvents(){
     const t=e.target,v=UI.sel?S.items.get(UI.sel):null;if(!v)return;
     if(t.hasAttribute('data-card')){
       if(e.type!=='change')return;
-      const c=t.value.trim();
-      if(c){const dup=list().find(x=>x.id!==v.id&&x.step<10&&x.card&&x.card.toLowerCase()===c.toLowerCase());
-        if(dup){toast('이미 '+dup.name+' 환자에게 연결된 카드입니다.');t.value=v.card||'';return}}
-      v.card=c;put(v,true);toast(c?'카드를 연결했습니다.':'카드 연결을 해제했습니다.');return;
+      const c=cardCode(t.value);
+      if(c){if(!linkCard(v,c))t.value=v.card||'';return}
+      v.card='';put(v,true);toast('카드 연결을 해제했습니다.');return;
     }
     const isBox=t.type==='checkbox',isSel=t.tagName==='SELECT';
     if(e.type==='input'&&(isBox||isSel))return;
@@ -1856,7 +1894,7 @@ function bindEvents(){
     if(!name&&chartNo0){name='등록번호 '+chartNo0;noName=true}
     if(!name){$('#af-chart').focus();toast('등록번호를 입력하거나 이름을 입력해 주세요.');return}
     const card=$('#af-card').value.trim();
-    if(card){const dup=list().find(x=>x.step<10&&x.card&&x.card.toLowerCase()===card.toLowerCase());
+    if(card){const dup=list().find(x=>x.step<10&&isTodayV(x)&&x.card&&x.card.toLowerCase()===card.toLowerCase());
       if(dup){toast('이미 '+dup.name+' 환자에게 연결된 카드입니다.');return}}
     const arrived=e.submitter&&e.submitter.dataset.mode==='arrived';
     {const cn=chartNo0.replace(/\D/g,''),nm=name.replace(/\s/g,''),td0=todayYmd();
@@ -1897,7 +1935,9 @@ const PM_DEFAULT_ID='AKfycbzTNYUR8rlsZSmQl1AQrIkB-HGARhUQDwP4nrDFti3R7-ip4ipRGOq
 function pmApi(){const a=new URLSearchParams(location.search).get('a')||PM_DEFAULT_ID;return /^https?:/.test(a)?a:'https://script.google.com/macros/s/'+a+'/exec'}
 async function pmLoad(){
   try{
-    const r=await fetch(pmApi(),{method:'POST',body:JSON.stringify({action:'flowme',card:PM_CODE})});
+    let r;
+    try{r=await fetch(PM.alt?'https://script.google.com/macros/s/'+PM_DEFAULT_ID+'/exec':pmApi(),{method:'POST',body:JSON.stringify({action:'flowme',card:PM_CODE})});if(!r.ok)throw 0}
+    catch(e0){if(PM.alt||pmApi().indexOf(PM_DEFAULT_ID)>=0)throw e0;PM.alt=true;return pmLoad()}
     const j=await r.json();
     if(j&&j.status==='ok'){PM.fail=0;PM.d=j.visit||null;PM.off=(j.now||Date.now())-Date.now();pmRender(true)}
     else{PM.fail++;pmRender(true)}
@@ -2685,6 +2725,7 @@ function act(kind){
 return{setM:setM,act:act,build:build,compute:compute,pagesHTML:pagesHTML,paint:paint,fit:fit,parsePast:parsePast};
 })();
 const FR=(function(){
+function todayList(){return list().filter(function(v){return isTodayV(v)})}   // 리포트는 오늘 방문만
 function addMonths(dateStr, months){
   const d = new Date(dateStr+'T00:00:00');
   d.setMonth(d.getMonth()+months);
@@ -2919,6 +2960,7 @@ async function callAI(v,g,add,compare,intake,kind){
 
 /* ---- 화면 상태 ---- */
 var ST={id:null,busy:false,timer:null,msg:'',bad:false};
+var BUSY={};   // 아이별 AI 정리 중 (id → true). 정리 결과는 시작한 아이에게만 저장합니다.
 function V(){return ST.id?S.items.get(ST.id):null}
 function sexOf(v){return v.sex==='남'?'M':v.sex==='여'?'F':''}
 function hasPost(po){return !!po&&['summary','labs','xray','direction','exercise','nutrition','sleep','nextDate'].some(function(k){return String(po[k]||'').trim()})}
@@ -2927,7 +2969,8 @@ function modelOf(v){
   return GR.compute(GR.build(Object.assign({name:v.name||''},g)).st);
 }
 function say(t,bad){ST.msg=t;ST.bad=!!bad;var e=document.getElementById('grmsg');if(e){e.textContent=t;e.style.color=bad?'#b63a32':''}}
-function commit(g,now){var v=V();if(!v)return;g.at=Date.now();g.from='flow';g.ready=hasPost(g.post);v.gr=g;put(v,!!now)}
+function commit(g,now){var v=V();if(!v)return;commitTo(v.id,g,now)}
+function commitTo(id,g,now){var v=S.items.get(id);if(!v)return;g.at=Date.now();g.from='flow';g.ready=hasPost(g.post);v.gr=g;put(v,!!now)}
 function collect(){
   var v=V();if(!v)return null;
   var g=Object.assign({},v.gr||{}),val=function(id){var e=document.getElementById(id);return e?String(e.value||'').trim():''};
@@ -2991,15 +3034,16 @@ function shellHtml(v){
     '<button class="btn" data-fr="print" id="fr-printbtn" hidden>🖨 인쇄</button>'+
     '<button class="btn" data-fr="pdf" id="fr-pdfbtn" hidden>PDF 다시 저장</button>'+
     '<button class="btn ghost" data-fr="close">닫기</button></div></div>'+
+    '<div class="grxv" id="fr-xv"></div>'+
     '<div class="grtip" id="fr-tip" hidden></div>'+
-    '<div class="grbody"><div class="gredit" id="gredit">'+editorHtml(v)+'</div>'+
+    '<div class="grbody"><div class="gredit" id="gredit"><div id="fr-diff"></div>'+editorHtml(v)+'</div>'+
     '<div class="grscroll"><div class="gr-wrap" id="gr-wrap"><div class="gr-inner" id="gr-inner"></div></div></div></div>';
 }
 function syncBar(){
   var v=V(),g=v&&v.gr,o=document.getElementById('grov');if(!o)return;
   var m=modelOf(v),ok=!m.error,rev=!!(g&&g.reviewed);
   var s=function(id,fn){var e=document.getElementById(id);if(e)fn(e)};
-  s('fr-okbtn',function(e){e.hidden=rev;e.disabled=ST.busy||SAVING||!ok||!(g&&g.ready);e.textContent=pdfOn()?'✅ 확인 · PDF 저장':'✅ 확인 완료'});
+  s('fr-okbtn',function(e){e.hidden=rev;e.disabled=!!BUSY[ST.id]||SAVING||!ok||!(g&&g.ready);e.textContent=pdfOn()?'✅ 확인 · PDF 저장':'✅ 확인 완료'});
   s('fr-unrevbtn',function(e){e.hidden=!rev});
   s('fr-printbtn',function(e){e.hidden=!rev;e.disabled=!(ok&&rev)});
   s('fr-pdfbtn',function(e){e.hidden=!rev;e.disabled=!(ok&&rev)});
@@ -3013,8 +3057,8 @@ function onEdit(e){
   if(e.target&&e.target.id==='fr-chart')return;
   if(e.target&&e.target.classList&&e.target.classList.contains('frVid')&&e.target.checked&&document.querySelectorAll('.frVid:checked').length>3){e.target.checked=false;toast('영상은 3편까지만 고를 수 있어요.');return}
   infoSum();if(e.target&&e.target.tagName==='TEXTAREA'&&e.target.id!=='fr-chart')autosize(e.target);
-  clearTimeout(ST.timer);
-  ST.timer=setTimeout(function(){ST.timer=null;var g=collect();if(!g)return;commit(g,false);refresh()},450);
+  clearTimeout(ST.timer);var tid=ST.id;
+  ST.timer=setTimeout(function(){ST.timer=null;if(ST.id!==tid)return;var g=collect();if(!g)return;commit(g,false);refresh()},450);
 }
 function onKey(e){if(e.key==='Escape')close();else if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();confirmSave()}}
 function close(){
@@ -3025,8 +3069,8 @@ function close(){
 }
 function open(id,opt){
   var v=S.items.get(id);if(!v){toast('환자를 찾을 수 없습니다.');return}
-  var o0=document.getElementById('grov');if(o0)o0.remove();
-  ST.id=id;ST.busy=false;
+  if(document.getElementById('grov'))close();
+  ST.id=id;ST.busy=!!BUSY[id];
   var o=document.createElement('div');o.className='grov';o.id='grov';o.innerHTML=shellHtml(v);
   if(!(v.gr&&v.gr.ready))o.classList.add('editing');
   document.body.appendChild(o);
@@ -3050,6 +3094,7 @@ function open(id,opt){
     else if(k==='print')printFor(ST.id);
     else if(k==='pdf')GR.act('pdf');
     else if(k==='ok')confirmSave();
+    else if(k==='xv')toggleXv(b.dataset.n);
     else if(k==='tolater')toLater();
     else if(k==='review')setReviewed(true);
     else if(k==='unreview')setReviewed(false);
@@ -3058,13 +3103,15 @@ function open(id,opt){
   });
   o.addEventListener('input',onEdit);o.addEventListener('change',onEdit);
   var ce=document.getElementById('fr-chart');
-  if(ce)ce.addEventListener('paste',function(){setTimeout(function(){if(!ST.busy&&String(ce.value||'').trim().length>=150)run(true)},60)});
+  if(ce)ce.addEventListener('paste',function(){setTimeout(function(){if(!BUSY[id]&&String(ce.value||'').trim().length>=150)run(true)},60)});
   document.addEventListener('keydown',onKey);
   window.addEventListener('resize',function(){GR.fit();autosizeAll()});
   o.addEventListener('toggle',autosizeAll,true);
   refresh();
   say(v.gr&&v.gr.ready?(v.gr.reviewed?'원장 확인이 끝난 리포트예요.':'내용을 읽고 ✅ 확인'+(pdfOn()?' · PDF 저장':'')+' (Ctrl+Enter)을 눌러 주세요.'):'EMR 차트를 붙여넣으면(Ctrl+V) AI가 바로 정리해요.');
-  showTip(isBlood(v)&&!(v.gr&&v.gr.reviewed)?'blood':'');
+  showTip(BUSY[id]?'':(isBlood(v)&&!(v.gr&&v.gr.reviewed)?'blood':srcTip(v.gr)));
+  xvStrip();showDiff(id);markChanges(id);
+  if(BUSY[id])say('이 아이 차트를 AI가 정리하는 중이에요… 끝나면 자동으로 채워져요.');
   setTimeout(GR.fit,60);
   if(opt&&opt.chart){var ce3=document.getElementById('fr-chart');if(ce3){ce3.value=opt.chart;o.classList.add('editing');run(true)}}
 }
@@ -3074,29 +3121,96 @@ function setReviewed(flag){
   g.reviewed=!!flag;g.reviewedAt=flag?Date.now():null;g.printedAt=null;commit(g,true);refresh();
   say(flag?'확인 완료 — 이제 직원이 인쇄할 수 있어요.':'확인을 취소했어요.');
 }
+/* 초진기록지 안의 키·몸무게(예: "최근 성장 기록 … 키 (130.0)cm 몸무게 (28.0)kg")를 측정 기록으로 읽기. 부모 키·희망 키 줄은 건너뜀 */
+function introRecs(text,visitDate){
+  var L=String(text||'').split('\n'),out=[],seen={};
+  var SKIP=/(아버지|어머니|아빠|엄마|^\s*[#＃*＊]?\s*(부|모)\s*[:：(]|형제|자매|희망|목표|예상|PAH|MPH|중간\s*부모|출생|태어|week)/i;
+  for(var i=0;i<L.length;i++){
+    var l=L[i];if(SKIP.test(l))continue;
+    var h=l.match(/(\d{2,3}(?:\.\d{1,2})?)\s*\)?\s*(?:cm|㎝|센티)/i)||l.match(/(?:키|신장)\s*[:：]?\s*\(?\s*(\d{2,3}\.\d{1,2})/);
+    var w=l.match(/(\d{1,3}(?:\.\d{1,2})?)\s*\)?\s*(?:kg|㎏|킬로)/i)||l.match(/(?:몸무게|체중)\s*[:：]?\s*\(?\s*(\d{1,3}\.\d{1,2})/);
+    if(!h)continue;var hv=parseFloat(h[1]);if(!(hv>=45&&hv<=200))continue;
+    var dm=l.match(/(20\d{2})\s*[.\-\/년]\s*(\d{1,2})\s*[.\-\/월]\s*(\d{1,2})/);
+    var date=dm?dm[1]+'-'+pad(+dm[2])+'-'+pad(+dm[3]):(visitDate||todayStr());
+    if(seen[date])continue;seen[date]=1;
+    out.push({date:date,height:hv,weight:w?parseFloat(w[1]):null,boneAgeWristMonths:null});
+  }
+  return out;
+}
+function isIntakeChart(text){return /(\(\s*\d+\s*(\+\s*\d+\s*)?\)\s*week|희망\s*키|최근\s*성장\s*기록|과거\s*병력|걱정거리|사춘기\s*징후)/i.test(String(text||''))}
+function srcOf(text,parsed,add,date){
+  if(parsed.some(function(r){return r.date===date}))return 'today';
+  if(isIntakeChart(text))return String(add.plan||'').trim()?'today':'intake';
+  return 'old';
+}
+function srcTip(g){
+  if(!g||!g.ready||g.reviewed||!g.src||g.src==='today')return '';
+  return 'draft:'+g.src;
+}
+/* 진료 전 차트는 이 기기(원장 PC)에 오늘만 보관 — 진료 후 EMR과 비교해 새로 들어간 줄을 보여 줍니다. 서버에는 올리지 않아요. */
+var PRE_KEY='jrd_gr_pre:';
+function preGet(id){try{var o=JSON.parse(localStorage.getItem(PRE_KEY+id)||'null');return o&&o.d===todayStr()?o.t:''}catch(e){return ''}}
+function preSet(id,t){try{localStorage.setItem(PRE_KEY+id,JSON.stringify({d:todayStr(),t:String(t).slice(0,20000)}))}catch(e){}}
+(function(){try{var td=todayStr();Object.keys(localStorage).forEach(function(k){if(k.indexOf(PRE_KEY)!==0)return;try{var o=JSON.parse(localStorage.getItem(k));if(!o||o.d!==td)localStorage.removeItem(k)}catch(e){localStorage.removeItem(k)}})}catch(e){}})();
+var DIFF={},REC={};
+function normL(l){return String(l||'').replace(/\s+/g,' ').trim()}
+function newLines(oldT,newT){var o={};String(oldT).split('\n').forEach(function(l){var n=normL(l);if(n)o[n]=1});var seen={};return String(newT).split('\n').map(normL).filter(function(n){if(!n||o[n]||seen[n])return false;seen[n]=1;return /[0-9A-Za-z가-힣]/.test(n.replace(/^[#＃*＊\s:：()]+/,''))})}
+/* 차트에서 오늘 검사 영상 추천: GnRH/LHRH 자극 → 2, GH 자극 → 5, 그 밖의 혈액검사 → 1 */
+function recXv(text){
+  var add=splitAdded(text),t=(String(add.plan||'')+'\n'+String(add.labs||'')).split('\n').filter(function(l){return !LATER_RE.test(l)}).join('\n'),r='';
+  if(/(LHRH|GnRH\s*(stim|자극)|성조숙증\s*(확진|자극))/i.test(t))r+='2';
+  if(/(GH\s*(stim|자극)|성장호르몬\s*자극|arginine|clonidine|L-?dopa|\bITT\b|glucagon)/i.test(t))r+='5';
+  if(!r&&chartBlood(text))r='1';
+  return r;
+}
+/* 치료 중 표기(GH(2026-04-04~) / GnRHa(2026-04-04~)) → 치료 경과 영상 3/4 자동 추가 */
+function treatXv(text){var s='';if(/\bGH\s*\(\s*20\d{2}[-.]\d{1,2}[-.]\d{1,2}\s*~/i.test(text))s+='3';if(/GnRHa?\s*\(\s*20\d{2}[-.]\d{1,2}[-.]\d{1,2}\s*~/i.test(text))s+='4';return s}
+function quickSrc(text){var d=todayStr();return srcOf(text,extractGrowthTableFromNote(text),splitAdded(text),d)}
 async function run(useAI){
-  var v=V();if(!v||ST.busy)return;
+  var id=ST.id,v=V();if(!v||BUSY[id])return;
   var text=String((document.getElementById('fr-chart')||{}).value||'').replace(/\r/g,'').trim();
   if(!text){say('EMR 차트를 먼저 붙여넣어 주세요.',true);return}
   var g0=collect()||{};
-  if(hasPost(g0.post)&&!confirm('이미 입력된 내용을 이번 정리 결과로 덮어쓸까요?'))return;
-  ST.busy=true;var bb=document.getElementById('fr-aibtn');if(bb)bb.disabled=true;syncBar();
-  say(useAI?'차트를 읽고 AI가 정리하는 중… (10~20초)':'차트를 읽는 중…');
+  if(g0.reviewed&&hasPost(g0.post)&&!confirm('이미 확인을 끝낸 리포트예요. 새 차트로 통째로 바꿀까요?'))return;
+  if(hasPost(g0.post))commitTo(id,g0,false);   // 창에서 고친 가안을 먼저 저장(바뀐 부분 비교용)
+  return runFor(id,text,useAI);
+}
+async function runFor(id,text,useAI,opt){
+  opt=opt||{};var v=S.items.get(id);if(!v||BUSY[id])return false;
+  text=String(text||'').replace(/\r/g,'').trim();if(!text)return false;
+  var here=function(){return ST.id===id&&!!document.getElementById('grov')};
+  var sayH=function(t,bad){if(here())say(t,bad)};
+  BUSY[id]=true;
+  if(ST.id===id){ST.busy=true;var bb=document.getElementById('fr-aibtn');if(bb)bb.disabled=true;syncBar();showTip('')}
+  renderAll(false);
+  sayH(useAI?'차트를 읽고 AI가 정리하는 중… (10~20초) — 그동안 다른 아이 차트를 붙여넣어도 돼요':'차트를 읽는 중…');
   try{
-    var parsed=extractGrowthTableFromNote(text),g=Object.assign({},g0);
-    g.recsText=mergeRecs(g0.recsText||'',parsed);
-    if(!g.dob)g.dob=v.dob||findDob(text)||'';
-    if(!g.sex)g.sex=sexOf(v);
+    /* 새 차트로 통째로 교체: 측정 기록·생년월일·부모 키·진료 후 기록 모두 이번 차트에서 다시 읽습니다 (이전 내용과 합치지 않음) */
+    var old=v.gr||{},oldPost=old.ready&&old.post?Object.assign({},old.post):null,date=todayStr(),g={date:date};
+    if(old.blood!=null)g.blood=old.blood;if(old.q)g.q=old.q;
+    var parsed=extractGrowthTableFromNote(text),recs=parsed.length?parsed:introRecs(text,date);
+    g.recsText=mergeRecs('',recs);
+    var cdob=findDob(text),notes=[];
+    g.dob=v.dob||cdob||'';
+    if(v.dob&&cdob&&v.dob!==cdob)notes.push('⚠️ 차트의 생년월일('+cdob+')이 이 환자('+v.dob+')와 달라요. 다른 아이 차트가 아닌지 확인해 주세요.');
+    g.sex=sexOf(v);
     if((!g.dob||!g.sex)&&/\d{3,}/.test(v.chartNo||'')){
       try{
         var pj=await api({action:'flowprepare',chartNo:v.chartNo,chart:text.slice(0,6000)});
-        var idn=pj&&pj.status==='ok'&&pj.source==='patient'&&pj.identity;
+        var idn=pj&&pj.status==='ok'&&pj.identity;
         if(idn){if(!g.dob&&idn.dob)g.dob=String(idn.dob).slice(0,10);if(!g.sex&&idn.sex)g.sex=/^(M|남)/i.test(idn.sex)?'M':/^(F|여)/i.test(idn.sex)?'F':''}
+        if(!g.sex&&pj&&pj.sexGuess)g.sex=pj.sexGuess;
       }catch(e){}
     }
-    if(!g.date)g.date=todayStr();
-    var par=findParents(text);if(!g.fh&&par.fh)g.fh=par.fh;if(!g.mh&&par.mh)g.mh=par.mh;
-    var add=splitAdded(text),draft=localDraft(text,add,g.date),A=null,warn='';
+    var par=findParents(text),it=v.intake||{};g.fh=par.fh||it.fatherH||'';g.mh=par.mh||it.motherH||'';
+    var add=splitAdded(text),draft=localDraft(text,add,date),A=null,warn='';
+    g.src=srcOf(text,parsed,add,date);g.srcAt=Date.now();
+    /* 진료 전 차트 기억 / 진료 후엔 새로 들어간 줄을 AI에 먼저 알려 줌 */
+    var pre=preGet(id),nl=[];
+    if(g.src!=='today')preSet(id,text);
+    else if(pre)nl=newLines(pre,text);
+    if(nl.length)add.text='[오늘 새로 추가된 차트 내용]\n'+nl.join('\n').slice(0,2500)+(add.text?'\n\n'+add.text:'');
+    REC[id]=recXv(text);
     if(useAI){
       var ai;
       try{ai=await callAI(v,g,add,compareText(parsed),(v.first&&!v.rev)?[v.intake&&v.intake.chief,v.intake&&v.intake.history,v.intake&&v.intake.signs].filter(Boolean).join('\n').slice(0,3000):'',(v.first&&!v.rev)?'first':'revisit')}
@@ -3108,14 +3222,59 @@ async function run(useAI){
     g.post={summary:pick('summary',draft.summary),labs:pick('labs',draft.labs),xray:pick('xray',draft.xray),direction:pick('direction',draft.direction),
       exercise:pick('exercise',fvLifestyleDraft('exercise',shim)),nutrition:pick('nutrition',fvLifestyleDraft('nutrition',shim)),sleep:pick('sleep',fvLifestyleDraft('sleep',shim)),
       nextDate:draft.nextDate||'',tests:draft.tests||[],videos:pickVideos(add.text||text,v.vids)};
-    g.reviewed=false;g.reviewedAt=null;g.ai=!!A;
-    commit(g,true);fillEditor(g);refresh();
-    var m=modelOf(V()),notes=[];
+    g.reviewed=false;g.reviewedAt=null;g.printedAt=null;g.ai=!!A;
+    DIFF[id]=(g.src==='today'&&(pre||oldPost))?{lines:pre?nl:null,oldPost:oldPost,oldSrc:old.src||''}:null;
+    var vv=S.items.get(id);if(!vv)return false;
+    var tx=treatXv(text);if(tx){var cx=String(vv.xv||'');tx.split('').forEach(function(n){if(cx.indexOf(n)<0)cx+=n});vv.xv=cx.split('').sort().join('')}
+    commitTo(id,g,true);
+    var m=modelOf(vv);
     if(m.error)notes.push(m.error);
-    say((A?'✅ AI가 정리했어요':'✅ 정리했어요(AI 없이)')+' — 읽어 보고 ✅ 확인'+(pdfOn()?' · PDF 저장':'')+' (Ctrl+Enter)'+(warn?' · '+warn:'')+(notes.length?' · '+notes.join(' '):''),!!(warn||notes.length));
-    var cb=chartBlood(text),vv=V();showTip(vv&&isBlood(vv)?'blood':(cb?cb:''));
-  }catch(e){say('정리하지 못했어요: '+((e&&e.message)||'차트 형식을 확인해 주세요'),true)}
-  finally{ST.busy=false;var b2=document.getElementById('fr-aibtn');if(b2)b2.disabled=false;syncBar()}
+    if(!recs.length)notes.push('차트에서 키·몸무게를 찾지 못했어요 — ②에 직접 넣어 주세요.');
+    var srcMsg=g.src==='today'?(nl.length?' · 진료 전 가안 대비 새로 들어간 차트 '+nl.length+'줄':''):(g.src==='intake'?' · 진료 전 가안(초진기록지)':' · 진료 전 가안(지난 차트)');
+    if(here()){
+      fillEditor(g);refresh();
+      say((A?'✅ AI가 정리했어요':'✅ 정리했어요(AI 없이)')+srcMsg+' — 읽어 보고 ✅ 확인'+(pdfOn()?' · PDF 저장':'')+' (Ctrl+Enter)'+(warn?' · '+warn:'')+(notes.length?' · '+notes.join(' '):''),!!(warn||notes.length));
+      showTip(isBlood(vv)?'blood':srcTip(g));xvStrip();showDiff(id);markChanges(id);
+    }else if(!opt.quiet)toast((vv.name||'')+': '+(g.src==='today'?'리포트 정리 끝 — 목록에서 열어 확인하세요':'진료 전 가안 작성 끝')+(notes.length?' · 확인할 점 있음':''));
+    return true;
+  }catch(e){sayH('정리하지 못했어요: '+((e&&e.message)||'차트 형식을 확인해 주세요'),true);if(!here())toast('리포트를 정리하지 못했어요: '+((e&&e.message)||''));return false}
+  finally{delete BUSY[id];if(ST.id===id)ST.busy=false;var b2=document.getElementById('fr-aibtn');if(b2&&ST.id===id)b2.disabled=false;syncBar();renderAll(false)}
+}
+/* ---- 창: 오늘 검사·환자 폰 영상 (누르면 바로 환자 폰에) ---- */
+function xvStrip(){
+  var el=document.getElementById('fr-xv'),v=V();if(!el||!v)return;
+  var sel=String(v.xv||''),rec=REC[v.id]||'';
+  el.innerHTML='<b>오늘 검사 · 환자 폰 영상</b>'+XVIDEOS.filter(function(x){return !x.always}).map(function(x){
+    var on=sel.indexOf(String(x.no))>=0,hint=!on&&rec.indexOf(String(x.no))>=0;
+    return '<button type="button" class="xvchip'+(on?' on':'')+'" data-fr="xv" data-n="'+x.no+'" aria-pressed="'+on+'">'+(on?'✓ ':'')+([1,2,5].indexOf(x.no)>=0?'🩸 ':'💉 ')+esc(x.tag)+(hint?' <small>차트 추천</small>':'')+'</button>'}).join('')+
+    '<span class="meta">🩸 검사를 고르면 「결과 나오면 보고」로 분류 · 영양·운동·수면은 모든 환자 기본</span>';
+}
+function toggleXv(n){
+  var v=V();if(!v)return;n=String(n);var c=String(v.xv||'').split('').filter(Boolean),k=c.indexOf(n);
+  if(k>=0)c.splice(k,1);else c.push(n);v.xv=c.sort().join('');
+  if(/[125]/.test(v.xv)&&v.gr&&v.gr.blood===false){v.gr=Object.assign({},v.gr);delete v.gr.blood}
+  put(v,true);xvStrip();showTip(isBlood(v)&&!(v.gr&&v.gr.reviewed)?'blood':srcTip(v.gr));renderAll(false);
+  var x=XVIDEOS.find(function(y){return String(y.no)===n});toast((v.name||'')+': '+(k>=0?'영상 끔 — ':'환자 폰에 영상 띄움 — ')+(x?x.tag:n));
+}
+/* ---- 창: 진료 후 EMR에서 새로 들어간 차트 줄 ---- */
+function showDiff(id){
+  var el=document.getElementById('fr-diff');if(!el)return;var d=DIFF[id];
+  if(!d||!d.lines){el.innerHTML='';return}
+  el.innerHTML='<details class="grdiff" open><summary>🆕 진료 전 차트와 비교해 오늘 새로 들어간 내용 '+d.lines.length+'줄</summary>'+
+    (d.lines.length?'<ol>'+d.lines.slice(0,60).map(function(l){return '<li>'+esc(l)+'</li>'}).join('')+'</ol>':'<p style="margin:6px 0 0">새로 들어간 줄이 없어요. 진료 후 차트가 맞는지 확인해 주세요.</p>')+'</details>';
+}
+/* ---- 창: 가안에서 바뀐 항목 표시 + 이전 가안 보기 ---- */
+var CHG_KEYS=['summary','labs','xray','direction','exercise','nutrition','sleep'];
+function markChanges(id){
+  [].forEach.call(document.querySelectorAll('#gredit .fr-old,#gredit .fr-chgb'),function(e){e.remove()});
+  [].forEach.call(document.querySelectorAll('#gredit .fr-f.chg'),function(e){e.classList.remove('chg')});
+  var d=DIFF[id],op=d&&d.oldPost,v=S.items.get(id),np=v&&v.gr&&v.gr.post;if(!op||!np)return;
+  CHG_KEYS.forEach(function(k){
+    var o=String(op[k]||'').trim(),n=String(np[k]||'').trim();if(!o||o===n)return;
+    var ta=document.getElementById('fr-'+k),lb=ta&&ta.closest('.fr-f');if(!lb)return;
+    lb.classList.add('chg');var bd=document.createElement('span');bd.className='fr-chgb';bd.textContent='바뀜';lb.insertBefore(bd,ta);
+    var dt=document.createElement('details');dt.className='fr-old';dt.innerHTML='<summary>진료 전 가안 보기</summary><div>'+esc(o)+'</div>';lb.insertAdjacentElement('afterend',dt);
+  });
 }
 
 /* ---- 인쇄 (A4 2쪽, 양면) ---- */
@@ -3139,7 +3298,7 @@ function printMany(ids,quiet){
     [].forEach.call(host.children,function(el,i){GR.paint(el,ms[i])});setTimeout(function(){window.print()},120);
   });
 }
-function printAll(){var ids=list().filter(function(v){return grState(v)===0}).map(function(v){return v.id});if(!ids.length){toast('인쇄할 리포트가 없어요.');return}printMany(ids)}
+function printAll(){var ids=todayList().filter(function(v){return grState(v)===0}).map(function(v){return v.id});if(!ids.length){toast('인쇄할 리포트가 없어요.');return}printMany(ids)}
 window.addEventListener('afterprint',function(){
   var h=document.getElementById('grprint');if(h)h.remove();
   var ids=window.__grPrintIds||[];window.__grPrintIds=null;var now=Date.now(),names=[];
@@ -3161,7 +3320,7 @@ function setOpt(k,on){try{localStorage.setItem('jrd_gr_'+k,on?'1':'0')}catch(e){
 function pdfOn(){return opt('pdf',true)}
 function autoOn(){return opt('autoprint',false)}
 function confirmSave(){
-  var v=V();if(!v||ST.busy||SAVING)return;
+  var v=V();if(!v||BUSY[ST.id]||SAVING)return;
   var b=document.getElementById('fr-okbtn');if(!b||b.hidden||b.disabled)return;
   var g=collect();if(!g)return;
   if(!hasPost(g.post)){say('진료 후 기록이 비어 있어요. EMR 차트를 붙여넣어 주세요.',true);return}
@@ -3186,6 +3345,7 @@ function showTip(x){
   if(!x){t.hidden=true;t.innerHTML='';return}
   t.hidden=false;
   t.innerHTML=x==='blood'?'🩸 혈액검사 결과 나오면 보고하기로 분류된 아이예요. 지금 확인하면 바로 직원 인쇄 대기로 넘어가요.'
+    :x.indexOf('draft:')===0?'📝 진료 전 가안이에요('+(x==='draft:intake'?'초진기록지':'지난 차트')+'로 작성). 진료가 끝나면 EMR 차트를 다시 붙여넣으세요 — 측정 기록까지 통째로 새 차트로 바뀌어요.'
     :'🩸 차트 플랜에 혈액검사가 보여요: <i>'+esc(x)+'</i> — 결과가 나온 뒤 보고할 아이라면 <button class="btn sm" data-fr="tolater">결과 나오면 보고로 보내기</button>';
 }
 
@@ -3194,6 +3354,7 @@ function bloodWhy(v){
   var g=v.gr||{};
   if(g.blood===false)return '';
   if(g.blood===true)return '직접 표시';
+  if(/[125]/.test(String(v.xv||'')))return '검사 영상';
   if(g.q&&g.q.blood)return '의사 앱';
   if(v.lab&&v.lab.drawn)return '채혈 기록';
   if((v.log||[]).some(function(l){return l&&l.s===5}))return '채혈실 기록';
@@ -3217,7 +3378,7 @@ function chartBlood(text){
 function looksLikeChart(t){t=String(t||'').trim();return t.length>=150||(t.length>=60&&/\n/.test(t))}
 function matchChart(txt){
   var T=String(txt||''),dob=findDob(T);
-  var hit=list().filter(function(v){
+  var hit=todayList().filter(function(v){
     var c=String(v.chartNo||'').replace(/\D/g,'');
     if(c.length>=4&&new RegExp('(^|\\D)'+c+'(\\D|$)').test(T))return true;
     var n=String(v.name||'').replace(/\s+/g,'');
@@ -3231,12 +3392,49 @@ function lastT(v){var l=v.log&&v.log.length?v.log[v.log.length-1].t:0;return l||
 function fromChart(txt){
   if(!S.canWrite){toast('보기 전용 화면에서는 리포트를 만들 수 없어요.');return}
   var c=matchChart(txt);
-  if(c.length===1){open(c[0].id,{chart:txt});return}
+  if(c.length===1){routeChart(c[0].id,txt);return}
   pickSheet(txt,c);
 }
+/* 진료 전 차트(지난 차트·초진기록지)는 창 없이 가안만 만들고, 오늘 EMR이면 창을 열어 바로 검토 */
+function routeChart(id,txt){
+  var v=S.items.get(id);if(!v)return;
+  if(BUSY[id]){toast((v.name||'')+': 이미 정리하는 중이에요.');return}
+  if(quickSrc(txt)==='today'||(v.gr&&v.gr.reviewed)){open(id,{chart:txt});return}
+  runFor(id,txt,true);
+  toast((v.name||'')+': 진료 전 가안 만드는 중 (창 없이) — 다음 아이 차트를 바로 붙여넣으세요.');
+}
+/* 오늘 명단에 없는 아이(당일 접수 초진 등): 차트에서 등록번호·이름을 읽어 바로 등록 → 가안 → 기록지 기반 대기 영상 */
+function guessChartNo(t){var m=String(t||'').match(/(?:등록\s*번호|차트\s*번호|환자\s*번호|병록\s*번호)\s*[:：]?\s*(\d{4,8})/);return m?m[1]:''}
+function guessName(t){var m=String(t||'').match(/(?:이름|성명|환아\s*명|아이\s*이름)\s*[:：]\s*([가-힣]{2,5})/);return m?m[1]:''}
+async function newFromChart(chartNo,name,text){
+  chartNo=String(chartNo||'').replace(/\D/g,'');name=String(name||'').trim();
+  if(!chartNo&&!name){toast('등록번호나 이름을 넣어 주세요.');return false}
+  var info={};
+  try{var j=await api({action:'flowlookup',chartNo:chartNo,name:chartNo?'':name,phone:''});var mm=j&&j.status==='ok'&&Array.isArray(j.matches)?j.matches:[];if(mm.length===1)info=mm[0]}catch(e){}
+  if(!info.name&&chartNo){try{var dd=await cdFind(chartNo);if(dd)info=Object.assign({},dd,info)}catch(e){}}
+  var intakeC=isIntakeChart(text),first=intakeC||!!info.first;
+  var v=newVisit({name:name||info.name||('등록번호 '+chartNo),chartNo:chartNo||info.chartNo||'',age:info.age!=null?info.age:'',sex:info.sex||'',first:first,rev:!first,vids:info.vids||'',step:0,log:[{s:0,t:Date.now()}],sameDay:true});
+  var dob=findDob(text);if(dob)v.dob=dob;
+  put(v,true);renderAll(false);
+  if(v.chartNo){
+    api({action:'flowprepare',chartNo:v.chartNo,chart:text.slice(0,6000)}).then(function(pj){
+      var x=S.items.get(v.id);if(!x||!pj||pj.status!=='ok')return;var ch=false,idn=pj.identity||{};
+      if(pj.vids&&!x.vids){x.vids=pj.vids;x.first=true;x.rev=false;ch=true}
+      if(idn.dob&&!x.dob){x.dob=String(idn.dob).slice(0,10);ch=true}
+      if(!x.sex&&(idn.sex||pj.sexGuess)){var sx=idn.sex||pj.sexGuess;x.sex=/^(M|남)/i.test(sx)?'남':'여';ch=true}
+      if(idn.name&&/^등록번호/.test(x.name||'')){x.name=idn.name;ch=true}
+      if(ch){put(x,true);renderAll(false);if(x.vids)toast((x.name||'')+': 기록지 기반 대기 영상 '+x.vids.split('').join('→')+' — 카드만 연결하면 폰에 떠요.')}
+    }).catch(function(){});
+  }
+  toast((v.name||'')+': 오늘 환자로 등록했어요'+(first?' (초진)':'')+'. 원무과에서 카드만 연결하면 보호자 폰에 영상이 떠요.');
+  routeChart(v.id,text);
+  return true;
+}
 function pasteIntoOpen(txt){
-  var c=matchChart(txt);
-  if(c.length===1&&c[0].id!==ST.id){close();open(c[0].id,{chart:txt});return}
+  var c=matchChart(txt),cur=V();
+  if(c.length===1&&c[0].id!==ST.id){close();routeChart(c[0].id,txt);return}
+  if(c.length>1&&!c.some(function(x){return x.id===ST.id})){close();pickSheet(txt,c);return}
+  var cd=findDob(txt);if(!c.length&&cd&&cur&&cur.dob&&cur.dob!==cd){close();pickSheet(txt,[]);toast('붙여넣은 차트의 생년월일이 지금 열린 아이와 달라요. 누구의 차트인지 골라 주세요.');return}
   var ce=document.getElementById('fr-chart'),o=document.getElementById('grov');if(!ce||!o)return;
   o.classList.add('editing');ce.value=txt;syncBar();run(true);
 }
@@ -3248,17 +3446,24 @@ function pasteClick(){
 var PICK='';
 function pickSheet(txt,cands){
   var old=document.getElementById('grpick');if(old)old.remove();
-  var a=(cands.length?cands:list().filter(function(v){return !(v.gr&&v.gr.reviewed)})).slice();
+  var a=(cands.length?cands:todayList().filter(function(v){return !(v.gr&&v.gr.reviewed)})).slice();
   a.sort(function(x,y){var bx=x.step<0?1:0,by=y.step<0?1:0;if(bx!==by)return bx-by;if(!bx)return lastT(y)-lastT(x);return String(x.appt||'99').localeCompare(String(y.appt||'99'))});
   PICK=txt;
   var o=document.createElement('div');o.id='grpick';o.className='grpick';
-  o.innerHTML='<div class="grpick-box" role="dialog" aria-label="환자 고르기"><b>누구의 차트인가요?</b><p>'+(cands.length?'이름·등록번호가 같은 환자가 여러 명이에요.':'차트에서 이름·등록번호를 찾지 못했어요.')+' 누르면 바로 리포트를 만들어요.</p>'+
-    (a.length?'<div class="grpick-list">'+a.slice(0,40).map(function(v){
+  var gc=guessChartNo(txt),gn=guessName(txt),strongNew=!cands.length&&(gc||gn);
+  var newBox='<div class="grnew"><b>➕ 오늘 명단에 없는 아이예요 (당일 접수 초진 등)</b><div class="hint" style="margin:2px 0 0">등록번호를 넣으면 의사 앱·접수자 명부에서 이름·나이를 찾아 바로 등록하고, 가안과 기록지 기반 대기 영상까지 만들어요.</div>'+
+    '<div class="f2"><input id="gn-chart" inputmode="numeric" placeholder="등록번호" value="'+esc(gc)+'"><input id="gn-name" placeholder="이름 (모르면 비워 두기)" value="'+esc(gn)+'"></div>'+
+    '<button class="btn primary" data-new="1">등록하고 가안 만들기</button></div>';
+  o.innerHTML='<div class="grpick-box" role="dialog" aria-label="환자 고르기"><b>누구의 차트인가요?</b>'+(strongNew?newBox:'')+'<p>'+(cands.length?'이름·등록번호가 같은 환자가 여러 명이에요.':'차트에서 이름·등록번호를 찾지 못했어요.')+' 누르면 바로 리포트를 만들어요.</p>'+
+    (a.length?'<div class="grpick-list">'+a.slice(0,60).map(function(v){
       var where=v.step<0?(v.appt?'예약 '+v.appt:'도착 전'):(STEPS[v.step]?STEPS[v.step].short:'귀가');
       return '<button class="btn" data-pick="'+v.id+'"><b>'+esc(v.name||'이름 없음')+'</b><span>'+esc([age(v),v.sex,v.chartNo,where].filter(Boolean).join(' · '))+(isBlood(v)?' · 🩸':'')+'</span></button>'}).join('')+'</div>'
-     :'<p>오늘 등록된 환자가 없어요. 먼저 환자를 등록해 주세요.</p>')+
-    '<button class="btn ghost" data-pick="">취소</button></div>';
-  o.addEventListener('click',function(e){var b=e.target.closest('[data-pick]');if(!b){if(e.target===o){o.remove();PICK=''}return}var id=b.dataset.pick,t=PICK;o.remove();PICK='';if(id)open(id,{chart:t})});
+     :'<p>오늘 명단에 고를 환자가 없어요.</p>')+
+    (strongNew?'':newBox)+'<button class="btn ghost" data-pick="">취소</button></div>';
+  o.addEventListener('click',function(e){
+    var nb=e.target.closest('[data-new]');
+    if(nb){var t0=PICK,cn=(document.getElementById('gn-chart')||{}).value||'',nm=(document.getElementById('gn-name')||{}).value||'';if(!cn.trim()&&!nm.trim()){toast('등록번호나 이름을 넣어 주세요.');return}o.remove();PICK='';newFromChart(cn,nm,t0);return}
+    var b=e.target.closest('[data-pick]');if(!b){if(e.target===o){o.remove();PICK=''}return}var id=b.dataset.pick,t=PICK;o.remove();PICK='';if(id)routeChart(id,t)});
   document.addEventListener('keydown',function k(e){if(e.key==='Escape'){var x=document.getElementById('grpick');if(x)x.remove();document.removeEventListener('keydown',k)}});
   document.body.appendChild(o);
 }
@@ -3267,7 +3472,7 @@ function pickSheet(txt,cands){
 var AUTO_DONE=new Set();
 function autoTick(){
   if(!autoOn()||!S.canWrite||!S.loaded||document.getElementById('grprint')||document.getElementById('grov'))return;
-  var ids=list().filter(function(v){return grState(v)===0&&!AUTO_DONE.has(v.id)}).map(function(v){return v.id});
+  var ids=todayList().filter(function(v){return grState(v)===0&&!AUTO_DONE.has(v.id)}).map(function(v){return v.id});
   if(!ids.length)return;
   ids.forEach(function(i){AUTO_DONE.add(i)});
   setTimeout(function(){printMany(ids,true)},500);
@@ -3280,41 +3485,44 @@ function qChips(v){
 }
 function grState(v){
   var g=v.gr||{};
-  if(g.ready&&g.reviewed)return g.printedAt?4:0;     // 0 인쇄 대기 / 4 인쇄 완료
-  if(isBlood(v))return 3;                              // 혈액검사 → 결과 나오면 보고
-  if(g.ready)return 1;                                 // AI 정리됨 · 원장 확인 전
-  return 2;                                            // 지금 리포트 · 차트 붙여넣기 대기
+  if(g.ready&&g.reviewed)return g.printedAt?5:0;     // 0 인쇄 대기 / 5 인쇄 완료
+  if(isBlood(v))return 4;                              // 혈액검사 → 결과 나오면 보고
+  if(g.ready)return (g.src&&g.src!=='today')?2:1;      // 1 오늘 EMR 반영·원장 확인 전 / 2 진료 전 가안
+  return 3;                                            // 차트 대기
 }
-function printQueueCount(){return list().filter(function(v){return grState(v)===0}).length}
+function printQueueCount(){return todayList().filter(function(v){return grState(v)===0}).length}
 function rowHtml(v){
-  var g=v.gr||{},s=grState(v),st,bt;
-  var bl='<button class="btn sm ghost grbtn-blood" data-act="gr-blood" data-id="'+v.id+'" title="혈액검사 결과 리포트가 있는 아이는 결과가 나온 뒤 보고해요">'+(s===3?'🩸 해제 → 바로 리포트':'🩸 혈액검사 있음')+'</button>';
+  var g=v.gr||{},s=grState(v),st,bt,hm=function(t){var d=new Date(t);return d.getHours()+':'+pad(d.getMinutes())};
+  var bl='<button class="btn sm ghost grbtn-blood" data-act="gr-blood" data-id="'+v.id+'" title="혈액검사 결과 리포트가 있는 아이는 결과가 나온 뒤 보고해요">'+(s===4?'🩸 해제 → 바로 리포트':'🩸 혈액검사 있음')+'</button>';
+  if(BUSY[v.id]){st='<span class="pill warn">AI 정리 중…</span>';bt='<button class="btn sm" data-act="gr-open" data-id="'+v.id+'">열기</button>'}else
   if(s===0){st='<span class="pill ok">인쇄 가능</span>';bt='<button class="btn sm primary" data-act="gr-print" data-id="'+v.id+'">🖨 인쇄</button><button class="btn sm" data-act="gr-open" data-id="'+v.id+'">미리보기</button>'}
-  else if(s===4){st='<span class="pill ex">인쇄 완료'+(g.printedAt?' '+new Date(g.printedAt).getHours()+':'+pad(new Date(g.printedAt).getMinutes()):'')+'</span>';bt='<button class="btn sm" data-act="gr-print" data-id="'+v.id+'">다시 인쇄</button><button class="btn sm ghost" data-act="gr-unprint" data-id="'+v.id+'">미인쇄로 되돌리기</button>'}
-  else if(s===1){st='<span class="pill warn">원장 확인 전</span>';bt='<button class="btn sm primary" data-act="gr-open" data-id="'+v.id+'">열어서 확인</button>'+bl}
-  else if(s===3){st='<span class="pill warn">결과 나오면 보고</span> <span class="grwhy">'+esc(bloodWhy(v))+'</span>';bt='<button class="btn sm" data-act="gr-open" data-id="'+v.id+'">지금 만들기</button>'+bl}
+  else if(s===5){st='<span class="pill ex">인쇄 완료'+(g.printedAt?' '+new Date(g.printedAt).getHours()+':'+pad(new Date(g.printedAt).getMinutes()):'')+'</span>';bt='<button class="btn sm" data-act="gr-print" data-id="'+v.id+'">다시 인쇄</button><button class="btn sm ghost" data-act="gr-unprint" data-id="'+v.id+'">미인쇄로 되돌리기</button>'}
+  else if(s===1){st='<span class="pill warn">원장 확인 전</span>'+(g.srcAt?' <span class="grwhy">EMR '+hm(g.srcAt)+'</span>':'');bt='<button class="btn sm primary" data-act="gr-open" data-id="'+v.id+'">열어서 확인</button>'+bl}
+  else if(s===2){st='<span class="pill">📝 가안 · '+(g.src==='intake'?'초진기록지':'지난 차트')+'</span>'+(g.srcAt?' <span class="grwhy">'+hm(g.srcAt)+'</span>':'');bt='<button class="btn sm" data-act="gr-open" data-id="'+v.id+'">열기</button>'+bl}
+  else if(s===4){st='<span class="pill warn">결과 나오면 보고</span> <span class="grwhy">'+esc(bloodWhy(v))+'</span>';bt='<button class="btn sm" data-act="gr-open" data-id="'+v.id+'">지금 만들기</button>'+bl}
   else{st='<span class="pill ex">차트 대기</span>';bt='<button class="btn sm" data-act="gr-open" data-id="'+v.id+'">차트 붙여넣기</button>'+bl}
   return '<div class="frrow"><div class="frnm"><b>'+esc(v.name||'이름 없음')+'</b><span class="meta">'+esc(age(v))+(v.sex?' · '+esc(v.sex):'')+(v.chartNo?' · '+esc(v.chartNo):'')+(v.step<0&&v.appt?' · 예약 '+esc(v.appt):'')+' '+qChips(v)+'</span></div><div>'+st+'</div><div class="frbt">'+bt+'</div></div>';
 }
 function listHtml(){
-  var all=list();
-  var a=all.filter(function(v){var g=v.gr||{};return v.step>=0||g.ready||g.q||g.blood!=null});
+  var all=todayList();
+  var a=all.filter(function(v){var g=v.gr||{};return v.step>=0||g.ready||g.q||g.blood!=null||BUSY[v.id]});
   var booked=all.filter(function(v){return a.indexOf(v)<0}).sort(function(x,y){return String(x.appt||'99').localeCompare(String(y.appt||'99'))});
   a.sort(function(x,y){var r=grState(x)-grState(y);if(r)return r;var gx=x.gr||{},gy=y.gr||{};return ((gy.reviewedAt||gy.at||0)-(gx.reviewedAt||gx.at||0))||(lastT(y)-lastT(x))});
-  var cnt=[0,0,0,0,0];a.forEach(function(v){cnt[grState(v)]++});
+  var cnt=[0,0,0,0,0,0];a.forEach(function(v){cnt[grState(v)]++});
   var pdf=pdfOn(),auto=autoOn();
   var top='<div class="grq">'+
     '<div class="grq-paste" data-act="gr-paste" role="button" tabindex="0" title="눌러도 클립보드의 차트를 가져와요">'+
       '<div class="grq-k">원장님</div><b>📋 EMR 차트 복사 → 이 화면 아무 데서나 Ctrl+V</b>'+
-      '<span>차트의 이름·등록번호로 환자를 찾아 AI가 바로 정리해요. 읽어 보고 <b style="display:inline;font-size:inherit">✅ 확인'+(pdf?' · PDF 저장':'')+'</b>(Ctrl+Enter) 한 번이면 직원 인쇄 대기로 넘어가요. 다른 탭에서 붙여넣어도 돼요.</span></div>'+
+      '<span style="display:block;margin:2px 0 4px;color:var(--ink)"><b style="display:inline;font-size:inherit">진료 전</b> 지난 차트·초진기록지 → 창 없이 가안만 쌓여요 (연달아 붙여넣기) · <b style="display:inline;font-size:inherit">진료 후</b> EMR → 창이 열리고 새로 들어간 줄·바뀐 항목이 초록색으로 보여요 · 명단에 없는 아이 → 바로 등록</span>'+
+      '<span>차트의 이름·등록번호로 환자를 찾아 AI가 바로 정리해요. <b style="display:inline;font-size:inherit">진료 전</b>엔 초진기록지·지난 차트로 가안을 만들어 두고, <b style="display:inline;font-size:inherit">진료 후</b> EMR을 다시 붙여넣으면 통째로 바뀌어요. 읽어 보고 <b style="display:inline;font-size:inherit">✅ 확인'+(pdf?' · PDF 저장':'')+'</b>(Ctrl+Enter) 한 번이면 직원 인쇄 대기로. 정리 중에 다음 아이 차트를 붙여넣어도 섞이지 않아요.</span></div>'+
     '<div class="grq-staff"><div class="grq-k">직원</div>'+
       '<button class="btn primary big" data-act="gr-printall"'+(cnt[0]?'':' disabled')+'>🖨 모두 인쇄 ('+cnt[0]+')</button>'+
       '<label><input type="checkbox" data-act="gr-optauto"'+(auto?' checked':'')+'> 이 기기에서 자동 인쇄 (리포트가 올라오면 바로 인쇄 창)</label></div>'+
   '</div>'+
   '<div class="grq-opts"><label><input type="checkbox" data-act="gr-optpdf"'+(pdf?' checked':'')+'> 확인할 때 PDF도 저장 (이 기기)</label>'+
-    '<span>지금 리포트 대기 <b>'+cnt[2]+'</b> · 원장 확인 전 <b>'+cnt[1]+'</b> · 🩸 결과 나오면 보고 <b>'+cnt[3]+'</b> · 🖨 인쇄 대기 <b>'+cnt[0]+'</b></span></div>';
-  var LAB=['🖨 인쇄할 리포트','원장 확인 전','📋 지금 리포트 · 혈액검사 없음 (진료 끝나면 차트 붙여넣기)','🩸 혈액검사 · 결과 나오면 보고','인쇄 완료'],cur=-1;
-  var rows=a.map(function(v){var s=grState(v),hd='';if(s!==cur){cur=s;hd='<div class="hint" style="margin:12px 0 2px;font-weight:700">'+LAB[s]+' ('+cnt[s]+')</div>'+(s===3?'<div class="hint" style="margin:0 0 2px">결과가 나오면 의사 앱(재진 기록지)에서 쓰거나, 여기서 차트를 붙여넣으면 돼요. 혈액검사가 없는 아이면 [🩸 해제]를 누르세요.</div>':'')}return hd+rowHtml(v)}).join('');
+    '<span>📝 가안 <b>'+cnt[2]+'</b> · 차트 대기 <b>'+cnt[3]+'</b> · 원장 확인 전 <b>'+cnt[1]+'</b> · 🩸 결과 나오면 보고 <b>'+cnt[4]+'</b> · 🖨 인쇄 대기 <b>'+cnt[0]+'</b></span></div>';
+  var LAB=['🖨 인쇄할 리포트','원장 확인 전 · 오늘 EMR 반영됨','📝 진료 전 가안 · 진료 끝나면 EMR 다시 붙여넣기','📋 차트 대기 · 혈액검사 없음','🩸 혈액검사 · 결과 나오면 보고','인쇄 완료'],cur=-1;
+  var rows=a.map(function(v){var s=grState(v),hd='';if(s!==cur){cur=s;hd='<div class="hint" style="margin:12px 0 2px;font-weight:700">'+LAB[s]+' ('+cnt[s]+')</div>'+(s===4?'<div class="hint" style="margin:0 0 2px">결과가 나오면 의사 앱(재진 기록지)에서 쓰거나, 여기서 차트를 붙여넣으면 돼요. 혈액검사가 없는 아이면 [🩸 해제]를 누르세요.</div>':'')}return hd+rowHtml(v)}).join('');
   var bk='';
   if(booked.length){
     bk='<div class="hint" style="margin:14px 0 2px;font-weight:700">도착 처리 전 예약 환자 ('+booked.length+') <button class="btn sm ghost" data-act="gr-booked">'+(UI.grBooked?'접기':'펼치기')+'</button></div>'+
@@ -3335,5 +3543,70 @@ document.addEventListener('paste',function(e){try{
   if(editable||document.getElementById('grpick')||!S.loaded)return;
   e.preventDefault();FR.fromChart(txt);
 }catch(err){}},true);
+/* ================================================================
+   📷 카메라로 카드 QR 읽기 — 스캐너 없이도 됩니다.
+   · 상단 [📷 카메라]: 이 단말의 위치(출입구·채혈실…) 그대로 스캔 처리
+   · 환자 상세 [📷 카메라로 카드 연결]: 비춘 카드를 그 환자에게 연결 + 도착 처리
+   ================================================================ */
+window.CAM=(function(){
+var st={mode:'',id:null,stream:null,timer:0,det:null,last:'',lastT:0,busy:false};
+function el(id){return document.getElementById(id)}
+function msg(t,cls){var m=el('cammsg');if(m){m.textContent=t;m.className=cls||''}}
+function loadJsQR(){return window.jsQR?Promise.resolve():new Promise(function(ok,no){var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';s.onload=ok;s.onerror=no;document.head.appendChild(s)})}
+function close(){
+  clearInterval(st.timer);st.timer=0;
+  try{if(st.stream)st.stream.getTracks().forEach(function(t){t.stop()})}catch(e){}
+  st.stream=null;var o=el('camov');if(o)o.remove();document.removeEventListener('keydown',onKey);
+  try{if(!$('#scan').hidden)focusScan()}catch(e){}
+}
+function onKey(e){if(e.key==='Escape')close()}
+function hit(raw){
+  var code=cardCode(raw),now=Date.now();if(!code)return;
+  if(code===st.last&&now-st.lastT<3000)return;st.last=code;st.lastT=now;
+  try{beep(1)}catch(e){}
+  if(st.mode==='link'){
+    var v=S.items.get(st.id);if(!v){close();return}
+    if(linkCard(v,code)){msg('✅ '+(v.name||'')+' · 카드 '+code+' 연결','camok');setTimeout(close,700)}
+    else msg('이 카드는 쓸 수 없어요: '+code,'cambad');
+    return;
+  }
+  handleScan(raw);var sm=$('#scan-msg');msg((sm&&sm.textContent)||('읽음: '+code),sm&&/bad/.test(sm.style.color)?'cambad':'camok');
+}
+function tick(){
+  var vd=el('camv');if(!vd||st.busy||vd.readyState<2)return;st.busy=true;
+  var done=function(){st.busy=false};
+  try{
+    if(st.det){st.det.detect(vd).then(function(r){if(r&&r[0]&&r[0].rawValue)hit(r[0].rawValue)}).catch(function(){}).then(done);return}
+    if(window.jsQR){
+      var w=vd.videoWidth,h=vd.videoHeight;if(!w||!h){done();return}
+      var sc=Math.min(1,640/w),cw=Math.round(w*sc),ch=Math.round(h*sc),cv=st.cv||(st.cv=document.createElement('canvas'));cv.width=cw;cv.height=ch;
+      var cx=cv.getContext('2d',{willReadFrequently:true});cx.drawImage(vd,0,0,cw,ch);
+      var r=jsQR(cx.getImageData(0,0,cw,ch).data,cw,ch,{inversionAttempts:'dontInvert'});if(r&&r.data)hit(r.data);
+    }
+  }catch(e){}
+  done();
+}
+async function open(mode,id){
+  close();st.mode=mode;st.id=id||null;st.last='';
+  var v=id&&S.items.get(id);
+  if(mode==='scan'&&!$('#station').value){toast('먼저 「이 단말의 위치」를 골라 주세요. (원무과는 출입구)');return}
+  var o=document.createElement('div');o.id='camov';o.className='camov';
+  o.innerHTML='<div class="cambox" role="dialog" aria-label="카메라로 카드 읽기"><div class="camh"><b>📷 '+(mode==='link'?esc((v&&v.name)||'')+' — 카드 연결':'카드 QR 읽기')+'</b><span id="cammsg">카메라를 켜는 중…</span><button class="btn sm ghost" data-cam="x">닫기</button></div>'+
+    '<video id="camv" playsinline muted autoplay></video><p class="hint" style="margin:8px 0 0">카드의 QR을 화면 가운데에 비추세요. '+(mode==='link'?'읽히면 이 환자에게 연결되고 창이 닫혀요.':'계속 켜 두고 여러 장을 연달아 비춰도 돼요.')+'</p></div>';
+  o.addEventListener('click',function(e){if(e.target===o||e.target.closest('[data-cam="x"]'))close()});
+  document.body.appendChild(o);document.addEventListener('keydown',onKey);
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){msg('이 기기·브라우저에서는 카메라를 쓸 수 없어요. (https 주소에서 열어 주세요)','cambad');return}
+  try{st.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false})}
+  catch(e){msg('카메라를 켜지 못했어요. 브라우저 주소창의 카메라 권한을 허용해 주세요.','cambad');return}
+  if(!el('camov')){close();return}
+  var vd=el('camv');vd.srcObject=st.stream;try{await vd.play()}catch(e){}
+  st.det=null;
+  try{if('BarcodeDetector' in window){var f=await BarcodeDetector.getSupportedFormats();if(f.indexOf('qr_code')>=0)st.det=new BarcodeDetector({formats:['qr_code']})}}catch(e){st.det=null}
+  if(!st.det){try{await loadJsQR()}catch(e){msg('QR 읽기 도구를 불러오지 못했어요. 인터넷 연결을 확인해 주세요.','cambad');return}}
+  msg('카드를 비춰 주세요');st.timer=setInterval(tick,220);
+}
+return{open:open,close:close,_hit:hit};
+})();
+document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('#btn-cam');if(b)CAM.open('scan')});
 </script>
 
