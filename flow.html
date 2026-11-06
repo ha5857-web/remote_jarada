@@ -746,7 +746,7 @@ function renderSummary(){
 /* ---------- 현황판 ---------- */
 function invTag(v){
   if(!v.first||(v.rev&&!(v.invite&&v.invite.sentAt)))return '';
-  return (v.temp?'<span class="pill ex">당일</span>':'')+(v.invite&&v.invite.sentAt?'<span class="pill ok">초진방 ✓</span>':'<span class="pill warn">초진방 전</span>');
+  return (v.temp?'<span class="pill" style="background:#fdeccc;color:#8a4b00;font-weight:700">당일접수</span>':'')+(v.invite&&v.invite.sentAt?'<span class="pill ok">초진방 ✓</span>':'<span class="pill warn">초진방 전</span>');
 }
 function cardHtml(v,now){
   const w=isWarn(v,now),sel=UI.sel===v.id;
@@ -1192,20 +1192,73 @@ function reportText(v){
   return lines.join('\n');
 }
 
+/* ---------- 🆕 당일 접수 초진: 등록 → 대기 + 초진방 링크 (의사 앱·visit-notice와 같은 초진방 방식) ---------- */
+function sdDob(t){const d=String(t||'').replace(/\D/g,'');let y,m,dd;
+  if(d.length===8){y=+d.slice(0,4);m=+d.slice(4,6);dd=+d.slice(6,8)}else if(d.length===6){y=2000+(+d.slice(0,2));m=+d.slice(2,4);dd=+d.slice(4,6);if(y>new Date().getFullYear())y-=100}else return '';
+  if(m<1||m>12||dd<1||dd>31)return '';const s=y+'-'+pad(m)+'-'+pad(dd),a=(Date.now()-new Date(s+'T00:00:00'))/31557600000;return a>=0&&a<20?s:''}
+function sdVids(sex,age){return '12'+((sex==='여'&&age>=6&&age<9.5)||(sex==='남'&&age>=7&&age<10.5)?'3':'')}
+const SD_PREP=['이전에 재어둔 키·몸무게 기록(학교 건강검진 결과, 소아과 기록 등)이 있으면 사진으로 올려주세요.','이전 검사 결과(혈액검사, 엑스레이 등)가 있으면 사진으로 올려주세요.','복용 중인 약과 영양제가 있다면 이름을 메모해 오세요.','진료 전 아래 영상을 시청하고 오시면 설명을 훨씬 쉽게 이해하실 수 있어요.'].join('\n');
+function sdPid(name,dob){let m={};try{m=JSON.parse(localStorage.getItem('jrd_fv_pids')||'{}')}catch(e){}const k=name+'|'+dob;
+  if(!m[k]){const b=new Uint8Array(12);crypto.getRandomValues(b);m[k]=Array.from(b,x=>x.toString(16).padStart(2,'0')).join('');try{localStorage.setItem('jrd_fv_pids',JSON.stringify(m))}catch(e){}}return m[k]}
+async function sdInvite(v,phone){
+  const site=ivSite(true);if(!site)throw new Error('초진방 사이트 주소가 없어요');
+  const sx=v.sex==='남'?'M':'F',pid=v.pid||sdPid(v.name,v.dob),today=todayYmd();
+  const nos=String(v.vids||'').replace(/[^1-7]/g,'').split('').filter((n,i,a)=>a.indexOf(n)===i);
+  const pre=nos.map(n=>{const x=JRD_VIDEOS.find(y=>y.no===+n);return x?{no:x.no,title:x.title,question:'',link:x.src}:null}).filter(Boolean);
+  const q=new URLSearchParams({pid,lang:'ko'});if(v.dob)q.set('dob',v.dob);q.set('sex',sx);if(apiUrl())q.set('api',apiUrl());q.set('loc','domestic');q.set('first','1');
+  const link=site.replace(/\/+$/,'')+'/자라다케어_환아용.html?'+q.toString(),watch='https://jaradacare.com/?v='+nos.join('');
+  let text=`[삼성자라다소아청소년과]\n${v.name} 환아 보호자님, 안녕하세요.\n아래 "초진방" 링크 하나로, 진료 전에는 영상 시청과 성장기록지 올리기를, 진료 후에는 진료 요약·검사 결과 설명·운동/영양/수면 안내와 성장 리포트를 보실 수 있어요. 링크를 보관해 주세요.\n\n👉 초진방: ${link}\n\n📺 진료 전에 순서대로 봐 주세요\n`+
+    pre.map((x,i)=>`${i+1}순위) ${x.no}. ${x.title}`).join('\n')+`\n▶ 영상 바로 보기(코드 입력 없이): ${watch}\n\n☎ 02-523-0111\n- 삼성자라다소아청소년과 -`;
+  const sentAt=new Date().toISOString();
+  const payload={v:1,stage:'pre',visitDate:today,name:v.name,dob:v.dob||'',preVideos:pre,prep:SD_PREP,post:null,updatedAt:sentAt};
+  const pending={pid,name:v.name,dob:v.dob||'',sex:sx,phone,chartNo:v.chartNo||'',visitDate:today,intake:'',history:[],fh:null,mh:null,preVideos:pre,prep:SD_PREP,by:'원무과(flow 당일접수)',sentAt};
+  const r=await api({action:'registerfirstvisit',pid,name:v.name,phone,text,method:'kakao',link,videoLink:watch,visitDate:today,payload,pending,intakeKey:'',force:false});
+  if(!r||r.status!=='ok')throw new Error((r&&r.message)||'초진방 링크를 보내지 못했어요');
+  return {pid,channel:r.channel||''};
+}
+async function sameDaySubmit(){
+  const g=id=>{const e=$(id);return e?String(e.value||'').trim():''},msg=$('#qf-msg'),btn=$('#qf-go');
+  const name=g('#qf-name'),dob=sdDob(g('#qf-dob')),chart=g('#qf-chart').replace(/\D/g,''),phone=g('#qf-phone').replace(/\D/g,''),sex=g('#qf-sex'),send=$('#qf-send')&&$('#qf-send').checked,card=$('#qf-card')&&$('#qf-card').checked;
+  const bad=(t,f)=>{if(msg){msg.textContent=t;msg.style.color='var(--bad)'}toast(t);if(f&&$(f))$(f).focus()};
+  if(!name)return bad('아이 이름을 넣어 주세요.','#qf-name');
+  if(!dob)return bad('생년월일을 8자리로 넣어 주세요 (예: 20190302).','#qf-dob');
+  if(!sex)return bad('성별을 골라 주세요 (성장곡선에 필요해요).','#qf-sex');
+  if(send&&!(phone.length>=10&&phone.length<=11))return bad('보호자 전화번호를 넣어 주세요.','#qf-phone');
+  const age=ivAge(dob),td=todayYmd();
+  let v=list().find(x=>isTodayV(x)&&((chart&&String(x.chartNo||'').replace(/\D/g,'')===chart)||(x.name===name&&x.dob===dob)));
+  const isNew=!v;
+  if(!v){const dd=new Date();v=newVisit({appt:pad(dd.getHours())+':'+pad(dd.getMinutes())})}
+  Object.assign(v,{name,dob,sex,age:age==null?'':age,first:true,rev:false,temp:true,sameDay:true,date:td});if(phone)v.phone=phone;
+  if(chart)v.chartNo=chart;
+  if(!v.vids)v.vids=sdVids(sex,age||0);
+  if(v.step<0||isNew){v.step=0;v.log=[{s:0,t:Date.now()}]}
+  put(v,true);UI.adding=false;UI.sel=v.id;UI.viewStep=null;
+  if(card&&!v.card)linkCard(v,nextCard());else renderAll(true);
+  if(!send){toast(name+': 당일접수로 대기에 넣었어요.');return}
+  toast(name+': 대기에 넣었어요 — 초진방 링크 보내는 중…');
+  try{
+    const r=await sdInvite(v,phone);
+    const x=S.items.get(v.id)||v;x.pid=r.pid;x.invite={sentAt:Date.now(),channel:r.channel,pid:r.pid,by:'flow'};put(x,true);renderAll(true);
+    toast(name+': '+(r.channel==='sms'?'문자':'카카오 알림톡')+'으로 초진방 링크를 보냈어요. 의사 앱 초진 탭에도 자동으로 등록돼요.');
+  }catch(e){if(e&&e.code==='AUTH_REQUIRED')return;toast(name+': 대기에는 넣었지만 초진방 링크를 못 보냈어요 — '+((e&&e.message)||'연결 오류')+'. 환자 화면 ③단계에서 다시 보낼 수 있어요.')}
+}
 /* ---------- 상세 패널 ---------- */
 function addFormHtml(){
   const d=new Date();d.setMinutes(Math.ceil(d.getMinutes()/10)*10);
   IV.res=null;IV.pick=null;IV.manual=false;
   return `<div class="dh"><h2>환자 등록</h2><button class="btn sm ghost" data-act="cancel-add">닫기</button></div>
   <form id="quick-form" class="f" style="margin-top:12px;padding:10px;border:1px dashed var(--accent);border-radius:10px">
-    <b>⚡ 당일 초진 빠른 등록</b>
-    <p class="hint" style="margin:0">EMR 예약에 없는 당일 접수 환자예요. 이름과 보호자 전화번호만 있으면 바로 도착 처리돼요.</p>
-    <div class="f2"><label class="l">이름<input type="text" id="qf-name" autocomplete="off"></label>
-      <label class="l">보호자 전화<input type="tel" id="qf-phone" autocomplete="off" inputmode="numeric" placeholder="010…"></label></div>
-    <div class="f2"><label class="l">생년월일 (초진방 링크에 필요)<input type="date" id="qf-dob"></label>
-      <label class="l">성별<select id="qf-sex"><option>여</option><option>남</option></select></label></div>
-    <div class="actions" style="margin-top:6px"><button class="btn primary" type="submit">도착 처리 + 초진 등록</button></div>
-    <p class="hint">원무과 visit-notice의 「초진 환자 한눈에」 ②단계에 <b>당일</b>로 바로 나타나요. 거기서 초진방 링크를 보내면 이 환자 카드에 ✅가 표시돼요. 차트번호는 나중에 환자 화면에서 넣으세요.</p>
+    <b>🆕 당일 접수 초진 등록</b>
+    <p class="hint" style="margin:0">예약에 없는 당일 접수 아이예요. 넣고 등록하면 바로 <b>대기</b>로 들어가고(「당일접수」 표시), 보호자에게 <b>초진방 링크</b>가 가요. 진료 후 원장 확인이 끝난 성장 리포트도 그 초진방에 자동으로 올라가요.</p>
+    <div class="f2"><label class="l">아이 이름<input type="text" id="qf-name" autocomplete="off"></label>
+      <label class="l">생년월일 (예: 20190302)<input type="text" id="qf-dob" autocomplete="off" inputmode="numeric" placeholder="20190302"></label></div>
+    <div class="f2"><label class="l">병원 등록번호<input type="text" id="qf-chart" autocomplete="off" inputmode="numeric" placeholder="예: 103555"></label>
+      <label class="l">보호자 전화<input type="text" id="qf-phone" autocomplete="off" inputmode="numeric" placeholder="01012345678"></label></div>
+    <div class="f2"><label class="l">성별<select id="qf-sex"><option value="">선택</option><option>여</option><option>남</option></select></label>
+      <div><label class="chk" style="margin-top:22px"><input type="checkbox" id="qf-card" checked> <span id="qf-cardtxt">🎫 ${esc(nextCard())} 카드도 같이 주기</span></label></div></div>
+    <label class="chk"><input type="checkbox" id="qf-send" checked> 초진방 링크 바로 보내기 (카카오 알림톡, 안 되면 문자)</label>
+    <div class="actions" style="margin-top:6px"><button class="btn primary" type="submit" id="qf-go">등록 → 대기 + 초진방 발송</button></div>
+    <p class="hint" id="qf-msg" role="status"></p>
   </form>
   <form id="add-form" class="f" style="margin-top:12px">
     <label class="l">① 병원 등록번호<input type="text" id="af-chart" autocomplete="off" inputmode="numeric" placeholder="예: 102271"></label>
@@ -1547,6 +1600,7 @@ function onAction(act,el){
     case 'gr-optauto':FR.setOpt('autoprint',!!el.checked);renderAll(false);if(el.checked)toast('이 기기에서 자동 인쇄를 켰어요. 원장 확인이 끝난 리포트가 올라오면 바로 인쇄 창이 떠요.');break;
     case 'gr-paste':FR.pasteClick();break;
     case 'gr-booked':UI.grBooked=!UI.grBooked;renderAll(false);break;
+    case 'gr-room':{const i=id||(v&&v.id);if(i)FR.roomRetry(i);break}
     case 'card-next':if(v){if(v.card){toast((v.name||'')+': 이미 카드 '+v.card+'가 연결돼 있어요.');break}linkCard(v,nextCard())}break;
     case 'card-unlink':if(v){v.card='';put(v,true);renderAll(true);toast((v.name||'')+': 카드 연결을 풀었어요.')}break;
     case 'quick-done':if(v)quickDone(v);break;
@@ -1885,15 +1939,7 @@ function bindEvents(){
   $('#detail').addEventListener('submit',e=>{
     if(e.target.id==='quick-form'){
       e.preventDefault();
-      const qn=$('#qf-name').value.trim(),qp=$('#qf-phone').value.trim(),qd=$('#qf-dob').value,qs=$('#qf-sex').value;
-      if(!qn){toast('이름을 입력해 주세요.');$('#qf-name').focus();return}
-      if(qp.replace(/\D/g,'').length<10){toast('보호자 전화번호를 입력해 주세요.');$('#qf-phone').focus();return}
-      const dd=new Date();dd.setMinutes(Math.ceil(dd.getMinutes()/10)*10);
-      const qa=qd?ivAge(qd):'';
-      const nv=newVisit({name:qn,age:qa==null?'':qa,sex:qs,phone:qp,dob:qd,first:true,rev:false,temp:true,appt:pad(dd.getHours())+':'+pad(dd.getMinutes())});
-      nv.step=0;nv.log=[{s:0,t:Date.now()}];
-      put(nv,true);UI.adding=false;UI.sel=nv.id;UI.viewStep=null;renderAll(true);
-      toast(qn+': 당일 초진으로 등록했습니다.');
+      sameDaySubmit();
       return;
     }
     if(e.target.id!=='add-form')return;
@@ -2718,6 +2764,15 @@ function fname(m,ext,suf){var t=new Date();return'성장리포트_'+(m.st.name||
 function saveBlob(blob,name){var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(a.href)},4000)}
 function toBlob(c){return new Promise(function(ok){c.toBlob(ok,'image/png')})}
 function stack(cs){var W=cs[0].width,g=28,H=cs.reduce(function(a,c){return a+c.height},0)+g*(cs.length-1),o=document.createElement('canvas');o.width=W;o.height=H;var x=o.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,W,H);var y=0;cs.forEach(function(c){x.drawImage(c,0,y);y+=c.height+g});return o}
+/* 리포트 PDF 파일(앞장·뒷장). 저장과 초진방 올리기에 같이 씁니다 */
+function pdfOf(m,q){
+  if(!m||m.error)return Promise.reject(new Error(m&&m.error||'리포트 없음'));
+  return libs(true).then(function(){return capture(m)}).then(function(cs){
+    var pdf=new window.jspdf.jsPDF({unit:'mm',format:'a4',compress:true});
+    cs.forEach(function(c,i){if(i)pdf.addPage();pdf.addImage(c.toDataURL('image/jpeg',q||0.8),'JPEG',0,0,210,297)});
+    return{blob:pdf.output('blob'),name:fname(m,'pdf'),pages:cs.length};
+  });
+}
 function act(kind){
   if(!cache||cache.m.error){say('먼저 생년월일과 계측값을 확인해 주세요.');return Promise.resolve(false)}
   var m=cache.m;say('파일을 만드는 중입니다…');
@@ -2730,7 +2785,7 @@ function act(kind){
     });
   }).catch(function(){say('파일을 만들지 못했습니다. 인터넷 연결을 확인해 주세요.');return false});
 }
-return{setM:setM,act:act,build:build,compute:compute,pagesHTML:pagesHTML,paint:paint,fit:fit,parsePast:parsePast};
+return{setM:setM,act:act,build:build,compute:compute,pagesHTML:pagesHTML,paint:paint,fit:fit,parsePast:parsePast,pdfOf:pdfOf,saveBlob:saveBlob};
 })();
 const FR=(function(){
 function todayList(){return list().filter(function(v){return isTodayV(v)})}   // 리포트는 오늘 방문만
@@ -3334,13 +3389,15 @@ function confirmSave(){
   if(!hasPost(g.post)){say('진료 후 기록이 비어 있어요. EMR 차트를 붙여넣어 주세요.',true);return}
   var m=modelOf(Object.assign({},v,{gr:g}));if(m.error){say(m.error,true);var di=document.getElementById('fr-info');if(di)di.open=true;return}
   g.reviewed=true;g.reviewedAt=Date.now();g.printedAt=null;commit(g,true);refresh();
-  var name=v.name||'환자',done=function(msg){close();toast(msg);renderAll(false);try{focusScan()}catch(e){}};
-  if(!pdfOn()){done(name+': 확인 완료 — 직원 화면 「인쇄할 리포트」에 올라갔어요.');return}
-  SAVING=true;syncBar();
-  Promise.resolve(GR.act('pdf')).then(function(ok){
+  var name=v.name||'환자',vid=v.id,room=hasRoom(v),done=function(msg){close();toast(msg);renderAll(false);try{focusScan()}catch(e){}};
+  if(!pdfOn()&&!room){done(name+': 확인 완료 — 직원 화면 「인쇄할 리포트」에 올라갔어요.');return}
+  SAVING=true;syncBar();say('PDF 만드는 중…');
+  GR.pdfOf(modelOf(S.items.get(vid)),0.72).then(function(pdf){return pdf},function(){return null}).then(function(pdf){
     SAVING=false;
-    if(ok)done(name+': 확인 · PDF 저장 완료 — 직원 인쇄 대기에 올렸어요.');
-    else{syncBar();say('확인은 끝났고 직원 인쇄 대기에 올렸어요. PDF는 저장하지 못했어요(인터넷 확인) — [PDF 다시 저장]을 눌러 주세요.',true)}
+    if(pdf&&pdfOn())GR.saveBlob(pdf.blob,pdf.name);
+    if(!pdf&&pdfOn()&&!room){syncBar();say('확인은 끝났고 직원 인쇄 대기에 올렸어요. PDF는 저장하지 못했어요(인터넷 확인) — [PDF 다시 저장]을 눌러 주세요.',true);return}
+    done(name+': 확인'+(pdf&&pdfOn()?' · PDF 저장':'')+' 완료 — 직원 인쇄 대기'+(room?' · 초진방에 올리는 중…':''));
+    if(room)roomPush(vid,pdf);
   });
 }
 function toLater(){
@@ -3476,6 +3533,65 @@ function pickSheet(txt,cands){
   document.body.appendChild(o);
 }
 
+/* ---- 성장 리포트 → 초진방 (환아 앱의 초진방 본문 + 「📄 성장 리포트 PDF 받기」) ----
+   의사 앱(index)의 「진료 후 안내 초진방으로 보내기」·「리포트 PDF 올리기」와 같은 방식(서버 행: firstvisit / fvreport)으로 올립니다. */
+function hasRoom(v){return !!(v&&(v.first||v.temp||v.pid||(v.invite&&v.invite.sentAt)))}
+function rowsGet(){var u=apiUrl(),t=authToken();if(!u||!t)return Promise.reject(new Error('로그인이 필요해요'));
+  return fetch(u+(u.indexOf('?')<0?'?':'&')+'auth='+encodeURIComponent(t)).then(function(r){return r.json()}).then(function(j){if(j&&j.code==='AUTH_REQUIRED')throw new Error('로그인이 필요해요');return Array.isArray(j)?j:[]})}
+function qOf(r){try{return JSON.parse(r.question||'{}')||{}}catch(e){return {}}}
+function roomPid(v,rows){
+  if(v.pid)return v.pid;if(v.invite&&v.invite.pid)return v.invite.pid;
+  var dob=v.dob||(v.gr&&v.gr.dob)||'',m={};try{m=JSON.parse(localStorage.getItem('jrd_fv_pids')||'{}')}catch(e){}
+  if(v.name&&dob&&m[v.name+'|'+dob])return m[v.name+'|'+dob];
+  var nm=String(v.name||'').replace(/\s/g,'');if(!nm||/^등록번호/.test(nm))return '';
+  var c=[];rows.forEach(function(r){if(r.type!=='firstvisit'&&r.type!=='firstVisitPending')return;var x=qOf(r);if(String(x.name||'').replace(/\s/g,'')!==nm)return;if(dob&&x.dob&&x.dob!==dob)return;var p=r.pid||x.pid;if(p&&c.indexOf(p)<0)c.push(p)});
+  return c.length===1?c[0]:'';
+}
+function b64Of(blob){return new Promise(function(ok,no){var fr=new FileReader();fr.onload=function(){ok(String(fr.result).split(',')[1]||'')};fr.onerror=function(){no(new Error('파일을 읽지 못했어요'))};fr.readAsDataURL(blob)})}
+async function roomPublish(id,pdf){
+  var v=S.items.get(id);if(!v||!v.gr||!v.gr.reviewed)throw new Error('원장 확인 전이에요');
+  var rows=await rowsGet(),pid=roomPid(v,rows);
+  if(!pid)throw new Error('이 아이의 초진방을 찾지 못했어요(초진방 링크를 보낸 적이 없을 수 있어요)');
+  var g=v.gr,po=g.post||{},rep=null,today=todayStr();
+  if(pdf&&pdf.blob){
+    var b64=await b64Of(pdf.blob),SZ=38000,n=Math.ceil(b64.length/SZ),stamp=Date.now().toString(36);
+    if(n<=40){
+      for(var i=0;i<n;i++){var j=await api({id:'fvr_'+pid+'_'+stamp+'_'+i,pid:pid,type:'fvreport',date:today,question:JSON.stringify({v:1,set:stamp,i:i,n:n,name:pdf.name,mime:'application/pdf',size:pdf.blob.size,data:b64.slice(i*SZ,(i+1)*SZ)})});if(!j||j.status!=='ok')throw new Error((j&&j.message)||'리포트 파일을 올리지 못했어요')}
+      rep={name:pdf.name,size:pdf.blob.size,pages:pdf.pages,n:n,set:stamp,at:new Date().toISOString(),from:'flow'};
+      rows.filter(function(r){return r.pid===pid&&r.type==='fvreport'&&String(r.id).indexOf('_'+stamp+'_')<0}).forEach(function(r){api({action:'delete',id:r.id}).catch(function(){})});
+    }
+  }
+  var rowId='fv_'+pid,cur=null;rows.forEach(function(r){if(r.id===rowId)cur=r});var x=cur?qOf(cur):{};
+  var payload=Object.assign({v:1,visitDate:today,name:v.name||'',dob:v.dob||g.dob||'',preVideos:[],prep:''},x,{
+    stage:'post',visitDate:x.visitDate||today,
+    post:{summary:po.summary||'',labs:po.labs||'',xray:po.xray||'',direction:po.direction||'',exercise:po.exercise||'',nutrition:po.nutrition||'',sleep:po.sleep||'',nextDate:po.nextDate||'',tests:po.tests||[],videos:po.videos||[]},
+    report:rep||x.report||null,fromFlow:true,updatedAt:new Date().toISOString()});
+  var res=cur?await api({action:'update',id:rowId,date:today,question:JSON.stringify(payload)}):null;
+  if(!(res&&res.status==='ok'&&res.updated!==false))res=await api({id:rowId,pid:pid,type:'firstvisit',date:today,question:JSON.stringify(payload)});
+  if(!res||res.status!=='ok')throw new Error((res&&res.message)||'초진방을 갱신하지 못했어요');
+  return {pid:pid,pdf:!!rep};
+}
+function roomPush(id,pdf){
+  var nm=(S.items.get(id)||{}).name||'';
+  return roomPublish(id,pdf).then(function(r){
+    var x=S.items.get(id);if(x){x.pid=r.pid;x.gr=Object.assign({},x.gr,{roomAt:Date.now(),roomErr:''});put(x,true);renderAll(false)}
+    toast(nm+': 초진방에도 성장 리포트를 올렸어요'+(r.pdf?' (PDF 포함)':''));
+  },function(e){
+    if(e&&e.code==='AUTH_REQUIRED')return;
+    var x=S.items.get(id);if(x&&x.gr){x.gr=Object.assign({},x.gr,{roomErr:String((e&&e.message)||e||'오류')});put(x,true);renderAll(false)}
+    toast(nm+': 초진방에 올리지 못했어요 — '+((e&&e.message)||'연결 오류')+' (목록의 [초진방에 올리기]로 다시)');
+  });
+}
+function roomRetry(id){
+  var v=S.items.get(id);if(!v||!v.gr||!v.gr.reviewed){toast('원장 확인이 끝난 리포트만 초진방에 올릴 수 있어요.');return}
+  toast((v.name||'')+': 초진방에 올리는 중…');
+  GR.pdfOf(modelOf(v),0.72).then(function(p){return p},function(){return null}).then(function(pdf){roomPush(id,pdf)});
+}
+function roomTag(v){
+  if(!hasRoom(v)||!v.gr||!v.gr.reviewed)return '';
+  var g=v.gr;if(g.roomAt){var d=new Date(g.roomAt);return ' <span class="pill ok" title="초진방에 올림">초진방 ✓ '+d.getHours()+':'+pad(d.getMinutes())+'</span>'}
+  return ' <button class="btn sm" data-act="gr-room" data-id="'+v.id+'" title="'+esc(g.roomErr||'')+'">'+(g.roomErr?'⚠️ ':'')+'초진방에 올리기</button>';
+}
 /* ---- 직원: 이 기기 자동 인쇄 ---- */
 var AUTO_DONE=new Set();
 function autoTick(){
@@ -3503,13 +3619,13 @@ function rowHtml(v){
   var g=v.gr||{},s=grState(v),st,bt,hm=function(t){var d=new Date(t);return d.getHours()+':'+pad(d.getMinutes())};
   var bl='<button class="btn sm ghost grbtn-blood" data-act="gr-blood" data-id="'+v.id+'" title="혈액검사 결과 리포트가 있는 아이는 결과가 나온 뒤 보고해요">'+(s===4?'🩸 해제 → 바로 리포트':'🩸 혈액검사 있음')+'</button>';
   if(BUSY[v.id]){st='<span class="pill warn">AI 정리 중…</span>';bt='<button class="btn sm" data-act="gr-open" data-id="'+v.id+'">열기</button>'}else
-  if(s===0){st='<span class="pill ok">인쇄 가능</span>';bt='<button class="btn sm primary" data-act="gr-print" data-id="'+v.id+'">🖨 인쇄</button><button class="btn sm" data-act="gr-open" data-id="'+v.id+'">미리보기</button>'}
-  else if(s===5){st='<span class="pill ex">인쇄 완료'+(g.printedAt?' '+new Date(g.printedAt).getHours()+':'+pad(new Date(g.printedAt).getMinutes()):'')+'</span>';bt='<button class="btn sm" data-act="gr-print" data-id="'+v.id+'">다시 인쇄</button><button class="btn sm ghost" data-act="gr-unprint" data-id="'+v.id+'">미인쇄로 되돌리기</button>'}
+  if(s===0){st='<span class="pill ok">인쇄 가능</span>'+roomTag(v);bt='<button class="btn sm primary" data-act="gr-print" data-id="'+v.id+'">🖨 인쇄</button><button class="btn sm" data-act="gr-open" data-id="'+v.id+'">미리보기</button>'}
+  else if(s===5){st='<span class="pill ex">인쇄 완료'+(g.printedAt?' '+new Date(g.printedAt).getHours()+':'+pad(new Date(g.printedAt).getMinutes()):'')+'</span>'+roomTag(v);bt='<button class="btn sm" data-act="gr-print" data-id="'+v.id+'">다시 인쇄</button><button class="btn sm ghost" data-act="gr-unprint" data-id="'+v.id+'">미인쇄로 되돌리기</button>'}
   else if(s===1){st='<span class="pill warn">원장 확인 전</span>'+(g.srcAt?' <span class="grwhy">EMR '+hm(g.srcAt)+'</span>':'');bt='<button class="btn sm primary" data-act="gr-open" data-id="'+v.id+'">열어서 확인</button>'+bl}
   else if(s===2){st='<span class="pill">📝 가안 · '+(g.src==='intake'?'초진기록지':'지난 차트')+'</span>'+(g.srcAt?' <span class="grwhy">'+hm(g.srcAt)+'</span>':'');bt='<button class="btn sm" data-act="gr-open" data-id="'+v.id+'">열기</button>'+bl}
   else if(s===4){st='<span class="pill warn">결과 나오면 보고</span> <span class="grwhy">'+esc(bloodWhy(v))+'</span>';bt='<button class="btn sm" data-act="gr-open" data-id="'+v.id+'">지금 만들기</button>'+bl}
   else{st='<span class="pill ex">차트 대기</span>';bt='<button class="btn sm" data-act="gr-open" data-id="'+v.id+'">차트 붙여넣기</button>'+bl}
-  return '<div class="frrow"><div class="frnm"><b>'+esc(v.name||'이름 없음')+'</b><span class="meta">'+esc(age(v))+(v.sex?' · '+esc(v.sex):'')+(v.chartNo?' · '+esc(v.chartNo):'')+(v.step<0&&v.appt?' · 예약 '+esc(v.appt):'')+' '+qChips(v)+'</span></div><div>'+st+'</div><div class="frbt">'+bt+'</div></div>';
+  return '<div class="frrow"><div class="frnm"><b>'+esc(v.name||'이름 없음')+(v.temp?' <span class="pill" style="background:#fdeccc;color:#8a4b00">당일접수</span>':'')+'</b><span class="meta">'+esc(age(v))+(v.sex?' · '+esc(v.sex):'')+(v.chartNo?' · '+esc(v.chartNo):'')+(v.step<0&&v.appt?' · 예약 '+esc(v.appt):'')+' '+qChips(v)+'</span></div><div>'+st+'</div><div class="frbt">'+bt+'</div></div>';
 }
 function listHtml(){
   var all=todayList();
@@ -3540,7 +3656,7 @@ function listHtml(){
   if(!a.length&&!booked.length)return top+'<div class="empty"><h2>오늘 등록된 환자가 없습니다</h2><p>환자가 등록되면 여기에서 성장 리포트를 만들고 인쇄할 수 있어요.</p></div>';
   return top+rows+bk;
 }
-return{open:open,close:close,listHtml:listHtml,print:printFor,unprint:unprint,queueCount:printQueueCount,printAll:printAll,toggleBlood:toggleBlood,setOpt:setOpt,pasteClick:pasteClick,fromChart:fromChart,pasteIntoOpen:pasteIntoOpen,looksLikeChart:looksLikeChart,autoTick:autoTick};
+return{open:open,close:close,listHtml:listHtml,print:printFor,unprint:unprint,queueCount:printQueueCount,printAll:printAll,toggleBlood:toggleBlood,roomRetry:roomRetry,setOpt:setOpt,pasteClick:pasteClick,fromChart:fromChart,pasteIntoOpen:pasteIntoOpen,looksLikeChart:looksLikeChart,autoTick:autoTick};
 })();
 /* 어디서든 EMR 차트를 Ctrl+V → 성장 리포트 (스캔 칸에 커서가 있어도 됨, 다른 입력칸은 그대로) */
 document.addEventListener('paste',function(e){try{
