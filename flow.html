@@ -368,6 +368,8 @@ pre.report{white-space:pre-wrap;word-break:keep-all;overflow-wrap:anywhere;backg
 .grpick-list{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
 .grpick-list .btn{text-align:left;display:flex;gap:8px;align-items:baseline;padding:10px 12px}
 .grpick-list .btn span{font-size:12px;color:var(--muted)}
+.cardbox{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-top:10px;background:var(--surface2)}
+.cardbox .xvh{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .grnew{border:1px solid var(--accent);background:var(--accent-soft);border-radius:10px;padding:10px 12px;margin:0 0 10px}
 .grnew .f2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0}
 .grnew input{font:inherit;padding:8px;border:1px solid var(--line);border-radius:8px;width:100%;background:var(--surface);color:var(--ink)}
@@ -381,11 +383,6 @@ pre.report{white-space:pre-wrap;word-break:keep-all;overflow-wrap:anywhere;backg
 .fr-f.chg textarea{border-color:#2B7A4B!important;background:#f6fcf8}
 .fr-chgb{align-self:flex-start;display:inline-block;font-size:10.5px;font-weight:700;color:#fff;background:#2B7A4B;border-radius:6px;padding:0 6px;margin-left:6px}
 .fr-old{margin:-4px 0 8px;font-size:12px;color:#5a6b73}.fr-old summary{cursor:pointer}.fr-old div{white-space:pre-wrap;background:#f5f7f8;border-radius:8px;padding:6px 8px;margin-top:4px}
-.camov{position:fixed;inset:0;z-index:330;background:rgba(5,15,20,.7);display:flex;align-items:center;justify-content:center;padding:16px}
-.cambox{background:var(--surface);color:var(--ink);border-radius:14px;width:min(560px,100%);padding:12px 14px;box-shadow:0 10px 40px rgba(0,0,0,.3)}
-.camh{display:flex;gap:8px;align-items:center;margin-bottom:8px}.camh b{flex:0 0 auto}.camh span{flex:1;font-size:13px;color:var(--muted)}
-.cambox video{width:100%;border-radius:10px;background:#000;aspect-ratio:4/3;object-fit:cover}
-.camok{color:var(--ok)!important;font-weight:700}.cambad{color:var(--bad)!important}
 @media (max-width:760px){.grq{grid-template-columns:1fr}}
 .qd{align-self:flex-end;font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:1px 7px;cursor:pointer;background:var(--surface)}
 .qd:hover{border-color:var(--accent);color:var(--accent)}
@@ -421,7 +418,6 @@ pre.report{white-space:pre-wrap;word-break:keep-all;overflow-wrap:anywhere;backg
       <select id="station"><option value="">사용 안 함</option></select></label>
     <label class="meta" id="labmode-wrap" hidden>채혈실 검사 <select id="labmode"><option value="single">일반 채혈</option><option value="gnrh">GnRH 자극검사</option><option value="gh">GH 자극검사</option></select></label>
     <input type="text" id="scan" placeholder="여기에 카드를 스캔하세요" autocomplete="off" autocapitalize="off" spellcheck="false" hidden>
-    <button class="btn sm" id="btn-cam" type="button" hidden title="스캐너가 없어도 카메라로 카드 QR을 읽어요">📷 카메라</button>
     <span id="scan-msg" role="status" aria-live="polite"></span>
     <span class="meta" id="pfx-legend" hidden></span>
     <button class="btn sm" id="btn-sound" type="button">알람 소리 켜기</button>
@@ -769,9 +765,9 @@ function cardHtml(v,now){
   else if(needNotify(v)){dl=`<span class="pill warn">결과 안내 필요</span>`}
   return `<button class="card${sel?' sel':''}${w?' warn':''}" data-sel="${v.id}">
     <span class="nm">${esc(v.name||'이름 없음')}${exTag(v)}${invTag(v)}${grPill(v)}</span>
-    <span class="meta">${esc(age(v))}${v.sex?' · '+esc(v.sex):''}${v.chartNo?' · '+esc(v.chartNo):''}</span>
+    <span class="meta">${esc(age(v))}${v.sex?' · '+esc(v.sex):''}${v.chartNo?' · '+esc(v.chartNo):''}${v.card&&isTodayV(v)?' · <b>🎫 '+esc(v.card)+'</b>':''}</span>
     <span class="st" style="${w?'color:var(--warn);font-weight:600':''}">${st}</span>
-    ${dl}${v.step>=0&&v.step<10?`<span class="qd" role="button" data-act="quick-done" data-id="${v.id}" title="남은 단계를 건너뛰고 바로 완료 처리">바로 완료 ▸</span>`:''}<span class="bar">${bar}</span></button>`;
+    ${dl}${v.step<0&&!v.card?`<span class="qd" role="button" data-act="card-next" data-id="${v.id}" title="카드를 주면서 누르면 연결 + 도착 처리">🎫 ${esc(nextCard())} 주기</span>`:''}${v.step>=0&&v.step<10?`<span class="qd" role="button" data-act="quick-done" data-id="${v.id}" title="남은 단계를 건너뛰고 바로 완료 처리">바로 완료 ▸</span>`:''}<span class="bar">${bar}</span></button>`;
 }
 function notifyText(v){
   return `[삼성자라다 소아청소년과] ${v.name} 어린이의 검사 결과가 모두 나왔습니다. 결과는 진료 시간에 병원으로 문의하시거나 내원해서 확인해 주세요.`;
@@ -1425,8 +1421,9 @@ function detailHtml(){
     <label class="l" style="margin-top:8px">초진 안내 문자 붙여넣기<textarea data-paste rows="2" placeholder="1순위) 1. … 2순위) 7. …"></textarea></label>
     <label class="l" style="margin-top:8px">대기 영상 번호 (예: 172)<input type="text" data-path="vids" inputmode="numeric" maxlength="7" value="${esc(v.vids||'')}" placeholder="초진 접수에서 고른 영상 번호"></label></details>
     ${xvPanel(v)}
-    <label class="l" style="margin-top:8px">카드 번호<input type="text" data-card value="${esc(v.card||'')}" placeholder="카드를 스캔하세요" autocomplete="off"></label>
-    <div class="actions" style="margin-top:4px"><button type="button" class="btn sm${v.card?'':' primary'}" data-act="cam-link">📷 카메라로 카드 ${v.card?'바꾸기':'연결'}${v.step<0?' + 도착 처리':''}</button></div>`;
+    <div class="cardbox"><div class="xvh"><b>🎫 QR 카드</b>${v.card?`<span class="pill ok" style="font-size:14px">${esc(v.card)}</span><button type="button" class="btn sm ghost" data-act="card-unlink">연결 풀기</button>`:'<span class="meta">카드를 주면서 누르세요</span>'}</div>
+    ${v.card?'':`<button type="button" class="btn primary" data-act="card-next" style="width:100%;margin:6px 0 4px;font-size:15px">🎫 ${esc(nextCard())} 카드 주기${v.step<0?' + 도착 처리':''}</button>`}
+    <label class="l" style="margin-top:4px">${v.card?'다른 카드로 바꾸기':'다른 카드를 줄 때'} — 카드에 적힌 번호만 입력 (예: 27)<input type="text" data-card value="" placeholder="번호 입력 후 Enter" autocomplete="off" inputmode="numeric"></label></div>`;
   if(v.step<0){
     return head+`<div class="sect"><p style="margin:0 0 10px">아직 도착 전입니다. 보호자와 함께 내원하면 도착 처리하세요.</p>
       <div class="actions" style="margin-top:0"><button class="btn primary" data-act="arrive">내원 확인 (도착 처리)</button>${delBtn(v)}</div></div>`;
@@ -1550,7 +1547,8 @@ function onAction(act,el){
     case 'gr-optauto':FR.setOpt('autoprint',!!el.checked);renderAll(false);if(el.checked)toast('이 기기에서 자동 인쇄를 켰어요. 원장 확인이 끝난 리포트가 올라오면 바로 인쇄 창이 떠요.');break;
     case 'gr-paste':FR.pasteClick();break;
     case 'gr-booked':UI.grBooked=!UI.grBooked;renderAll(false);break;
-    case 'cam-link':if(v)CAM.open('link',v.id);break;
+    case 'card-next':if(v){if(v.card){toast((v.name||'')+': 이미 카드 '+v.card+'가 연결돼 있어요.');break}linkCard(v,nextCard())}break;
+    case 'card-unlink':if(v){v.card='';put(v,true);renderAll(true);toast((v.name||'')+': 카드 연결을 풀었어요.')}break;
     case 'quick-done':if(v)quickDone(v);break;
     case 'sound':toggleSound();break;
     case 'res-done':{const k=el.dataset.k;if(!v||!k)break;if(!v.lab.results)v.lab.results={};if(!v.lab.at)v.lab.at={};v.lab.results[k]='완료';v.lab.at[k]=Date.now();put(v,true);renderAll(true);break}
@@ -1585,7 +1583,7 @@ const PREFIX_ROOM={W:'wait',F:'fluid',P:'clin',B:'lab',X:'xray',D:'doctor',E:'ex
 function prefixLegend(){return Object.keys(PREFIX_ROOM).filter(k=>ROOMS[PREFIX_ROOM[k]]).map(k=>k+'- '+ROOMS[PREFIX_ROOM[k]].label).join(' · ')}
 function focusScan(){const s=$('#scan');if(!s.hidden)s.focus()}
 function setStation(val,save){
-  $('#station').value=val;$('#scan').hidden=!val;try{$('#btn-cam').hidden=!val}catch(e){}$('#labmode-wrap').hidden=!(val==='lab'||val==='multi');$('#pfx-legend').hidden=val!=='multi';
+  $('#station').value=val;$('#scan').hidden=!val;$('#labmode-wrap').hidden=!(val==='lab'||val==='multi');$('#pfx-legend').hidden=val!=='multi';
   if(save){try{localStorage.setItem(STATION_KEY,val)}catch(e){}}
   if(val==='multi')$('#pfx-legend').textContent='스캐너 접두어: '+prefixLegend();
   if(val)focusScan();else $('#scan-msg').textContent='';
@@ -1596,14 +1594,24 @@ function scanMsg(t,bad){
 }
 /* 카드는 재사용하므로 오늘 방문에만 유효합니다 (지난 방문에 남은 연결은 무시) */
 const isTodayV=v=>{const d=v.date||(v.createdAt?(()=>{const t=new Date(v.createdAt);return t.getFullYear()+'-'+pad(t.getMonth()+1)+'-'+pad(t.getDate())})():'');return d===todayYmd()};
-function cardCode(raw){let c=String(raw||'').trim();const m=c.match(/[?&]c=([^&#\s]+)/);if(m){try{c=decodeURIComponent(m[1])}catch(e){c=m[1]}}return c.trim()}
+function cardCode(raw){let c=String(raw||'').trim();const m=c.match(/[?&]c=([^&#\s]+)/);if(m){try{c=decodeURIComponent(m[1])}catch(e){c=m[1]}}c=c.trim();if(/^\d{1,4}$/.test(c))c=(UI.cprefix||'C')+String(+c).padStart(3,'0');return c.toUpperCase()}
+/* 미리 뽑아 둔 카드(C001~C400)를 순서대로 나눠 줍니다: 오늘 마지막으로 준 카드 다음 번호, 지금 쓰는 카드는 건너뜀 */
+const CARD_MAX=400;
+function cardNum(c){const m=String(c||'').match(/^[A-Za-z]*0*(\d+)$/);return m?+m[1]:0}
+function nextCard(){
+  const today=list().filter(isTodayV),used=new Set(today.filter(v=>v.card&&v.step<10).map(v=>cardNum(v.card)));
+  const last=today.filter(v=>v.card).sort((a,b)=>(b.cardAt||0)-(a.cardAt||0))[0];
+  let n=last?cardNum(last.card)+1:1;
+  for(let i=0;i<CARD_MAX;i++){if(n>CARD_MAX||n<1)n=1;if(!used.has(n))break;n++}
+  return (UI.cprefix||'C')+String(n).padStart(3,'0');
+}
 /* 카드 연결: 같은 카드가 지난 방문에 남아 있으면 풀고, 도착 전이면 도착 처리까지 */
 function linkCard(v,raw){
   const code=cardCode(raw);if(!v||!code)return false;
   const lc=code.toLowerCase(),dup=list().find(x=>x.id!==v.id&&isTodayV(x)&&x.step<10&&x.card&&x.card.toLowerCase()===lc);
   if(dup){toast('이미 '+(dup.name||'다른')+' 환자에게 연결된 카드예요: '+code);return false}
   S.items.forEach(x=>{if(x.id!==v.id&&x.card&&x.card.toLowerCase()===lc){x.card='';put(x,false)}});
-  v.card=code;let arrived=false;if(v.step<0){v.step=0;v.log=[{s:0,t:Date.now()}];arrived=true}
+  v.card=code;v.cardAt=Date.now();let arrived=false;if(v.step<0){v.step=0;v.log=[{s:0,t:Date.now()}];arrived=true}
   put(v,true);renderAll(true);
   toast((v.name||'환자')+': 카드 '+code+' 연결'+(arrived?' · 도착 처리':'')+' — 보호자 폰으로 QR을 찍으면 대기 현황과 영상이 떠요.');
   return true;
@@ -3543,70 +3551,5 @@ document.addEventListener('paste',function(e){try{
   if(editable||document.getElementById('grpick')||!S.loaded)return;
   e.preventDefault();FR.fromChart(txt);
 }catch(err){}},true);
-/* ================================================================
-   📷 카메라로 카드 QR 읽기 — 스캐너 없이도 됩니다.
-   · 상단 [📷 카메라]: 이 단말의 위치(출입구·채혈실…) 그대로 스캔 처리
-   · 환자 상세 [📷 카메라로 카드 연결]: 비춘 카드를 그 환자에게 연결 + 도착 처리
-   ================================================================ */
-window.CAM=(function(){
-var st={mode:'',id:null,stream:null,timer:0,det:null,last:'',lastT:0,busy:false};
-function el(id){return document.getElementById(id)}
-function msg(t,cls){var m=el('cammsg');if(m){m.textContent=t;m.className=cls||''}}
-function loadJsQR(){return window.jsQR?Promise.resolve():new Promise(function(ok,no){var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';s.onload=ok;s.onerror=no;document.head.appendChild(s)})}
-function close(){
-  clearInterval(st.timer);st.timer=0;
-  try{if(st.stream)st.stream.getTracks().forEach(function(t){t.stop()})}catch(e){}
-  st.stream=null;var o=el('camov');if(o)o.remove();document.removeEventListener('keydown',onKey);
-  try{if(!$('#scan').hidden)focusScan()}catch(e){}
-}
-function onKey(e){if(e.key==='Escape')close()}
-function hit(raw){
-  var code=cardCode(raw),now=Date.now();if(!code)return;
-  if(code===st.last&&now-st.lastT<3000)return;st.last=code;st.lastT=now;
-  try{beep(1)}catch(e){}
-  if(st.mode==='link'){
-    var v=S.items.get(st.id);if(!v){close();return}
-    if(linkCard(v,code)){msg('✅ '+(v.name||'')+' · 카드 '+code+' 연결','camok');setTimeout(close,700)}
-    else msg('이 카드는 쓸 수 없어요: '+code,'cambad');
-    return;
-  }
-  handleScan(raw);var sm=$('#scan-msg');msg((sm&&sm.textContent)||('읽음: '+code),sm&&/bad/.test(sm.style.color)?'cambad':'camok');
-}
-function tick(){
-  var vd=el('camv');if(!vd||st.busy||vd.readyState<2)return;st.busy=true;
-  var done=function(){st.busy=false};
-  try{
-    if(st.det){st.det.detect(vd).then(function(r){if(r&&r[0]&&r[0].rawValue)hit(r[0].rawValue)}).catch(function(){}).then(done);return}
-    if(window.jsQR){
-      var w=vd.videoWidth,h=vd.videoHeight;if(!w||!h){done();return}
-      var sc=Math.min(1,640/w),cw=Math.round(w*sc),ch=Math.round(h*sc),cv=st.cv||(st.cv=document.createElement('canvas'));cv.width=cw;cv.height=ch;
-      var cx=cv.getContext('2d',{willReadFrequently:true});cx.drawImage(vd,0,0,cw,ch);
-      var r=jsQR(cx.getImageData(0,0,cw,ch).data,cw,ch,{inversionAttempts:'dontInvert'});if(r&&r.data)hit(r.data);
-    }
-  }catch(e){}
-  done();
-}
-async function open(mode,id){
-  close();st.mode=mode;st.id=id||null;st.last='';
-  var v=id&&S.items.get(id);
-  if(mode==='scan'&&!$('#station').value){toast('먼저 「이 단말의 위치」를 골라 주세요. (원무과는 출입구)');return}
-  var o=document.createElement('div');o.id='camov';o.className='camov';
-  o.innerHTML='<div class="cambox" role="dialog" aria-label="카메라로 카드 읽기"><div class="camh"><b>📷 '+(mode==='link'?esc((v&&v.name)||'')+' — 카드 연결':'카드 QR 읽기')+'</b><span id="cammsg">카메라를 켜는 중…</span><button class="btn sm ghost" data-cam="x">닫기</button></div>'+
-    '<video id="camv" playsinline muted autoplay></video><p class="hint" style="margin:8px 0 0">카드의 QR을 화면 가운데에 비추세요. '+(mode==='link'?'읽히면 이 환자에게 연결되고 창이 닫혀요.':'계속 켜 두고 여러 장을 연달아 비춰도 돼요.')+'</p></div>';
-  o.addEventListener('click',function(e){if(e.target===o||e.target.closest('[data-cam="x"]'))close()});
-  document.body.appendChild(o);document.addEventListener('keydown',onKey);
-  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){msg('이 기기·브라우저에서는 카메라를 쓸 수 없어요. (https 주소에서 열어 주세요)','cambad');return}
-  try{st.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false})}
-  catch(e){msg('카메라를 켜지 못했어요. 브라우저 주소창의 카메라 권한을 허용해 주세요.','cambad');return}
-  if(!el('camov')){close();return}
-  var vd=el('camv');vd.srcObject=st.stream;try{await vd.play()}catch(e){}
-  st.det=null;
-  try{if('BarcodeDetector' in window){var f=await BarcodeDetector.getSupportedFormats();if(f.indexOf('qr_code')>=0)st.det=new BarcodeDetector({formats:['qr_code']})}}catch(e){st.det=null}
-  if(!st.det){try{await loadJsQR()}catch(e){msg('QR 읽기 도구를 불러오지 못했어요. 인터넷 연결을 확인해 주세요.','cambad');return}}
-  msg('카드를 비춰 주세요');st.timer=setInterval(tick,220);
-}
-return{open:open,close:close,_hit:hit};
-})();
-document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('#btn-cam');if(b)CAM.open('scan')});
 </script>
 
