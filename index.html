@@ -8835,6 +8835,10 @@ async function fvPushToPatientApp(p){
   const readRows = async () => { try{ const r = await (await fetch(api)).json(); if(r && r.code==='AUTH_REQUIRED'){ try{ handleAuthFailure(); }catch(e){} return []; } return Array.isArray(r) ? r : []; }catch(e){ return []; } };
   try{
     const mine = (await readRows()).filter(r=>r.pid===p.accessCode && r.type==='firstvisit');
+    // flow(동선 관리)에서 원장 확인 후 올린 성장 리포트·진료 후 안내가 있으면, 이 앱에 아직 내용이 없을 때 지우지 않고 그대로 둡니다
+    try{ const cur = mine.find(r=>r.id===rowId); const x = cur ? JSON.parse(cur.question||'{}') : null;
+      if(x && x.fromFlow){ if(!payload.post && x.post){ payload.post = x.post; if(payload.stage==='pre') payload.stage = x.stage || 'post'; payload.fromFlow = true; } if(!payload.report && x.report) payload.report = x.report; }
+    }catch(e){}
     let res = null;
     if(mine.some(r=>r.id===rowId)){                         // 이미 있으면 그 행의 내용만 갱신
       res = await post({ action:'update', id:rowId, date: todayStr(), question: JSON.stringify(payload) });
