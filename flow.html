@@ -1865,6 +1865,10 @@ async function resvSync(force){
       put(v,true);n++;
     }
     ls.set(doneKey,JSON.stringify(done));
+    /* 새 명단에서 빠진(예약 취소·삭제된) 아이: 명단에서 자동으로 넣었고 아직 도착 전이면 예약 칸에서 숨김 */
+    const live=new Set(items.map(r=>'resv_'+td+'_'+(r.chart||r.name)));let gone=0;
+    today.forEach(v=>{if(v.fromResv&&v.step<0&&!v.card&&!v.hide&&String(v.id).startsWith('resv_'+td+'_')&&!live.has(v.id)){v.hide=Date.now();put(v,false);gone++}});
+    if(gone)toast('예약이 취소·삭제된 '+gone+'명을 예약 칸에서 뺐어요.');
     if(n)toast('오늘 예약 환자 '+n+'명을 예약 칸에 넣었어요.');
     else say('예약 '+items.length+'명 중 새로 넣을 환자가 없어요 (이미 '+had+'명 등록됨).');
   }catch(e){say('예약을 불러오지 못했어요: '+(e&&e.message||e))}
