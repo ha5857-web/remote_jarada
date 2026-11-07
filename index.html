@@ -3838,11 +3838,18 @@ function suggestCareCategory(p){
 //  · 초진방이 있고 아직 완료 전인 아이, 또는 EMR 업로드에서 오늘 처음 차팅이 만들어진 아이(firstFlag) → 초진 탭에도 보임
 //  · 치료 분류 탭(getPatientCategory)에는 항상 각자의 치료 방침대로 들어감
 function isFirstPatient(p){
-  if(p.firstVisit && p.firstVisit.status && p.firstVisit.status!=='done') return true;
+  if(p.firstVisit && p.firstVisit.status && p.firstVisit.status!=='done'){
+    /* 「진료 후 완료」를 안 눌러도 기준일(진료 예정일·초진방 발송일·초진 표시일 중 가장 늦은 날)에서 7일이 지나면 초진 탭에서 자동으로 빠집니다(기록은 그대로, 아이는 원래 분류 탭에 남음).
+       진료 예정일이 앞으로 남은 아이는 그 날짜가 기준이라 계속 보여요. */
+    const fv = p.firstVisit, ds = [fv.visitDate, (fv.intakeAt||'').slice(0,10), p.firstFlag && p.firstFlag.date]
+      .map(x=>x ? new Date(String(x).slice(0,10) + 'T00:00:00').getTime() : NaN).filter(t=>!isNaN(t));
+    if(ds.length && (Date.now() - Math.max.apply(null, ds)) > 7*86400000) return false;
+    return true;
+  }
   const f = p.firstFlag;
   if(f && !f.done){
     const d = f.date ? new Date(f.date + 'T00:00:00') : null;
-    if(d && !isNaN(d) && (Date.now() - d.getTime()) > 14*86400000) return false;   // 14일 지나면 자동으로 초진 탭에서 빠져요
+    if(d && !isNaN(d) && (Date.now() - d.getTime()) > 7*86400000) return false;   // 7일 지나면 자동으로 초진 탭에서 빠져요
     return true;
   }
   return false;
