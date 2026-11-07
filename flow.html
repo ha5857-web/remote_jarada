@@ -390,6 +390,11 @@ pre.report{white-space:pre-wrap;word-break:keep-all;overflow-wrap:anywhere;backg
 .fr-old{margin:-4px 0 8px;font-size:12px;color:#5a6b73}.fr-old summary{cursor:pointer}.fr-old div{white-space:pre-wrap;background:#f5f7f8;border-radius:8px;padding:6px 8px;margin-top:4px}
 @media (max-width:760px){.grq{grid-template-columns:1fr}}
 .cno{cursor:copy;border-bottom:1px dashed currentColor;padding:0 1px;border-radius:3px}.cno:hover{background:var(--accent-soft);color:var(--accent)}.cno:hover::after{content:' 📋';font-size:.9em}
+.card{position:relative}.card.hasx .nm{padding-right:20px}
+.card .cx{position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;color:var(--muted);cursor:pointer}
+.card .cx:hover{background:#fde8e6;color:#c0392b}
+.toast.undo{bottom:calc(62px + env(safe-area-inset-bottom,0px));display:flex;align-items:center}
+.toast .tu{margin-left:12px;background:transparent;border:1px solid currentColor;color:inherit;border-radius:6px;padding:2px 9px;font:inherit;font-weight:700;cursor:pointer}
 .qd{align-self:flex-end;font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:1px 7px;cursor:pointer;background:var(--surface)}
 .qd:hover{border-color:var(--accent);color:var(--accent)}
 #grprint{position:fixed;left:-10000px;top:0;width:794px;background:#fff}
@@ -450,7 +455,7 @@ pre.report{white-space:pre-wrap;word-break:keep-all;overflow-wrap:anywhere;backg
   <label class="l">비밀번호<input type="password" id="lg-pw" autocomplete="current-password"></label>
   <button class="btn primary" type="submit">들어가기</button><p id="lg-msg" class="hint" role="status"></p></form></div>
 <div class="kiosk" id="kiosk" hidden onclick="if(!event.target.closest('iframe,video,a'))this.hidden=true"></div>
-<div class="toast" id="toast" hidden></div>
+<div class="toast" id="toast" hidden></div><div class="toast undo" id="undo" hidden></div>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 <script>
@@ -505,6 +510,7 @@ const getPath=(o,p)=>p.split('.').reduce((a,k)=>a==null?undefined:a[k],o);
 const setPath=(o,p,v)=>{const ks=p.split('.');let a=o;ks.slice(0,-1).forEach(k=>{if(a[k]==null||typeof a[k]!=='object')a[k]={};a=a[k]});a[ks[ks.length-1]]=v};
 const uid=()=>'v'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 function toast(t){const el=$('#toast');el.textContent=t;el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>{el.hidden=true},2600)}
+function toastUndo(t,fn){const el=$('#undo');el.textContent=t;const b=document.createElement('button');b.type='button';b.className='tu';b.textContent='되돌리기';b.onclick=()=>{clearTimeout(toastUndo.t);el.hidden=true;fn()};el.appendChild(b);el.hidden=false;clearTimeout(toastUndo.t);toastUndo.t=setTimeout(()=>{el.hidden=true},6000)}
 
 /* ---------- 방문 데이터 도우미 ---------- */
 function roomOf(v){
@@ -645,6 +651,20 @@ function flush(id){
 }
 function schedule(id){clearTimeout(S.timers[id]);S.timers[id]=setTimeout(()=>flush(id),600)}
 function put(v,now){v.updatedAt=Date.now();S.items.set(v.id,v);if(now)flush(v.id);else schedule(v.id);emit()}
+/* 귀가·리포트 카드 오른쪽 위 × — 바로 지우고, 6초 동안 「되돌리기」 */
+function delCard(v){
+  const id=v.id,keep=clone(v);
+  if(UI.sel===id)UI.sel=null;
+  (S.gone||(S.gone={}))[id]=Date.now();
+  remove(id);renderAll(true);
+  toastUndo((v.name||'환자')+' 지웠어요.',()=>{
+    delete S.gone[id];keep.updatedAt=Date.now();S.items.set(id,keep);
+    S.busy[id]=(S.busy[id]||0)+1;                                   // 지우기가 끝난 뒤 통째로 다시 저장 — 그동안 목록 새로고침이 덮어쓰지 않게
+    S.queue[id]=(S.queue[id]||Promise.resolve()).then(()=>api({action:'flowsave',id:id,patch:clone(keep)})).then(j=>{if(!j||j.status!=='ok')throw 0;S.synced[id]=clone(keep)})
+      .catch(()=>toast('되돌리지 못했습니다. 인터넷을 확인해 주세요.')).finally(()=>{S.busy[id]--});
+    renderAll(true);toast((keep.name||'환자')+' 되돌렸어요.');
+  });
+}
 function remove(id){
   S.items.delete(id);clearTimeout(S.timers[id]);delete S.timers[id];delete S.synced[id];
   S.queue[id]=(S.queue[id]||Promise.resolve()).then(()=>api({action:'flowdelete',id:id})).catch(()=>toast('삭제하지 못했습니다.'));
@@ -660,7 +680,7 @@ async function poll(){
     if(!j||j.status!=='ok')throw new Error((j&&j.message)||'목록을 불러오지 못했습니다.');
     if(!Array.isArray(j.visits)){S.halt=true;throw new Error('server-old')}
     const srv=new Map();j.visits.forEach(o=>srv.set(o.id,o));
-    srv.forEach((o,id)=>{if(pending(id))return;const c=clone(o);S.synced[id]=clone(o);if(!c.sv&&id!=='config:flow'){/* 단계가 하나 늘어난 이전 기록을 새 번호로 옮깁니다 */if(c.step>=2)c.step++;(c.log||[]).forEach(l=>{if(l.s>=2)l.s++});c.sv=2;S.items.set(id,c);setTimeout(()=>flush(id),50)}else S.items.set(id,c)});
+    srv.forEach((o,id)=>{if(pending(id)||(S.gone&&S.gone[id]))return;const c=clone(o);S.synced[id]=clone(o);if(!c.sv&&id!=='config:flow'){/* 단계가 하나 늘어난 이전 기록을 새 번호로 옮깁니다 */if(c.step>=2)c.step++;(c.log||[]).forEach(l=>{if(l.s>=2)l.s++});c.sv=2;S.items.set(id,c);setTimeout(()=>flush(id),50)}else S.items.set(id,c)});
     [...S.items.keys()].forEach(id=>{if(!srv.has(id)&&S.synced[id]&&!pending(id)){S.items.delete(id);delete S.synced[id]}});
     if(j.config){const cs=JSON.stringify(j.config);if(cs!==S.cfgSig){S.cfgSig=cs;applyFlow(j.config)}}
     const sig=JSON.stringify([...S.items.values()].map(v=>[v.id,v.updatedAt]));
@@ -774,7 +794,8 @@ function cardHtml(v,now){
   }else if(v.step>=8&&waitingAfterLeave(v)){const e=etaAll(v,now);dl=`<span class="meta">결과 대기 ${pendingItems(v).length}건${e?' · '+(etaIsExact(v,now)?'예상 ':'대략 ')+fmtEta(e,now):''}</span>${etaBar(v,now)}`}
   else if(v.step===6&&etaAll(v,now)){dl=`<span class="meta">결과 ${etaIsExact(v,now)?'예상 ':'대략 '}${fmtEta(etaAll(v,now),now)}</span>${etaBar(v,now)}`}
   else if(needNotify(v)){dl=`<span class="pill warn">결과 안내 필요</span>`}
-  return `<button class="card${sel?' sel':''}${w?' warn':''}" data-sel="${v.id}">
+  const x=roomOf(v)==='exit';
+  return `<button class="card${sel?' sel':''}${w?' warn':''}${x?' hasx':''}" data-sel="${v.id}">${x?`<span class="cx" role="button" data-act="card-del" data-id="${v.id}" title="현황판에서 지우기 (6초 안에 되돌릴 수 있어요)" aria-label="${esc(v.name||'')} 지우기">×</span>`:''}
     <span class="nm">${esc(v.name||'이름 없음')}${exTag(v)}${invTag(v)}${grPill(v)}</span>
     <span class="meta">${esc(age(v))}${v.sex?' · '+esc(v.sex):''}${v.chartNo?' · '+cnoHtml(v.chartNo):''}${v.card&&isTodayV(v)?' · <b>🎫 '+esc(v.card)+'</b>':''}</span>
     <span class="st" style="${w?'color:var(--warn);font-weight:600':''}">${st}</span>
@@ -1617,6 +1638,7 @@ function onAction(act,el){
     case 'card-next':if(v){if(v.card){toast((v.name||'')+': 이미 카드 '+v.card+'가 연결돼 있어요.');break}linkCard(v,nextCard())}break;
     case 'card-unlink':if(v){v.card='';put(v,true);renderAll(true);toast((v.name||'')+': 카드 연결을 풀었어요.')}break;
     case 'quick-done':if(v)quickDone(v);break;
+    case 'card-del':if(v)delCard(v);break;
     case 'sound':toggleSound();break;
     case 'res-done':{const k=el.dataset.k;if(!v||!k)break;if(!v.lab.results)v.lab.results={};if(!v.lab.at)v.lab.at={};v.lab.results[k]='완료';v.lab.at[k]=Date.now();put(v,true);renderAll(true);break}
     case 'res-undo':{const k=el.dataset.k;if(!v||!k)break;if(v.lab.results)delete v.lab.results[k];if(v.lab.at)delete v.lab.at[k];put(v,true);renderAll(true);break}
