@@ -755,7 +755,7 @@ function loadExamples(){
 }
 function clearExamples(){[...S.items.values()].filter(v=>v.example).forEach(v=>remove(v.id))}
 /* ---------- 화면 상태 ---------- */
-const UI={view:'board',sel:null,viewStep:null,adding:false,confirmDel:null,msg:'',cprefix:'C',cstart:1,ccount:40};
+const UI={view:'board',sel:null,viewStep:null,adding:false,confirmDel:null,msg:'',cprefix:'C',cstart:1,ccount:40,cmax:4};
 const ymdOf=t=>{const d=new Date(t);return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
 const allList=()=>{const td=ymdOf(Date.now());return [...S.items.values()].filter(v=>!(v.step<0&&v.date&&v.date!==td))};
 /* 귀가까지 끝난 아이는 다음 날 현황판·요약·지도에서 자동으로 빠집니다.
@@ -963,10 +963,26 @@ function qrData(text){
   for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(q.isDark(r,c))d+='M'+c+' '+r+'h1v1h-1z';
   return {n:n,d:d};
 }
+/* 앞 번호일수록 많이 잃어버리므로 여러 장: 번호를 「최대 장수」만큼의 구간으로 나눠 맨 앞 구간이 가장 많고 마지막 구간은 1장.
+   A4(40칸)를 다 채우도록 남는 칸은 앞 번호부터 한 장씩 더. 같은 번호는 붙여서 찍어 자르고 정리하기 쉽게. */
+function cardPlan(){
+  const p=UI.cprefix,s=UI.cstart,c=Math.min(800,Math.max(1,UI.ccount)),mx=Math.min(6,Math.max(1,UI.cmax||1));
+  const per=Math.ceil(c/mx),n=[];
+  for(let i=0;i<c;i++)n.push(mx-Math.floor(i/per));
+  let tot=n.reduce((a,b)=>a+b,0);
+  /* A4 남는 칸: 각 구간의 맨 앞 번호를 한 장씩 올린다(아래 구간부터 돌아가며) → 최대 장수는 넘지 않고, 앞 번호일수록 많다는 순서도 그대로 */
+  if(mx>1){let pad=(40-tot%40)%40,k=1,idle=0;while(pad>0&&tot<800&&idle<mx-1){const i=n.indexOf(k);if(i>=0){n[i]++;pad--;tot++;idle=0}else idle++;k=k%(mx-1)+1}}
+  while(tot>800){for(let i=c-1;i>=0&&tot>800;i--)if(n[i]>1){n[i]--;tot--}if(n.every(x=>x<=1))break}
+  return n.map((k,i)=>({code:p+String(s+i).padStart(3,'0'),k:k}));
+}
 function cardCodes(){
-  const out=[],p=UI.cprefix,s=UI.cstart,c=Math.min(800,Math.max(1,UI.ccount));
-  for(let i=0;i<c;i++)out.push(p+String(s+i).padStart(3,'0'));
-  return out;
+  const out=[];cardPlan().forEach(x=>{for(let j=0;j<x.k;j++)out.push(x.code)});
+  return out.slice(0,800);
+}
+function cardPlanText(){
+  const pl=cardPlan(),g=[];
+  pl.forEach(x=>{const l=g[g.length-1];if(l&&l.k===x.k)l.to=x.code;else g.push({from:x.code,to:x.code,k:x.k})});
+  return g.map(x=>`${esc(x.from)}${x.to!==x.from?'~'+esc(x.to):''} <b>${x.k}장</b>${x.to!==x.from?'씩':''}`).join(' · ');
 }
 function cardSvg(code){
   const q=qrData(cardUrl(code)),m=q.n+4;
@@ -988,17 +1004,19 @@ function sheetSvg(codes){
 function cardsPreview(){
   if(typeof qrcode!=='function')return '<p class="hint">QR 생성 라이브러리를 불러오지 못했습니다. 새로고침해 주세요.</p>';
   const codes=cardCodes(),pages=Math.ceil(codes.length/40);
+  const sum=`<p style="margin:0 0 8px;font-size:14px;line-height:1.6">번호 ${cardPlan().length}개 · 카드 <b>${codes.length}장</b> · A4 <b>${pages}장</b><br><span class="hint">${cardPlanText()}</span></p>`;
   let btn='';
   for(let p=0;p<pages;p++)btn+=`<button class="btn sm" data-act="save-sheet" data-page="${p}">시트 ${p+1} 저장 (${p*40+1}~${Math.min(codes.length,p*40+40)}번째)</button> `;
-  return `<div class="actions" style="margin:0 0 10px">${btn}</div><div class="cardgrid">${codes.slice(0,40).map(c=>`<div class="qc">${cardSvg(c)}<b>${esc(c)}</b></div>`).join('')}</div>${codes.length>40?'<p class="hint">미리보기는 첫 40장만 보입니다. 나머지는 시트 저장 버튼으로 받으세요.</p>':''}`;
+  return `${sum}<div class="actions" style="margin:0 0 10px">${btn}</div><div class="cardgrid">${codes.slice(0,40).map(c=>`<div class="qc">${cardSvg(c)}<b>${esc(c)}</b></div>`).join('')}</div>${codes.length>40?'<p class="hint">미리보기는 시트 1만 보입니다. 나머지는 시트 저장 버튼으로 받으세요.</p>':''}`;
 }
 function renderCards(){
   return `<h3 style="margin:0 0 4px">카드 시트</h3>
-  <p class="hint" style="margin:0 0 10px">한 번 출력해서 쓰는 재사용 카드입니다. QR에는 이름이 아니라 카드 번호만 들어갑니다. 시트는 A4 한 장에 40장(가로 5 × 세로 8)씩 저장되며, 저장한 파일을 인쇄해 자르고 코팅해서 쓰세요.</p>
+  <p class="hint" style="margin:0 0 10px">한 번 출력해서 쓰는 재사용 카드입니다. QR에는 이름이 아니라 카드 번호만 들어갑니다. 자주 주고 잘 잃어버리는 앞 번호는 여러 장 찍히고(같은 번호끼리 붙어서), A4 한 장에 40장(가로 5 × 세로 8)씩 저장됩니다. 인쇄해 자르고 코팅해서 쓰세요.</p>
   <div class="f2" style="max-width:520px;margin-bottom:10px">
     <label class="l">앞글자<input type="text" data-cc="cprefix" value="${esc(UI.cprefix)}" maxlength="3"></label>
     <label class="l">시작 번호<input type="number" data-cc="cstart" value="${UI.cstart}" min="1"></label>
-    <label class="l">장수 (최대 800)<input type="number" data-cc="ccount" value="${UI.ccount}" min="1" max="800"></label>
+    <label class="l">번호 개수<input type="number" data-cc="ccount" value="${UI.ccount}" min="1" max="800"></label>
+    <label class="l">앞 번호 여분<select data-cc="cmax">${[1,2,3,4,5,6].map(k=>`<option value="${k}"${k===UI.cmax?' selected':''}>${k===1?'여분 없음 (번호마다 1장)':'앞 번호 '+k+'장 → 뒤로 갈수록 적게'}</option>`).join('')}</select></label>
   </div><div id="cards-preview">${cardsPreview()}</div>`;
 }
 /* ---------- 동선 설정 (단계별 장소·기준 시간, 방 이름) ---------- */
@@ -1430,7 +1448,7 @@ async function saveSheet(p){
   if(!codes.length)return;
   try{
     const blob=new Blob([sheetSvg(codes)],{type:'image/svg+xml'});
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='cards-'+codes[0]+'-'+codes[codes.length-1]+'.svg';
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='cards-sheet'+(p+1)+'-'+codes[0]+'-'+codes[codes.length-1]+'.svg';
     document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);toast('저장했습니다.');
   }catch(e){toast('저장하지 못했습니다.')}
 }
