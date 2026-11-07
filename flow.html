@@ -756,7 +756,11 @@ function loadExamples(){
 function clearExamples(){[...S.items.values()].filter(v=>v.example).forEach(v=>remove(v.id))}
 /* ---------- 화면 상태 ---------- */
 const UI={view:'board',sel:null,viewStep:null,adding:false,confirmDel:null,msg:'',cprefix:'C',cstart:1,ccount:40};
-const list=()=>{const d=new Date(),td=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());return [...S.items.values()].filter(v=>!(v.step<0&&v.date&&v.date!==td))};
+const ymdOf=t=>{const d=new Date(t);return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
+const allList=()=>{const td=ymdOf(Date.now());return [...S.items.values()].filter(v=>!(v.step<0&&v.date&&v.date!==td))};
+/* 귀가까지 끝난 아이는 다음 날 현황판·요약·지도에서 자동으로 빠집니다.
+   기록은 서버에 그대로 두고, 결과 안내가 남은 아이는 위 「결과 대기·안내」 상자에는 계속 보입니다(notifyHtml은 allList). */
+const list=()=>{const td=ymdOf(Date.now());return allList().filter(v=>!(v.step>=9&&(v.date||(v.createdAt?ymdOf(v.createdAt):td))!==td))};
 const age=v=>v.age===''||v.age==null?'':'만 '+v.age+'세';
 const exTag=v=>v.example?'<span class="pill ex">예시</span>':'';
 
@@ -805,7 +809,7 @@ function notifyText(v){
   return `[삼성자라다 소아청소년과] ${v.name} 어린이의 검사 결과가 모두 나왔습니다. 결과는 진료 시간에 병원으로 문의하시거나 내원해서 확인해 주세요.`;
 }
 function notifyHtml(){
-  const a=list(),need=a.filter(needNotify),wait=a.filter(waitingAfterLeave);
+  const a=allList(),need=a.filter(needNotify),wait=a.filter(waitingAfterLeave);
   if(!need.length&&!wait.length)return '';
   let h='<div class="nbox">';
   if(need.length)h+=`<h3>결과 도착, 보호자 안내 필요 <span class="pill warn">${need.length}</span></h3>`+need.map(v=>
@@ -822,7 +826,7 @@ function emptyHtml(){
 }
 function renderBoard(){
   const now=Date.now(),a=list();
-  if(!a.length)return emptyHtml();
+  if(!a.length)return notifyHtml()+emptyHtml();
   const cols=boardCols().map(c=>{
     const vs=a.filter(v=>roomOf(v)===c.key).sort((x,y)=>(stepStart(x,x.step)||x.createdAt)-(stepStart(y,y.step)||y.createdAt));
     return `<div class="col"><h3>${c.label}<span>${vs.length}</span></h3>${vs.map(v=>cardHtml(v,now)).join('')}</div>`;
