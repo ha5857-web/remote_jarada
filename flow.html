@@ -650,7 +650,11 @@ function flush(id){
   return S.queue[id];
 }
 function schedule(id){clearTimeout(S.timers[id]);S.timers[id]=setTimeout(()=>flush(id),600)}
-function put(v,now){v.updatedAt=Date.now();S.items.set(v.id,v);if(now)flush(v.id);else schedule(v.id);emit()}
+/* 🎫 카드 QR은 「오늘 진료 중인 아이」에게만 열려야 합니다 — 귀가 처리했거나 어제 이전 방문이면 카드 연결을 풀어 서버가 그 카드로 이 아이를 찾지 못하게 합니다
+   (집에 가져간 카드를 다음 날 찍어도, 같은 번호를 받은 오늘 아이 화면이 뜨거나 어제 아이 정보가 뜨지 않게). 번호 순서 이어주기용으로 cardWas에 마지막 번호만 남김. */
+function cardStale(v){return !!v.card&&(v.step>=9||(!!v.date&&v.date!==ymdOf(Date.now())))}
+function releaseCard(v){if(v.card){v.cardWas=v.card;v.card=''}}
+function put(v,now){if(cardStale(v))releaseCard(v);v.updatedAt=Date.now();S.items.set(v.id,v);if(now)flush(v.id);else schedule(v.id);emit()}
 /* 예약·귀가·리포트 카드 오른쪽 위 × — 바로 숨기고, 6초 동안 「되돌리기」.
    서버 기록은 지우지 않고 「숨김」만 표시합니다: 지워 버리면 「오늘 예약 불러오기」(페이지를 열 때도 자동)가 같은 아이를 예약 칸에 다시 넣기 때문.
    아직 끝나지 않은 아이는 카드 번호 연결도 풀어 다른 아이에게 바로 줄 수 있게. */
@@ -682,6 +686,7 @@ async function poll(){
     srv.forEach((o,id)=>{if(pending(id)||(S.gone&&S.gone[id]))return;const c=clone(o);S.synced[id]=clone(o);if(!c.sv&&id!=='config:flow'){/* 단계가 하나 늘어난 이전 기록을 새 번호로 옮깁니다 */if(c.step>=2)c.step++;(c.log||[]).forEach(l=>{if(l.s>=2)l.s++});c.sv=2;S.items.set(id,c);setTimeout(()=>flush(id),50)}else S.items.set(id,c)});
     [...S.items.keys()].forEach(id=>{if(!srv.has(id)&&S.synced[id]&&!pending(id)){S.items.delete(id);delete S.synced[id]}});
     if(j.config){const cs=JSON.stringify(j.config);if(cs!==S.cfgSig){S.cfgSig=cs;applyFlow(j.config)}}
+    S.items.forEach((v,id)=>{if(id!=='config:flow'&&cardStale(v)&&!pending(id)){releaseCard(v);v.updatedAt=Date.now();schedule(id)}});   // 어제 이전·귀가한 방문에 남은 카드 연결 정리
     const sig=JSON.stringify([...S.items.values()].map(v=>[v.id,v.updatedAt]));
     const first=!S.loaded;S.loaded=true;
     if(first||sig!==S.sig){S.sig=sig;emit()}
@@ -1710,8 +1715,8 @@ const CARD_MAX=400;
 function cardNum(c){const m=String(c||'').match(/^[A-Za-z]*0*(\d+)$/);return m?+m[1]:0}
 function nextCard(){
   const today=list().filter(isTodayV),used=new Set(today.filter(v=>v.card&&v.step<10).map(v=>cardNum(v.card)));
-  const last=today.filter(v=>v.card).sort((a,b)=>(b.cardAt||0)-(a.cardAt||0))[0];
-  let n=last?cardNum(last.card)+1:1;
+  const last=today.filter(v=>v.card||v.cardWas).sort((a,b)=>(b.cardAt||0)-(a.cardAt||0))[0];
+  let n=last?cardNum(last.card||last.cardWas)+1:1;
   for(let i=0;i<CARD_MAX;i++){if(n>CARD_MAX||n<1)n=1;if(!used.has(n))break;n++}
   return (UI.cprefix||'C')+String(n).padStart(3,'0');
 }
@@ -2043,13 +2048,15 @@ const PM_CODE=new URLSearchParams(location.search).get('c');
 const PM={d:null,off:0,alerted:new Set(),sound:false,ctx:null,wl:null,notif:false,fail:0};
 const PM_DEFAULT_ID='AKfycbzTNYUR8rlsZSmQl1AQrIkB-HGARhUQDwP4nrDFti3R7-ip4ipRGOqk4lVfVZpIFSwONg';
 function pmApi(){const a=new URLSearchParams(location.search).get('a')||PM_DEFAULT_ID;return /^https?:/.test(a)?a:'https://script.google.com/macros/s/'+a+'/exec'}
+/* 귀가했거나 어제 이전 방문이면 카드를 찍어도 보여주지 않음(서버도 같은 기준으로 거르고, 여기서 한 번 더) */
+function pmUsable(v){if(!v||v.step>=9)return false;if(v.date){const n=new Date(Date.now()+PM.off),t=n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');if(v.date!==t)return false}return true}
 async function pmLoad(){
   try{
     let r;
     try{r=await fetch(PM.alt?'https://script.google.com/macros/s/'+PM_DEFAULT_ID+'/exec':pmApi(),{method:'POST',body:JSON.stringify({action:'flowme',card:PM_CODE})});if(!r.ok)throw 0}
     catch(e0){if(PM.alt||pmApi().indexOf(PM_DEFAULT_ID)>=0)throw e0;PM.alt=true;return pmLoad()}
     const j=await r.json();
-    if(j&&j.status==='ok'){PM.fail=0;PM.d=j.visit||null;PM.off=(j.now||Date.now())-Date.now();pmRender(true)}
+    if(j&&j.status==='ok'){PM.fail=0;PM.off=(j.now||Date.now())-Date.now();PM.d=pmUsable(j.visit)?j.visit:null;pmRender(true)}
     else{PM.fail++;pmRender(true)}
   }catch(e){PM.fail++;pmRender(true)}
 }
