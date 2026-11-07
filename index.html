@@ -9166,9 +9166,14 @@ function rvSyncFlow(visits){
     try{ if(rvAutoFromFlow(visits)) ch = true; }catch(e){}
     patients.forEach(p=>{
       const q = p.rvQ; if(!q || q.st!=='wait') return;
+      /* 대기에 올린 그날의 flow 방문을 찾습니다(어제 이전에 올린 아이도 — 오늘 날짜로만 찾으면 어제 flow에서 리포트를 끝낸 아이가 계속 「작성 대기」로 남음) */
+      const vd = fvFlowFindVisitOn(p, visits, q.date);
+      if(vd){
+        const gd = vd.gr || {};
+        if((gd.ready && gd.reviewed) || (vd.report && vd.report.sent)){ if(!(gd.ready && gd.reviewed) || (gd.reviewedAt||0) > (q.t||0) || (vd.report && vd.report.sent)){ p.rvQ.st = 'sent'; p.rvQ.sentAt = gd.reviewedAt || (vd.report && vd.report.sentAt) || Date.now(); p.updatedAt = new Date().toISOString(); ch = true; return; } }
+      }
       const v = fvFlowFindVisit(p, visits); if(!v) return;
       const g = v.gr || {};
-      if(g.ready && g.reviewed && (g.reviewedAt||0) > (q.t||0)){ p.rvQ.st = 'sent'; p.rvQ.sentAt = g.reviewedAt; p.updatedAt = new Date().toISOString(); ch = true; return; }
       const key = p.id + ':' + q.t;
       if(!window.rvQPushed[key] && !(g.q && g.q.t===q.t)){ window.rvQPushed[key] = 1; rvQPushFlow(p, visits); }
     });
@@ -9319,6 +9324,13 @@ async function fvFlowFillAll(visits){
   }
 }
 window.fvPullAt = window.fvPullAt || {};
+function fvFlowFindVisitOn(p, visits, date){
+  const dg = s => String(s||'').replace(/\D/g,'');
+  const c = (visits||[]).filter(v=>v && v.id && v.id!=='config:flow' && v.name && v.date===date);
+  let m = p.chartNo ? c.filter(v=>dg(v.chartNo) && dg(v.chartNo)===dg(p.chartNo)) : [];
+  if(!m.length){ const b = c.filter(v=>v.name===p.name); if(b.length===1) m = b; }
+  return m.length>=1 ? m.sort((a,b)=>((b.gr&&b.gr.reviewedAt)||0)-((a.gr&&a.gr.reviewedAt)||0))[0] : null;
+}
 function fvFlowFindVisit(p, visits){
   const today = todayStr(), dg = s => String(s||'').replace(/\D/g,'');
   const c = (visits||[]).filter(v=>v && v.id && v.id!=='config:flow' && v.name && (!v.date || v.date===today));
