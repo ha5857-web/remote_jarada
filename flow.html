@@ -651,17 +651,16 @@ function flush(id){
 }
 function schedule(id){clearTimeout(S.timers[id]);S.timers[id]=setTimeout(()=>flush(id),600)}
 function put(v,now){v.updatedAt=Date.now();S.items.set(v.id,v);if(now)flush(v.id);else schedule(v.id);emit()}
-/* 귀가·리포트 카드 오른쪽 위 × — 바로 지우고, 6초 동안 「되돌리기」 */
+/* 예약·귀가·리포트 카드 오른쪽 위 × — 바로 숨기고, 6초 동안 「되돌리기」.
+   서버 기록은 지우지 않고 「숨김」만 표시합니다: 지워 버리면 「오늘 예약 불러오기」(페이지를 열 때도 자동)가 같은 아이를 예약 칸에 다시 넣기 때문.
+   아직 끝나지 않은 아이는 카드 번호 연결도 풀어 다른 아이에게 바로 줄 수 있게. */
 function delCard(v){
   const id=v.id,keep=clone(v);
   if(UI.sel===id)UI.sel=null;
-  (S.gone||(S.gone={}))[id]=Date.now();
-  remove(id);renderAll(true);
+  v.hide=Date.now();if(v.step<10&&v.card)v.card='';
+  put(v,true);renderAll(true);
   toastUndo((v.name||'환자')+' 지웠어요.',()=>{
-    delete S.gone[id];keep.updatedAt=Date.now();S.items.set(id,keep);
-    S.busy[id]=(S.busy[id]||0)+1;                                   // 지우기가 끝난 뒤 통째로 다시 저장 — 그동안 목록 새로고침이 덮어쓰지 않게
-    S.queue[id]=(S.queue[id]||Promise.resolve()).then(()=>api({action:'flowsave',id:id,patch:clone(keep)})).then(j=>{if(!j||j.status!=='ok')throw 0;S.synced[id]=clone(keep)})
-      .catch(()=>toast('되돌리지 못했습니다. 인터넷을 확인해 주세요.')).finally(()=>{S.busy[id]--});
+    const back=clone(keep);back.hide=0;put(back,true);            // hide:0 으로 덮어써야 서버에도 「숨김 풀림」이 저장됨
     renderAll(true);toast((keep.name||'환자')+' 되돌렸어요.');
   });
 }
@@ -757,7 +756,7 @@ function clearExamples(){[...S.items.values()].filter(v=>v.example).forEach(v=>r
 /* ---------- 화면 상태 ---------- */
 const UI={view:'board',sel:null,viewStep:null,adding:false,confirmDel:null,msg:'',cprefix:'C',cstart:1,ccount:40,cmax:4};
 const ymdOf=t=>{const d=new Date(t);return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
-const allList=()=>{const td=ymdOf(Date.now());return [...S.items.values()].filter(v=>!(v.step<0&&v.date&&v.date!==td))};
+const allList=()=>{const td=ymdOf(Date.now());return [...S.items.values()].filter(v=>!v.hide&&!(v.step<0&&v.date&&v.date!==td))};   // ×로 지운 카드(hide)는 어디에도 안 보임
 /* 귀가까지 끝난 아이는 다음 날 현황판·요약·지도에서 자동으로 빠집니다.
    기록은 서버에 그대로 둡니다. 「귀가 후 결과 대기」 상자도 오늘 것만, 「보호자 안내 필요」만 지난 날짜까지 보입니다. */
 const list=()=>{const td=ymdOf(Date.now());return allList().filter(v=>!(v.step>=9&&(v.date||(v.createdAt?ymdOf(v.createdAt):td))!==td))};
@@ -798,7 +797,7 @@ function cardHtml(v,now){
   }else if(v.step>=8&&waitingAfterLeave(v)){const e=etaAll(v,now);dl=`<span class="meta">결과 대기 ${pendingItems(v).length}건${e?' · '+(etaIsExact(v,now)?'예상 ':'대략 ')+fmtEta(e,now):''}</span>${etaBar(v,now)}`}
   else if(v.step===6&&etaAll(v,now)){dl=`<span class="meta">결과 ${etaIsExact(v,now)?'예상 ':'대략 '}${fmtEta(etaAll(v,now),now)}</span>${etaBar(v,now)}`}
   else if(needNotify(v)){dl=`<span class="pill warn">결과 안내 필요</span>`}
-  const x=roomOf(v)==='exit';
+  const x=roomOf(v)==='exit'||roomOf(v)==='booked';   // 예약 칸·귀가 칸 카드는 오른쪽 위 ×로 바로 지우기
   return `<button class="card${sel?' sel':''}${w?' warn':''}${x?' hasx':''}" data-sel="${v.id}">${x?`<span class="cx" role="button" data-act="card-del" data-id="${v.id}" title="현황판에서 지우기 (6초 안에 되돌릴 수 있어요)" aria-label="${esc(v.name||'')} 지우기">×</span>`:''}
     <span class="nm">${esc(v.name||'이름 없음')}${exTag(v)}${invTag(v)}${grPill(v)}</span>
     <span class="meta">${esc(age(v))}${v.sex?' · '+esc(v.sex):''}${v.chartNo?' · '+cnoHtml(v.chartNo):''}${v.card&&isTodayV(v)?' · <b>🎫 '+esc(v.card)+'</b>':''}</span>
