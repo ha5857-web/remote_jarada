@@ -418,6 +418,19 @@ body.mrep .tabs button{flex:none}
 .mb-zoom{position:sticky;top:0;z-index:2;align-self:flex-end;margin:0 0 8px;height:38px;padding:0 14px;border-radius:19px;border:1px solid #C9D5DB;background:rgba(255,255,255,.95);font:inherit;font-size:14px;font-weight:700;color:#0B6E7F;box-shadow:0 2px 8px rgba(0,0,0,.08)}
 .grov.mob.zoom .gr-wrap{width:794px;max-width:none}
 .grov.mob textarea::placeholder{color:#A9B6BD;font-size:15px}
+.grov.mob .mb-emr{flex:none;padding:6px 10px;background:#fff;border-bottom:1px solid #d5dde2;margin:0}
+.grov.mob[data-t="view"] .mb-emr{display:none}
+.grov.mob.emr-open[data-t="edit"] .mb-msg{display:none}
+.emr-tog{display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border:1px solid #E6D7AE;border-radius:10px;background:#FFF8E6;font:inherit;font-size:14.5px;font-weight:700;color:#6B5310;cursor:pointer;text-align:left}
+.emr-tog span{font-weight:600;font-size:12.5px;white-space:nowrap}
+.emr-old{display:block;font-size:12px;color:#B63A32}
+.emr-body{margin-top:6px;border:1px solid #E6D7AE;border-radius:10px;background:#FFFDF6;max-height:34vh;overflow:auto;-webkit-overflow-scrolling:touch}
+.emr-opts{position:sticky;top:0;display:flex;gap:6px;padding:6px;background:#FFFDF6;border-bottom:1px solid #F0E6C8}
+.emr-opts button{flex:1;height:34px;border:1px solid #E6D7AE;border-radius:8px;background:#fff;font:inherit;font-size:13.5px;font-weight:700;color:#6B5310;cursor:pointer}
+.emr-opts button.on{background:#6B5310;color:#fff;border-color:#6B5310}
+.emr-txt{padding:6px 10px 8px;font-size:14.5px;line-height:1.55;color:#2A2A2A;white-space:pre-wrap;word-break:break-all;-webkit-user-select:text;user-select:text}
+.emr-l.nw{background:#FFF0B3;margin:0 -4px;padding:0 4px;border-radius:3px}
+.emr-none{padding:9px 12px;border:1px dashed #E6D7AE;border-radius:10px;font-size:13px;line-height:1.5;color:#8A7A50}
 .mb-bar{flex:none;display:flex;gap:8px;padding:10px 10px calc(10px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid #d5dde2}
 .mb-bar .btn.big{flex:1;height:54px;font-size:18px;border-radius:14px}
 .mb-bar .mb-unrev{flex:1;height:54px;font-size:16px;border-radius:14px}
@@ -2865,6 +2878,51 @@ const GROWTH_LMS = {
     F: [[24.0,-0.5684,15.6881,0.0845],[25.0,-0.5684,15.659,0.0845],[26.0,-0.5684,15.6308,0.0845],[27.0,-0.5684,15.6037,0.0845],[28.0,-0.5684,15.5777,0.0844],[29.0,-0.5684,15.5523,0.0844],[30.0,-0.5684,15.5276,0.0844],[31.0,-0.5684,15.5034,0.0845],[32.0,-0.5684,15.4798,0.0846],[33.0,-0.5684,15.4572,0.0847],[34.0,-0.5684,15.4356,0.0848],[35.0,-0.5684,15.4155,0.0851],[36.0,1.7658,15.7543,0.0677],[37.0,1.6248,15.7529,0.0685],[38.0,1.4878,15.7514,0.0694],[39.0,1.3549,15.7497,0.0702],[40.0,1.2261,15.7478,0.071],[41.0,1.1013,15.7459,0.0718],[42.0,0.9805,15.7438,0.0726],[43.0,0.8636,15.7417,0.0734],[44.0,0.7507,15.7395,0.0741],[45.0,0.6416,15.7373,0.0749],[46.0,0.5363,15.735,0.0757],[47.0,0.4348,15.7327,0.0764],[48.0,0.3375,15.7321,0.0772],[49.0,0.2441,15.7315,0.0779],[50.0,0.1545,15.7309,0.0787],[51.0,0.0685,15.7303,0.0794],[52.0,-0.0139,15.7298,0.0801],[53.0,-0.0928,15.7293,0.0808],[54.0,-0.1684,15.7288,0.0815],[55.0,-0.2408,15.7284,0.0822],[56.0,-0.31,15.728,0.0829],[57.0,-0.3762,15.7277,0.0836],[58.0,-0.4395,15.7275,0.0843],[59.0,-0.5,15.7273,0.085],[60.0,-0.5537,15.7308,0.0857],[61.0,-0.6047,15.7343,0.0865],[62.0,-0.6531,15.7379,0.0872],[63.0,-0.699,15.7416,0.0879],[64.0,-0.7425,15.7453,0.0886],[65.0,-0.7838,15.7491,0.0894],[66.0,-0.8229,15.753,0.0901],[67.0,-0.86,15.757,0.0908],[68.0,-0.8951,15.761,0.0915],[69.0,-0.9283,15.7651,0.0922],[70.0,-0.9598,15.7692,0.0929],[71.0,-0.9896,15.7734,0.0936],[72.0,-0.9929,15.7972,0.0946],[73.0,-0.9953,15.8211,0.0956],[74.0,-0.997,15.845,0.0966],[75.0,-0.998,15.8689,0.0976],[76.0,-0.9984,15.8928,0.0986],[77.0,-0.9983,15.9168,0.0995],[78.0,-0.9976,15.9408,0.1005],[79.0,-0.9964,15.9648,0.1015],[80.0,-0.9948,15.9888,0.1025],[81.0,-0.9927,16.0129,0.1034],[82.0,-0.9903,16.0369,0.1044],[83.0,-0.9876,16.061,0.1054],[84.0,-0.9677,16.1003,0.1064],[85.0,-0.9484,16.1396,0.1073],[86.0,-0.9296,16.1788,0.1083],[87.0,-0.9112,16.2181,0.1093],[88.0,-0.8933,16.2573,0.1103],[89.0,-0.8759,16.2966,0.1113],[90.0,-0.8589,16.3358,0.1122],[91.0,-0.8423,16.375,0.1132],[92.0,-0.8261,16.4142,0.1142],[93.0,-0.8103,16.4534,0.1151],[94.0,-0.7948,16.4926,0.1161],[95.0,-0.7797,16.5318,0.117],[96.0,-0.7556,16.5815,0.1179],[97.0,-0.7322,16.6312,0.1187],[98.0,-0.7095,16.6809,0.1196],[99.0,-0.6873,16.7305,0.1204],[100.0,-0.6657,16.7802,0.1212],[101.0,-0.6447,16.8298,0.1221],[102.0,-0.6242,16.8795,0.1229],[103.0,-0.6042,16.9291,0.1237],[104.0,-0.5848,16.9787,0.1245],[105.0,-0.5658,17.0283,0.1253],[106.0,-0.5474,17.0779,0.1261],[107.0,-0.5293,17.1275,0.1269],[108.0,-0.5108,17.1807,0.1276],[109.0,-0.4927,17.2339,0.1282],[110.0,-0.4749,17.287,0.1289],[111.0,-0.4575,17.3402,0.1295],[112.0,-0.4405,17.3934,0.1302],[113.0,-0.4238,17.4466,0.1308],[114.0,-0.4075,17.4998,0.1314],[115.0,-0.3915,17.5529,0.1321],[116.0,-0.3758,17.6061,0.1327],[117.0,-0.3604,17.6593,0.1333],[118.0,-0.3453,17.7125,0.1339],[119.0,-0.3305,17.7657,0.1346],[120.0,-0.3196,17.8202,0.1349],[121.0,-0.3087,17.8747,0.1353],[122.0,-0.2981,17.9293,0.1356],[123.0,-0.2875,17.9838,0.136],[124.0,-0.2771,18.0383,0.1363],[125.0,-0.2668,18.0929,0.1367],[126.0,-0.2566,18.1475,0.137],[127.0,-0.2465,18.202,0.1374],[128.0,-0.2366,18.2566,0.1377],[129.0,-0.2268,18.3112,0.138],[130.0,-0.217,18.3658,0.1384],[131.0,-0.2074,18.4204,0.1387],[132.0,-0.2055,18.4741,0.1388],[133.0,-0.2036,18.5278,0.1388],[134.0,-0.2018,18.5815,0.1388],[135.0,-0.1999,18.6352,0.1388],[136.0,-0.198,18.6889,0.1389],[137.0,-0.1962,18.7426,0.1389],[138.0,-0.1943,18.7963,0.1389],[139.0,-0.1925,18.8499,0.139],[140.0,-0.1906,18.9036,0.139],[141.0,-0.1888,18.9573,0.139],[142.0,-0.187,19.011,0.1391],[143.0,-0.1852,19.0648,0.1391],[144.0,-0.1841,19.1168,0.1388],[145.0,-0.1829,19.1689,0.1386],[146.0,-0.1817,19.221,0.1383],[147.0,-0.1805,19.273,0.138],[148.0,-0.1793,19.3251,0.1378],[149.0,-0.1781,19.3772,0.1375],[150.0,-0.1769,19.4293,0.1372],[151.0,-0.1756,19.4814,0.137],[152.0,-0.1743,19.5335,0.1367],[153.0,-0.173,19.5856,0.1364],[154.0,-0.1717,19.6377,0.1362],[155.0,-0.1703,19.6898,0.1359],[156.0,-0.1641,19.7377,0.1355],[157.0,-0.1578,19.7856,0.135],[158.0,-0.1514,19.8335,0.1346],[159.0,-0.1449,19.8814,0.1341],[160.0,-0.1382,19.9293,0.1337],[161.0,-0.1314,19.9772,0.1332],[162.0,-0.1246,20.0252,0.1328],[163.0,-0.1176,20.0731,0.1323],[164.0,-0.1104,20.1211,0.1319],[165.0,-0.1032,20.1691,0.1314],[166.0,-0.0958,20.2171,0.131],[167.0,-0.0884,20.2651,0.1305],[168.0,-0.0802,20.3049,0.13],[169.0,-0.0719,20.3446,0.1295],[170.0,-0.0635,20.3844,0.1289],[171.0,-0.0549,20.4242,0.1284],[172.0,-0.0461,20.464,0.1278],[173.0,-0.0371,20.5038,0.1273],[174.0,-0.028,20.5436,0.1268],[175.0,-0.0187,20.5834,0.1262],[176.0,-0.0092,20.6232,0.1257],[177.0,0.0004,20.663,0.1252],[178.0,0.0102,20.7029,0.1246],[179.0,0.0202,20.7427,0.1241],[180.0,0.023,20.7675,0.1236],[181.0,0.0259,20.7923,0.1232],[182.0,0.0288,20.817,0.1227],[183.0,0.0318,20.8418,0.1222],[184.0,0.0349,20.8666,0.1218],[185.0,0.038,20.8914,0.1213],[186.0,0.0412,20.9162,0.1208],[187.0,0.0445,20.941,0.1204],[188.0,0.0478,20.9657,0.1199],[189.0,0.0512,20.9905,0.1195],[190.0,0.0547,21.0153,0.119],[191.0,0.0583,21.0401,0.1186],[192.0,0.045,21.0433,0.1183],[193.0,0.0315,21.0465,0.118],[194.0,0.018,21.0498,0.1177],[195.0,0.0043,21.053,0.1175],[196.0,-0.0095,21.0562,0.1172],[197.0,-0.0235,21.0593,0.1169],[198.0,-0.0375,21.0625,0.1166],[199.0,-0.0517,21.0657,0.1164],[200.0,-0.0661,21.0689,0.1161],[201.0,-0.0806,21.072,0.1158],[202.0,-0.0952,21.0752,0.1155],[203.0,-0.1099,21.0783,0.1152],[204.0,-0.1287,21.0754,0.115],[205.0,-0.1476,21.0724,0.1148],[206.0,-0.1667,21.0694,0.1146],[207.0,-0.1859,21.0664,0.1144],[208.0,-0.2054,21.0634,0.1142],[209.0,-0.225,21.0603,0.114],[210.0,-0.2448,21.0573,0.1138],[211.0,-0.2648,21.0542,0.1136],[212.0,-0.285,21.0511,0.1134],[213.0,-0.3053,21.048,0.1132],[214.0,-0.3258,21.0449,0.113],[215.0,-0.3465,21.0417,0.1128],[216.0,-0.368,21.0362,0.1126],[217.0,-0.3897,21.0307,0.1124],[218.0,-0.4115,21.0251,0.1122],[219.0,-0.4336,21.0196,0.112],[220.0,-0.4558,21.014,0.1119],[221.0,-0.4781,21.0084,0.1117],[222.0,-0.5007,21.0028,0.1115],[223.0,-0.5234,20.9972,0.1113],[224.0,-0.5463,20.9916,0.1111],[225.0,-0.5694,20.986,0.1109],[226.0,-0.5927,20.9803,0.1107],[227.0,-0.6161,20.9747,0.1105]]
   }
 };
+/* 📋 휴대폰에서 컴퓨터 없이 리포트를 고칠 때 볼 EMR 차트: 의사 앱(같은 주소의 index.html)이 방문마다 저장·동기화해 둔 차트를 그대로 읽어 옵니다.
+   flow가 차트를 새로 저장하지는 않습니다. 원장 계정(동기화 키)이 있는 기기에서만 보이고, 10분 동안만 이 화면에 기억합니다. */
+var DOC={at:0,p:null,busy:null,err:''};
+function docReassemble(rows,key){
+  var parts=(rows||[]).filter(function(r){return r&&r.type==='doctordata'&&r.pid===key});if(!parts.length)return null;
+  var g={};parts.forEach(function(r){var k=String(r.timestamp||'');(g[k]=g[k]||[]).push(r)});
+  var ks=Object.keys(g).sort().reverse();
+  for(var i=0;i<ks.length;i++){var a=g[ks[i]].slice().sort(function(x,y){return parseInt(x.refId||0)-parseInt(y.refId||0)}),tot=Number(a[0]&&a[0].answer)||0;
+    if(tot>0&&a.length===tot&&a.every(function(r,j){return parseInt(r.refId||0)===j}))return a.map(function(r){return r.question||''}).join('')}
+  if(ks.length>1)return null;
+  return parts.sort(function(x,y){return parseInt(x.refId||0)-parseInt(y.refId||0)}).map(function(r){return r.question||''}).join('');
+}
+function docLocal(){try{var a=JSON.parse(localStorage.getItem('jrd_remote_gh_patients_v1')||'[]');return Array.isArray(a)?a:[]}catch(e){return[]}}
+function docPatients(force){
+  if(!force&&DOC.p&&Date.now()-DOC.at<600000)return Promise.resolve(DOC.p);
+  if(DOC.busy)return DOC.busy;
+  var key=ls.get('jrd_sync_key'),url=apiUrl(),t=authToken();
+  if(!key||!url||!t){DOC.p=docLocal();DOC.at=Date.now();DOC.err=key?'':'nokey';return Promise.resolve(DOC.p)}
+  DOC.busy=fetch(url+'?key='+encodeURIComponent(key)+'&only=doctordata&auth='+encodeURIComponent(t)+'&t='+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(rows){
+    var txt=docReassemble(Array.isArray(rows)?rows:[],key),arr=null;try{arr=JSON.parse(txt||'null')}catch(e){}
+    if(Array.isArray(arr)){DOC.p=arr.filter(function(p){return p&&!p._deleted});DOC.at=Date.now();DOC.err=''}else{DOC.p=DOC.p||docLocal();DOC.err='read'}
+    return DOC.p;
+  }).catch(function(){DOC.p=DOC.p||docLocal();DOC.err='net';return DOC.p}).then(function(x){DOC.busy=null;return x});
+  return DOC.busy;
+}
+function docFind(list,v){
+  var dg=function(x){return String(x||'').replace(/\D/g,'').replace(/^0+/,'')},c=dg(v.chartNo);
+  var m=c?list.filter(function(p){return dg(p.chartNo)===c}):[];
+  if(!m.length){var b=list.filter(function(p){return p.name&&p.name===v.name});if(b.length===1)m=b}
+  return m[0]||null;
+}
+var EMRV={open:false,all:false};
+function emrNorm(l){return String(l||'').replace(/\s+/g,' ').trim()}
+function emrHtml(chart,base,date,o,want){
+  o=o||{};
+  if(!String(chart||'').trim())return '<div class="emr-none">📋 의사 앱에 이 아이의 EMR 차트가 아직 없어요. 진료실에서 의사 앱에 EMR을 올리면 여기서 보여요.</div>';
+  var old={};String(base||'').split('\n').forEach(function(l){var n=emrNorm(l);if(n)old[n]=1});
+  var hasBase=!!String(base||'').trim(),nNew=0;
+  var rows=String(chart).replace(/\r/g,'').split('\n').map(function(l){var n=emrNorm(l),nw=!!n&&(!hasBase||!old[n]);if(nw)nNew++;return{l:l,n:n,nw:nw}});
+  var show=o.all||!hasBase?rows.filter(function(r,i){return r.n||(i>0&&rows[i-1].n)}):rows.filter(function(r){return r.nw});
+  var body=show.map(function(r){return '<div class="emr-l'+(r.nw&&hasBase?' nw':'')+'">'+(esc(r.l)||'&nbsp;')+'</div>'}).join('')||'<div class="emr-l">(지난 차트와 달라진 줄이 없어요)</div>';
+  var stale=want&&date&&date!==want?' <b class="emr-old">⚠ '+String(date).replace(/-/g,'.')+' 차트(오늘 것 아님)</b>':'';
+  return '<button type="button" class="emr-tog" data-emr="tog">📋 EMR 차트 '+esc(String(date||'').replace(/-/g,'.'))+' · '+(hasBase?'오늘 새로 쓴 '+nNew+'줄':'전체 '+rows.filter(function(r){return r.n}).length+'줄')+stale+' <span>'+(o.open?'접기 ▴':'펼치기 ▾')+'</span></button>'+
+    (o.open?'<div class="emr-body">'+(hasBase?'<div class="emr-opts"><button type="button" data-emr="new" class="'+(o.all?'':'on')+'">새로 쓴 줄</button><button type="button" data-emr="all" class="'+(o.all?'on':'')+'">전체 차트</button></div>':'')+'<div class="emr-txt">'+body+'</div></div>':'');
+}
 /* 차트 글의 치료 기간: GH(시작~끝)·GnRHa(시작~끝) 전부 (끝이 없으면 시작 뒤 「중단/종료」 날짜를 끝으로). 성장 리포트 그래프의 띠·화살표에 씁니다. */
 function txPeriodsOf(text){
   var t=String(text||''),out=[],seen={};
@@ -3572,7 +3630,7 @@ function mobShellHtml(v){
   var who=[age(v),v.sex].filter(Boolean).join(' · ');
   return '<div class="mb-top"><button type="button" class="mb-back" data-fr="close" aria-label="목록으로">‹</button><div class="mb-who"><b>'+esc(v.name||'이름 없음')+'</b><span>'+esc(who)+(v.chartNo?(who?' · ':'')+'<span class="cno" role="button" data-fr="copyno" data-c="'+esc(v.chartNo)+'">'+esc(v.chartNo)+'</span>':'')+'</span></div><span class="mb-pos" id="mb-pos"></span></div>'+
     '<div class="mb-tabs" role="tablist"><button type="button" role="tab" data-fr="tab" data-t="edit">📝 내용</button><button type="button" role="tab" data-fr="tab" data-t="view">📄 미리보기</button></div>'+
-    '<div class="mb-msg" id="grmsg"></div><div class="grtip" id="fr-tip" hidden></div>'+
+    '<div class="mb-msg" id="grmsg"></div><div class="grtip" id="fr-tip" hidden></div><div class="mb-emr emr" id="mb-emr"></div>'+
     '<div class="grbody" id="mb-body"><div class="gredit" id="gredit"><div id="fr-diff"></div>'+mobEditorHtml(v)+'</div>'+
     '<div class="grscroll"><button type="button" class="mb-zoom" data-fr="zoom">🔍 크게 보기</button><div class="gr-wrap" id="gr-wrap"><div class="gr-inner" id="gr-inner"></div></div></div></div>'+
     '<div class="mb-bar"><button type="button" class="btn mb-nav" data-fr="prev" id="mb-prev" aria-label="이전 아이">‹</button>'+
@@ -3585,6 +3643,21 @@ function mobNextId(id){
   var q=ST.mq||[],i=q.indexOf(id);if(!q.length)return null;
   for(var k=1;k<=q.length;k++){var x=q[(Math.max(i,-1)+k)%q.length];if(x===id)continue;var v=S.items.get(x),g=v&&v.gr;if(v&&g&&g.ready&&!g.reviewed)return x}
   return null;
+}
+function mbEmrRender(){
+  var el=document.getElementById('mb-emr'),v=V();if(!el||!v)return;
+  var want=v.date||todayStr(),draw=function(list){
+    if(!document.getElementById('mb-emr')||!V()||V().id!==v.id)return;
+    var p=docFind(list||[],v);
+    if(!p){el.innerHTML='<div class="emr-none">📋 '+(DOC.err==='nokey'?'이 휴대폰에 의사 앱 동기화가 안 되어 있어요. 같은 휴대폰에서 의사 앱을 한 번 열어 연동해 두면 EMR 차트가 보여요.':DOC.err?'EMR 차트를 불러오지 못했어요. 인터넷을 확인해 주세요.':'의사 앱에서 이 아이를 찾지 못했어요(등록번호 확인).')+'</div>';return}
+    var recs=(p.records||[]).filter(function(r){return r&&r.date&&String(r.chartNoteRaw||'').trim()}).sort(function(a,b){return a.date<b.date?-1:1});
+    var cur=recs.filter(function(r){return r.date===want}).pop()||recs.filter(function(r){return r.date<=want}).pop()||recs[recs.length-1]||null;
+    var prev=cur?recs.filter(function(r){return r.date<cur.date}).pop():null;
+    el.innerHTML=emrHtml(cur?cur.chartNoteRaw:'',prev?prev.chartNoteRaw:'',cur?cur.date:'',EMRV,want);
+    var go=document.getElementById('grov');if(go)go.classList.toggle('emr-open',!!EMRV.open&&!!cur);
+  };
+  if(DOC.p)draw(DOC.p);else el.innerHTML='<div class="emr-none">📋 EMR 차트 불러오는 중…</div>';
+  docPatients(false).then(draw);
 }
 function mobGo(d){var q=ST.mq||[],i=q.indexOf(ST.id),j=i+d;if(i<0||j<0||j>=q.length||!S.items.get(q[j]))return;open(q[j],{mq:q,t:document.getElementById('grov').dataset.t})}
 function shellHtml(v){
@@ -3659,6 +3732,7 @@ function open(id,opt){
     }).catch(function(){});
   }
   o.addEventListener('click',function(e){
+    var eb=e.target.closest('[data-emr]');if(eb){var ek=eb.dataset.emr;if(ek==='tog')EMRV.open=!EMRV.open;else if(ek==='all')EMRV.all=true;else if(ek==='new')EMRV.all=false;mbEmrRender();return}
     var b=e.target.closest('[data-fr]');if(!b||b.disabled)return;var k=b.dataset.fr;
     if(k==='close')close();
     else if(k==='edit'){o.classList.toggle('editing');syncBar();setTimeout(function(){GR.fit();autosizeAll()},30)}
@@ -3684,6 +3758,7 @@ function open(id,opt){
   window.addEventListener('resize',function(){GR.fit();autosizeAll()});
   o.addEventListener('toggle',autosizeAll,true);
   refresh();
+  if(mob)mbEmrRender();
   if(mob)say(v.gr&&v.gr.ready?(v.gr.reviewed?'원장 확인이 끝난 리포트예요. 고치려면 「확인 취소」를 누르세요.':(v.gr.src&&v.gr.src!=='today'?'📝 진료 전 가안이에요. ':'')+'읽어 보고 고칠 곳만 눌러서 고친 뒤 아래 ✅ 확인을 누르세요. 고친 내용은 바로 저장돼요.'):'아직 차트가 없어요. 컴퓨터에서 EMR 차트를 붙여넣거나, 아래 「EMR 차트 다시 붙여넣기」를 써 주세요.');
   else say(v.gr&&v.gr.ready?(v.gr.reviewed?'원장 확인이 끝난 리포트예요.':'내용을 읽고 ✅ 확인'+(pdfOn()?' · PDF 저장':'')+' (Ctrl+Enter)을 눌러 주세요.'):'EMR 차트를 붙여넣으면(Ctrl+V) AI가 바로 정리해요.');
   showTip(BUSY[id]?'':(isBlood(v)&&!(v.gr&&v.gr.reviewed)?'blood':srcTip(v.gr)));

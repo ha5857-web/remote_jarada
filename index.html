@@ -194,6 +194,20 @@
   .record-item .rec-actions{ display:flex; gap:6px; margin-top:9px; }
   .record-item .rec-actions button{ font-size:11px; padding:6px 10px; }
 
+  .ge-head{ display:block !important; }
+  .ge-row{ display:flex; align-items:center; gap:8px; }
+  .emr{ margin-top:8px; }
+  .emr:empty{ display:none; }
+  .emr-tog{ display:flex; width:100%; align-items:center; justify-content:space-between; gap:8px; padding:9px 12px; border:1px solid #E6D7AE; border-radius:10px; background:#FFF8E6; font:inherit; font-size:13.5px; font-weight:700; color:#6B5310; cursor:pointer; text-align:left; }
+  .emr-tog span{ font-weight:600; font-size:12.5px; white-space:nowrap; }
+  .emr-body{ margin-top:6px; border:1px solid #E6D7AE; border-radius:10px; background:#FFFDF6; max-height:34vh; overflow:auto; -webkit-overflow-scrolling:touch; }
+  .emr-opts{ position:sticky; top:0; display:flex; gap:6px; padding:6px; background:#FFFDF6; border-bottom:1px solid #F0E6C8; }
+  .emr-opts button{ flex:1; height:32px; border:1px solid #E6D7AE; border-radius:8px; background:#fff; font:inherit; font-size:13px; font-weight:700; color:#6B5310; cursor:pointer; }
+  .emr-opts button.on{ background:#6B5310; color:#fff; border-color:#6B5310; }
+  .emr-txt{ padding:6px 10px 8px; font-size:13px; line-height:1.55; color:#2A2A2A; white-space:pre-wrap; word-break:break-all; -webkit-user-select:text; user-select:text; }
+  .emr-l.nw{ background:#FFF0B3; margin:0 -4px; padding:0 4px; border-radius:3px; }
+  .emr-none{ padding:8px 12px; border:1px dashed #E6D7AE; border-radius:10px; font-size:12.5px; color:#8A7A50; }
+  @media (max-width:760px){ .emr-tog{ font-size:14.5px; padding:11px 12px; } .emr-txt{ font-size:14.5px; } .emr-body{ max-height:36vh; } }
   /* 진료 후 안내 초안: 아래 넘기기 단추 · 휴대폰 전체 화면 */
   .ge-head{ position:sticky; top:-18px; z-index:2; background:var(--light); margin:-18px -18px 12px; padding:14px 18px 10px; border-bottom:1px solid var(--border); gap:8px; }
   .ge-head h3{ flex:1; min-width:0; }
@@ -585,7 +599,7 @@
 
 <div class="modal-ov" id="guideEditOv">
   <div class="modal">
-    <div class="modal-head ge-head"><h3 id="ge_title">📋 진료 후 안내 초안</h3><span id="ge_pos" class="ge-pos"></span><button class="modal-close" onclick="guideEditSave()" aria-label="닫기">✕</button></div>
+    <div class="modal-head ge-head"><div class="ge-row"><h3 id="ge_title">📋 진료 후 안내 초안</h3><span id="ge_pos" class="ge-pos"></span><button class="modal-close" onclick="guideEditSave()" aria-label="닫기">✕</button></div><div id="ge_emr" class="emr"></div></div>
     <div id="ge_info" style="font-size:11.5px;color:var(--secondary);margin-bottom:10px;line-height:1.6;"></div>
     <div class="field"><label>오늘 진료 요약 (지난번과 달라진 점)</label><textarea id="ge_summary" rows="4"></textarea></div>
     <div class="field"><label>혈액검사 결과 설명</label><textarea id="ge_labs" rows="3"></textarea></div>
@@ -3563,6 +3577,30 @@ let guideEditId = null;
    · 고치는 대로 0.6초 뒤 자동 저장(창을 닫아도, 다음 아이로 넘어가도 그대로)
    · 아래 「‹  ✓ 확인하고 다음  ›」로 대기 순서대로 넘기며 확인, 확인한 아이는 칩에 ✓ 표시
    · 휴대폰(가로 760px 이하)에서는 전체 화면 + 큰 글씨(입력할 때 화면이 확대되지 않게 16px 이상) */
+/* 📋 EMR 차트 보면서 고치기: 이 아이의 오늘 차트(의사 앱에 올린 EMR)를 편집 창 위쪽에 붙여 둡니다.
+   처음엔 지난 차트와 비교해 「오늘 새로 쓴 줄」만, 「전체」를 누르면 차트 전체(새 줄은 노란색). 펼쳐 두면 위에 고정돼서 보면서 아래 칸을 고칠 수 있어요. */
+const GE_EMR = { open:false, all:false };
+function emrNorm(l){ return String(l||'').replace(/\s+/g,' ').trim(); }
+function emrHtml(chart, base, date, opt){
+  opt = opt || {};
+  if(!String(chart||'').trim()) return '<div class="emr-none">📋 이 아이의 오늘 EMR 차트가 아직 없어요. 진료실에서 EMR을 올리면 여기서 보여요.</div>';
+  const old = {}; String(base||'').split('\n').forEach(l=>{ const n = emrNorm(l); if(n) old[n] = 1; });
+  const hasBase = !!String(base||'').trim(); let nNew = 0;
+  const rows = String(chart).replace(/\r/g,'').split('\n').map(l=>{ const n = emrNorm(l), nw = !!n && (!hasBase || !old[n]); if(nw) nNew++; return { l, n, nw }; });
+  const show = opt.all || !hasBase ? rows.filter((r,i)=> r.n || (i>0 && rows[i-1].n)) : rows.filter(r=>r.nw);
+  const body = show.map(r=>`<div class="emr-l${r.nw && hasBase ? ' nw' : ''}">${escapeHtml(r.l) || '&nbsp;'}</div>`).join('') || '<div class="emr-l">(지난 차트와 달라진 줄이 없어요)</div>';
+  return `<button type="button" class="emr-tog" data-emr="tog">📋 EMR 차트 ${escapeHtml(String(date||'').replace(/-/g,'.'))} · ${hasBase ? '오늘 새로 쓴 ' + nNew + '줄' : '전체 ' + rows.filter(r=>r.n).length + '줄'} <span>${opt.open ? '접기 ▴' : '펼치기 ▾'}</span></button>` +
+    (opt.open ? `<div class="emr-body">${hasBase ? `<div class="emr-opts"><button type="button" data-emr="new" class="${opt.all?'':'on'}">새로 쓴 줄</button><button type="button" data-emr="all" class="${opt.all?'on':''}">전체 차트</button></div>` : ''}<div class="emr-txt">${body}</div></div>` : '');
+}
+function geEmrRender(){
+  const el = document.getElementById('ge_emr'), p = getPatient(guideEditId); if(!el) return;
+  if(!p){ el.innerHTML = ''; return; }
+  const recs = (p.records||[]).filter(r=>r && r.date && String(r.chartNoteRaw||'').trim()).sort((a,b)=> a.date < b.date ? -1 : 1);
+  const td = todayStr(), cur = recs.filter(r=>r.date===td).pop() || recs[recs.length-1] || null;
+  const prev = cur ? recs.filter(r=>r.date < cur.date).pop() : null;
+  const base = (p.guideBase && p.guideBase.date===td && p.guideBase.text) || (prev && prev.chartNoteRaw) || '';
+  el.innerHTML = emrHtml(cur ? cur.chartNoteRaw : '', base, cur ? cur.date : '', GE_EMR);
+}
 function guideQueueIds(){ return patients.filter(p=>p.pendingGuideSend && p.guideDraft && !p.guideDraft.sentAt).map(p=>p.id); }
 let guideEditTimer = null;
 function guideEditPersist(){
@@ -3596,7 +3634,12 @@ function geToast(t){
   const ov = document.getElementById('guideEditOv'); if(!ov || ov._wired) return; ov._wired = true;
   ov.addEventListener('input', e=>{ geAutosize(e.target); clearTimeout(guideEditTimer); guideEditTimer = setTimeout(guideEditPersist, 600); });
   ov.addEventListener('change', ()=>{ clearTimeout(guideEditTimer); guideEditTimer = setTimeout(guideEditPersist, 200); });
-  ov.addEventListener('click', e=>{ if(e.target === ov) guideEditSave(); });
+  ov.addEventListener('click', e=>{
+    if(e.target === ov){ guideEditSave(); return; }
+    const b = e.target.closest && e.target.closest('[data-emr]'); if(!b) return;
+    const k = b.dataset.emr; if(k==='tog') GE_EMR.open = !GE_EMR.open; else if(k==='all') GE_EMR.all = true; else if(k==='new') GE_EMR.all = false;
+    geEmrRender();
+  });
 })();
 function guideEdit(id){
   const p = getPatient(id); if(!p || !p.guideDraft) return;
@@ -3612,6 +3655,7 @@ function guideEdit(id){
   const nb = document.getElementById('ge_next'); if(nb) nb.textContent = left ? '✓ 확인하고 다음' : '✓ 확인 완료';
   const ov = document.getElementById('guideEditOv'), mob = !!(window.matchMedia && matchMedia('(max-width:760px)').matches); if(ov) ov.classList.toggle('ge-mob', mob);
   document.querySelectorAll('#guideEditOv textarea').forEach(t=>{ if(!t.dataset.rows) t.dataset.rows = t.getAttribute('rows') || '3'; t.setAttribute('rows', mob ? '1' : t.dataset.rows); if(!mob) t.style.height = ''; t.placeholder = mob ? '(비어 있음 — 눌러서 쓰기)' : ''; });
+  geEmrRender();
   setTimeout(()=>{ if(mob) document.querySelectorAll('#guideEditOv textarea').forEach(geAutosize); }, 30);
   document.getElementById('ge_title').textContent = `📋 ${p.name||''} · ${fvGuideIsFirst(p) ? '초진' : '재진'} 진료 후 안내 초안`;
   const g = p.guideDraft;
