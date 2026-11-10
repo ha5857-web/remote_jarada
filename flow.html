@@ -124,6 +124,12 @@ button{cursor:pointer}
 .kiosk{position:fixed;inset:0;z-index:50;background:var(--bg);color:var(--ink);padding:28px 20px;overflow:auto;font-size:18px;line-height:1.5}
 .kiosk h2{margin:0 0 8px;font-size:26px}
 .kiosk .kbig{font-size:22px;margin:8px 0}
+.pill.ask{background:#FFF1D6;color:#8A5A00;border-color:#F2D9A6}
+.askbox{margin-top:8px;padding:10px 12px;border-radius:10px;background:#FFF8E8;border:1px solid #F2D9A6}
+.askbox.low{background:#FDECEC;border-color:#F3C1BC}
+.askbox>b{display:block;font-size:14px}
+.askbox p{margin:6px 0 0;font-size:16px;line-height:1.55;white-space:pre-wrap}
+.askbox .btn{margin-top:6px}
 .kiosk .klist{list-style:none;padding:0;margin:12px 0;max-width:520px}
 .kiosk .klist li{display:grid;grid-template-columns:28px 1fr auto;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}
 .kiosk .klist li.d{color:var(--muted)}
@@ -171,6 +177,32 @@ body.pm .pm-track li.c i{background:#0B7A85;border-color:#0B7A85;color:#fff;box-
 body.pm .pm-track li.c{color:#0B7A85;font-weight:700}
 body.pm .kiosk .keta{background:#fff;border:0;border-radius:18px;box-shadow:0 4px 16px rgba(20,35,43,.08);padding:16px}
 body.pm .kiosk .kvbox>b{font-size:20px}
+body.pm .pm-tabs{display:flex;gap:8px;margin:0 0 14px;overflow-x:auto}
+body.pm .pm-tabs button{flex:1 0 auto;min-width:96px;border:0;border-radius:14px;padding:8px 12px;background:rgba(255,255,255,.18);color:#fff;font:inherit;text-align:left;cursor:pointer}
+body.pm .pm-tabs button.on{background:#fff;color:#0B5E73}
+body.pm .pm-tabs button b{display:block;font-size:17px}
+body.pm .pm-tabs button small{display:block;font-size:12px;opacity:.85}
+body.pm .kiosk>.pm-tabs{margin-top:16px}
+body.pm .kiosk>.pm-tabs button{background:#fff;color:#0B5E73;border:1px solid #C9DAD9}
+body.pm .kiosk>.pm-tabs button.on{background:#0B7A85;color:#fff;border-color:#0B7A85}
+body.pm .pm-ask textarea,body.pm .pm-rate textarea{display:block;width:100%;box-sizing:border-box;margin-top:8px;font:inherit;font-size:17px;line-height:1.5;padding:10px 12px;border:1.5px solid #C9DAD9;border-radius:12px;resize:vertical}
+body.pm .pm-ask .meta,body.pm .pm-rate .meta{margin:6px 0 0;font-size:15px}
+body.pm .pm-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
+body.pm .pm-row .btn,body.pm .pm-wide{font-size:17px;padding:11px 16px}
+body.pm .pm-wide{display:block;width:100%;margin-top:10px}
+body.pm .pm-q{margin:6px 0 0;font-size:17px;line-height:1.6;white-space:pre-wrap}
+body.pm .pm-rate>b,body.pm .pm-ask>b{font-size:20px}
+body.pm .pm-stars{display:flex;gap:6px;margin:12px 0 4px}
+body.pm .pm-stars button{flex:1;border:0;background:none;font-size:44px;line-height:1;color:#D5DEE2;cursor:pointer;padding:4px 0}
+body.pm .pm-stars button.on{color:#F5B301}
+body.pm .pm-stars-done{margin:8px 0;font-size:28px;color:#F5B301;letter-spacing:2px}
+body.pm .pm-stars-done span{color:#D5DEE2}
+body.pm .pm-stars-done small{display:block;font-size:15px;color:#5A6B73;letter-spacing:0;margin-top:4px}
+body.pm .pm-gift{margin-top:14px;padding:14px;border-radius:14px;background:#E9F8EF}
+body.pm .pm-gift>b{font-size:19px}
+body.pm .pm-gift p{margin:6px 0 10px;font-size:16px;line-height:1.6}
+body.pm .pm-gift a{display:block;text-align:center;text-decoration:none;padding:14px;border-radius:12px;background:#03C75A;color:#fff;font-size:18px;font-weight:800}
+body.pm .pm-gift small{display:block;margin-top:6px;font-size:13px;color:#5A6B73}
 body.pm .kiosk .kvrow{background:#fff;border:0;box-shadow:0 4px 16px rgba(20,35,43,.1);border-radius:18px;padding:10px 10px 14px}
 body.pm .kiosk .kvth{border-radius:12px;background:linear-gradient(135deg,#0B7A85,#0E5E73)}
 body.pm .kiosk .kvitem.on .kvrow{box-shadow:0 0 0 3px #0B7A85,0 4px 16px rgba(20,35,43,.1)}
@@ -296,6 +328,13 @@ pre.report{white-space:pre-wrap;word-break:keep-all;overflow-wrap:anywhere;backg
 .rp-box .v{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.3}
 .rp-box .v small{font-size:12px;font-weight:500;color:var(--p-mute)}
 .rp-box .t{font-size:10.5px;color:var(--p-mute);line-height:1.5}
+.rp-cmp{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px;background:var(--p-warm);border-radius:8px;padding:7px 12px;font-size:11.5px;line-height:1.5;color:var(--p-ink)}
+.rp-cmp>b{flex:0 0 100%;font-size:11px;color:var(--p-acc);font-weight:700}
+.rp-cmp em{font-style:normal;font-weight:700;color:var(--p-mute);margin-right:5px}
+.rp-cmp i{font-style:normal;font-weight:700;color:var(--p-acc);margin-left:2px}
+.rp-cmp i.dn{color:#A0522D}
+.rp-cmp i.eq{color:var(--p-mute);font-weight:600}
+.rp-cmp small{font-size:10px;color:var(--p-mute)}
 .rp-cm{background:var(--p-warm);border-radius:8px;padding:10px 14px;font-size:12.5px;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere}
 .rp-cm .l{font-size:11px;font-weight:700;color:var(--p-acc);margin-bottom:3px}
 .rp-foot{margin-top:auto;border-top:1px solid var(--p-line);padding-top:8px;display:flex;justify-content:space-between;gap:16px;font-size:10.5px;color:var(--p-mute);line-height:1.55}
@@ -691,8 +730,41 @@ async function poll(){
     const first=!S.loaded;S.loaded=true;
     if(first||sig!==S.sig){S.sig=sig;emit()}
     hideConn();
+    setTimeout(fxPoll,0);
   }catch(e){if(!e||e.code!=='AUTH_REQUIRED')showConn(e&&e.message==='server-old'?HALT_MSG:(e&&e.code==='HALT'?HALT_MSG:'서버와 연결이 끊겼습니다. 다시 시도하는 중…'))}
   finally{polling=false}
+}
+/* ---- 카드 QR 휴대폰에서 온 보호자 질문·만족도 별점 (서버 flowextra) ----
+   그날 그 카드를 받은 아이(카드를 준 시각 ≤ 휴대폰이 연결된 시각인 가장 최근 아이)에게 붙여 방문 기록(asks·rate)에 저장합니다.
+   별점 3점 이하는 현황판 위 알림 칸에 뜨고, 「확인」을 누를 때까지 남습니다. 서버에 아직 없으면 조용히 쉽니다. */
+const FX={at:0,busy:false,off:false,toasted:{}};
+async function fxPoll(force){
+  if(FX.busy||FX.off||!authToken()||!apiUrl()||(!force&&Date.now()-FX.at<15000))return;
+  FX.busy=true;FX.at=Date.now();
+  try{const j=await api({action:'flowextra'});if(j&&j.status==='ok'&&Array.isArray(j.asks))fxApply(j);else if(j&&(j.code==='FORBIDDEN'||/action|알 수 없|unknown/i.test(j.message||'')))FX.off=true}
+  catch(e){}finally{FX.busy=false}
+}
+function fxVisit(card,t){
+  let best=null;
+  S.items.forEach(v=>{if(v.id==='config:flow'||v.hide||!isTodayV(v))return;if(v.card!==card&&v.cardWas!==card)return;const ca=v.cardAt||0;if(ca>(t||Date.now())+60000)return;if(!best||ca>(best.cardAt||0))best=v});
+  return best;
+}
+function fxApply(j){
+  const per=new Map(),rate=new Map();
+  (j.asks||[]).forEach(a=>{const v=fxVisit(a.card,a.bAt||a.at);if(!v||!a.t)return;if(!per.has(v.id))per.set(v.id,[]);per.get(v.id).push({t:String(a.t).slice(0,300),at:a.at||0,k:a.k||''})});
+  (j.rates||[]).forEach(r=>{const v=fxVisit(r.card,r.bAt||r.at);if(!v||!(r.s>=1&&r.s<=5))return;const o=rate.get(v.id);if(!o||(r.at||0)>o.at)rate.set(v.id,{s:r.s,t:String(r.t||'').slice(0,300),at:r.at||0,k:r.k||''})});
+  per.forEach((list,id)=>{const v=S.items.get(id);if(!v||pending(id))return;list.sort((a,b)=>a.at-b.at);if(JSON.stringify(v.asks||[])!==JSON.stringify(list)){v.asks=list;put(v,false)}});
+  rate.forEach((r,id)=>{const v=S.items.get(id);if(!v||pending(id))return;const o=v.rate||{};if(o.s!==r.s||o.t!==r.t||o.at!==r.at){v.rate=Object.assign({},r,{seen:(o.at===r.at&&o.seen)?o.seen:0});put(v,false)}
+    if(r.s<=3&&!FX.toasted[id+':'+r.at]&&!(v.rate&&v.rate.seen)){FX.toasted[id+':'+r.at]=1;toast('⭐ '+(v.name||'보호자')+' 만족도 '+r.s+'점'+(r.t?' — '+r.t.slice(0,40):''))}});
+  renderAll(false);
+}
+const askPill=v=>v.asks&&v.asks.length?`<span class="pill ask" title="${esc(v.asks.map(a=>a.t).join(' / '))}">❓ 질문</span>`:'';
+const ratePill=v=>v.rate&&v.rate.s?`<span class="pill${v.rate.s<=3?' warn':' ok'}" title="${esc('보호자 만족도 '+v.rate.s+'점'+(v.rate.t?' — '+v.rate.t:''))}">⭐${v.rate.s}</span>`:'';
+function askBoxHtml(v){
+  let h='';
+  if(v.asks&&v.asks.length)h+=`<div class="askbox"><b>❓ 보호자 질문 <span class="meta">대기 중 휴대폰으로 남김</span></b>${v.asks.map(a=>`<p>${esc(a.t)}<span class="meta"> · ${fmtT(a.at)}</span></p>`).join('')}</div>`;
+  if(v.rate&&v.rate.s)h+=`<div class="askbox${v.rate.s<=3?' low':''}"><b>⭐ 보호자 만족도 ${'★'.repeat(v.rate.s)}${'☆'.repeat(5-v.rate.s)} <span class="meta">${fmtT(v.rate.at)}</span></b>${v.rate.t?`<p>${esc(v.rate.t)}</p>`:''}${v.rate.s<=3&&!v.rate.seen?`<button class="btn sm" data-act="rate-seen" data-id="${v.id}">확인했어요</button>`:''}</div>`;
+  return h;
 }
 const HALT_MSG='서버에 Flow 파일이 아직 반영되지 않았습니다. Apps Script의 Code.gs에 flowDispatch_ 줄이 있는지, Flow.gs가 있는지, 배포 관리에서 새 버전으로 배포했는지 확인한 뒤 이 페이지를 새로고침해 주세요.';
 function showConn(t){const b=$('#ro-banner');b.textContent=t;b.hidden=false}
@@ -804,7 +876,7 @@ function cardHtml(v,now){
   else if(needNotify(v)){dl=`<span class="pill warn">결과 안내 필요</span>`}
   const x=roomOf(v)==='exit'||roomOf(v)==='booked';   // 예약 칸·귀가 칸 카드는 오른쪽 위 ×로 바로 지우기
   return `<button class="card${sel?' sel':''}${w?' warn':''}${x?' hasx':''}" data-sel="${v.id}">${x?`<span class="cx" role="button" data-act="card-del" data-id="${v.id}" title="현황판에서 지우기 (6초 안에 되돌릴 수 있어요)" aria-label="${esc(v.name||'')} 지우기">×</span>`:''}
-    <span class="nm">${esc(v.name||'이름 없음')}${exTag(v)}${invTag(v)}${grPill(v)}</span>
+    <span class="nm">${esc(v.name||'이름 없음')}${exTag(v)}${invTag(v)}${grPill(v)}${askPill(v)}${ratePill(v)}</span>
     <span class="meta">${esc(age(v))}${v.sex?' · '+esc(v.sex):''}${v.chartNo?' · '+cnoHtml(v.chartNo):''}${v.card&&isTodayV(v)?' · <b>🎫 '+esc(v.card)+'</b>':''}</span>
     <span class="st" style="${w?'color:var(--warn);font-weight:600':''}">${st}</span>
     ${dl}${v.step<0&&!v.card?`<span class="qd" role="button" data-act="card-next" data-id="${v.id}" title="카드를 주면서 누르면 연결 + 도착 처리">🎫 ${esc(nextCard())} 주기</span>`:''}${v.step>=0&&v.step<10?`<span class="qd" role="button" data-act="quick-done" data-id="${v.id}" title="남은 단계를 건너뛰고 바로 완료 처리">바로 완료 ▸</span>`:''}<span class="bar">${bar}</span></button>`;
@@ -814,8 +886,12 @@ function notifyText(v){
 }
 function notifyHtml(){
   const need=allList().filter(needNotify),wait=list().filter(waitingAfterLeave);   // 「귀가 후 결과 대기」는 오늘 귀가한 아이만, 결과가 들어와 안내가 필요한 아이는 날짜와 상관없이
-  if(!need.length&&!wait.length)return '';
+  const low=list().filter(v=>v.rate&&v.rate.s<=3&&!v.rate.seen);                   // 오늘 만족도 3점 이하 — 「확인했어요」 전까지
+  if(!need.length&&!wait.length&&!low.length)return '';
   let h='<div class="nbox">';
+  if(low.length)h+=`<h3>⭐ 만족도 낮음 — 원장님 확인 <span class="pill warn">${low.length}</span></h3>`+low.map(v=>
+    `<div class="nrow"><button class="lnk" data-sel="${v.id}">${esc(v.name)}</button><span class="meta">${'★'.repeat(v.rate.s)}${'☆'.repeat(5-v.rate.s)}${v.rate.t?' · '+esc(v.rate.t):''}</span>
+    <span class="nbt"><button class="btn sm" data-act="rate-seen" data-id="${v.id}">확인했어요</button></span></div>`).join('');
   if(need.length)h+=`<h3>결과 도착, 보호자 안내 필요 <span class="pill warn">${need.length}</span></h3>`+need.map(v=>
     `<div class="nrow"><button class="lnk" data-sel="${v.id}">${esc(v.name)}</button><span class="meta">${esc(v.lab.items.join(', '))}${v.lab.items.some(k=>isExt(v,k))?' (수탁 포함)':''}</span>
     <span class="nbt"><button class="btn sm" data-act="copy-notify" data-id="${v.id}">안내 문구 복사</button><button class="btn sm primary" data-act="notified" data-id="${v.id}">안내 완료</button></span></div>`).join('');
@@ -1525,7 +1601,7 @@ function detailHtml(){
   }
   let head=`<div class="dh"><div><h2>${esc(v.name||'이름 없음')}${exTag(v)}</h2>
     <div class="sub">${esc(age(v))}${v.sex?' · '+esc(v.sex):''}${v.chartNo?' · '+cnoHtml(v.chartNo,'등록번호 '):''}${v.appt?' · 예약 '+esc(v.appt):''}</div></div>
-    <button class="btn sm ghost" data-act="close">닫기</button></div>
+    <button class="btn sm ghost" data-act="close">닫기</button></div>${askBoxHtml(v)}
     <button class="btn primary" data-act="gr-open" style="width:100%;margin-top:8px;font-size:15px">📄 성장 리포트 ${v.gr&&v.gr.ready?(v.gr.reviewed?'보기 ✓':(v.gr.src&&v.gr.src!=='today'?'열기 (가안)':'열어서 확인')):'만들기'}</button>
     <details class="more" style="margin-top:8px"><summary>초진·대기 영상 설정${v.first?' (초진)':''}${v.rev?' (재진)':''}${v.vids?' · 영상 '+esc(v.vids):''}</summary>
     <label class="chk" style="margin-top:8px"><input type="checkbox" data-path="first"${v.first?' checked':''}>초진 환자 (대기 중 영상 표시)</label>
@@ -1664,6 +1740,7 @@ function onAction(act,el){
     case 'card-next':if(v){if(v.card){toast((v.name||'')+': 이미 카드 '+v.card+'가 연결돼 있어요.');break}linkCard(v,nextCard())}break;
     case 'card-unlink':if(v){v.card='';put(v,true);renderAll(true);toast((v.name||'')+': 카드 연결을 풀었어요.')}break;
     case 'quick-done':if(v)quickDone(v);break;
+    case 'rate-seen':if(v&&v.rate){v.rate.seen=Date.now();put(v,true);renderAll(true)}break;
     case 'card-del':if(v)delCard(v);break;
     case 'sound':toggleSound();break;
     case 'res-done':{const k=el.dataset.k;if(!v||!k)break;if(!v.lab.results)v.lab.results={};if(!v.lab.at)v.lab.at={};v.lab.results[k]='완료';v.lab.at[k]=Date.now();put(v,true);renderAll(true);break}
@@ -2047,22 +2124,60 @@ function bindEvents(){
 
 /* ---------- 시작 ---------- */
 
-/* ---------- 환자 휴대폰 화면 (카드 QR을 카메라로 찍으면 열림: 대기 현황·채혈 예정·알람·영상) ---------- */
-const PM_CODE=new URLSearchParams(location.search).get('c');
-const PM={d:null,off:0,alerted:new Set(),sound:false,ctx:null,wl:null,notif:false,fail:0};
+/* ---------- 환자 휴대폰 화면 (카드 QR을 카메라로 찍으면 열림: 대기 현황·채혈 예정·알람·영상·질문·만족도) ----------
+   · 형제자매: 같은 휴대폰으로 오늘 찍은 카드는 모두 기억해 위쪽 탭으로 함께 보여줍니다(그날만, 최대 4장).
+   · 이 휴대폰이 「진료 중」에 본 아이만 계속 보여줍니다. 그 아이가 귀가하면 이 휴대폰에서 그 카드는 「끝」으로 굳어,
+     같은 번호가 오늘 다른 아이에게 가도 그 아이 정보는 뜨지 않습니다. 대신 만족도 별점 → 🎁 보호자 안내서가 뜹니다.
+   · 진료 중에 휴대폰마다 무작위 표(tok)를 서버에 묶어 두고(flowbind), 질문(flowask)·별점(flowrate)은 그 표로만 받습니다. */
+const PM_CODE=String(new URLSearchParams(location.search).get('c')||'').trim().toUpperCase();
+const PM={off:0,alerted:new Set(),sound:false,ctx:null,wl:null,notif:false,fail:0,live:{},cur:'',busy:false,binding:{},draft:{},rateSel:{},msg:{}};
 const PM_DEFAULT_ID='AKfycbzTNYUR8rlsZSmQl1AQrIkB-HGARhUQDwP4nrDFti3R7-ip4ipRGOqk4lVfVZpIFSwONg';
+const PM_GUIDE_SITE='https://jaradacare.com/app.html';
 function pmApi(){const a=new URLSearchParams(location.search).get('a')||PM_DEFAULT_ID;return /^https?:/.test(a)?a:'https://script.google.com/macros/s/'+a+'/exec'}
+function pmToday(){const n=new Date(Date.now()+PM.off);return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0')}
 /* 귀가했거나 어제 이전 방문이면 카드를 찍어도 보여주지 않음(서버도 같은 기준으로 거르고, 여기서 한 번 더) */
-function pmUsable(v){if(!v||v.step>=9)return false;if(v.date){const n=new Date(Date.now()+PM.off),t=n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');if(v.date!==t)return false}return true}
+function pmUsable(v){if(!v||v.step>=9)return false;if(v.date&&v.date!==pmToday())return false;return true}
+const PM_LS='jrd_pm_v1';
+function pmStore(){let s=null;try{s=JSON.parse(localStorage.getItem(PM_LS)||'null')}catch(e){}if(!s||s.date!==pmToday()||!s.kids||!Array.isArray(s.order))s={date:pmToday(),kids:{},order:[]};return s}
+function pmSave(s){try{localStorage.setItem(PM_LS,JSON.stringify(s))}catch(e){}}
+function pmTok(){const a=new Uint8Array(18);try{crypto.getRandomValues(a)}catch(e){for(let i=0;i<a.length;i++)a[i]=Math.floor(Math.random()*256)}return Array.from(a,b=>'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'[b&63]).join('')}
+/* 지난 날에 이 휴대폰이 본 카드(번호 → 가린 이름). 집에 가져간 카드를 다른 날 다시 찍었는데 그 번호가 지금 다른 아이에게 가 있으면 보여주지 않습니다. */
+const PM_HIST='jrd_pm_hist';
+function pmHist(){let h={};try{h=JSON.parse(localStorage.getItem(PM_HIST)||'{}')||{}}catch(e){}return h}
+function pmHistPut(c,nm){const h=pmHist(),cut=new Date(Date.now()-150*864e5).toISOString().slice(0,10);Object.keys(h).forEach(x=>{if(!h[x]||h[x].date<cut)delete h[x]});h[c]={nm:nm,date:pmToday()};try{localStorage.setItem(PM_HIST,JSON.stringify(h))}catch(e){}}
+function pmAdd(c){const s=pmStore();if(c&&!s.kids[c]){s.kids[c]={tok:pmTok(),st:'new'};s.order.push(c);while(s.order.length>4){const o=s.order.shift();delete s.kids[o]}}pmSave(s);return s}
+async function pmPost(body){
+  let r;
+  try{r=await fetch(PM.alt?'https://script.google.com/macros/s/'+PM_DEFAULT_ID+'/exec':pmApi(),{method:'POST',body:JSON.stringify(body)});if(!r.ok)throw 0}
+  catch(e0){if(PM.alt||pmApi().indexOf(PM_DEFAULT_ID)>=0)throw e0;PM.alt=true;return pmPost(body)}
+  return r.json();
+}
+function pmBind(c){
+  if(PM.binding[c])return;PM.binding[c]=1;
+  const k=pmStore().kids[c];if(!k){delete PM.binding[c];return}
+  pmPost({action:'flowbind',card:c,tok:k.tok}).then(r=>{const s=pmStore(),k2=s.kids[c];if(k2&&r&&r.status==='ok'){k2.bound=true;pmSave(s);pmRender(false)}}).catch(()=>{}).finally(()=>{setTimeout(()=>{delete PM.binding[c]},30000)});
+}
 async function pmLoad(){
+  if(PM.busy)return;PM.busy=true;
+  let ok=0,bad=0;
   try{
-    let r;
-    try{r=await fetch(PM.alt?'https://script.google.com/macros/s/'+PM_DEFAULT_ID+'/exec':pmApi(),{method:'POST',body:JSON.stringify({action:'flowme',card:PM_CODE})});if(!r.ok)throw 0}
-    catch(e0){if(PM.alt||pmApi().indexOf(PM_DEFAULT_ID)>=0)throw e0;PM.alt=true;return pmLoad()}
-    const j=await r.json();
-    if(j&&j.status==='ok'){PM.fail=0;PM.off=(j.now||Date.now())-Date.now();PM.d=pmUsable(j.visit)?j.visit:null;pmRender(true)}
-    else{PM.fail++;pmRender(true)}
-  }catch(e){PM.fail++;pmRender(true)}
+    for(const c of pmStore().order){
+      const k0=pmStore().kids[c];if(!k0||k0.st==='done'||k0.st==='old')continue;
+      let j=null;try{j=await pmPost({action:'flowme',card:c})}catch(e){bad++;continue}
+      if(!j||j.status!=='ok'){bad++;continue}
+      ok++;PM.off=(j.now||Date.now())-Date.now();
+      const s=pmStore(),k=s.kids[c];if(!k)continue;
+      const v=pmUsable(j.visit)?j.visit:null,nm=v?String(v.name||'').slice(0,20):'';
+      const h=v&&k.st==='new'?pmHist()[c]:null;
+      if(v&&k.nm&&k.nm!==nm){k.st='done';PM.live[c]=null}            // 같은 번호를 오늘 다른 아이가 받음 → 이 휴대폰에서는 지난 아이의 「끝」 화면만
+      else if(h&&h.date!==pmToday()&&h.nm&&h.nm!==nm){k.st='old';PM.live[c]=null}   // 지난번에 이 휴대폰이 쓴 카드인데 지금은 다른 아이 것 → 보여주지 않음
+      else if(v){k.nm=nm;k.st='live';k.step=v.step;PM.live[c]=v;pmHistPut(c,nm);if(!k.bound)setTimeout(()=>pmBind(c),0)}
+      else{PM.live[c]=null;if(k.st==='live')k.st='done'}
+      pmSave(s);
+    }
+  }finally{PM.busy=false}
+  PM.fail=ok?0:(bad?PM.fail+1:0);
+  pmRender(false);
 }
 function pmBeep(n){
   if(!PM.sound||!PM.ctx)return;
@@ -2096,42 +2211,125 @@ function pmReceiptHtml(){
     st(3,'문자로 받은 코드 입력하기','코드는 한 번만 사용할 수 있어요.','코드 입력하러 가기',PM_RECEIPT.guideUrl)+
     '</details><p style="margin:8px 0 0;font-size:13px;color:var(--muted)">문의 02-523-0111</p></div>';
 }
-function pmRender(force){
-  const el=$('#kiosk'),d=PM.d,now=Date.now()+PM.off;
-  if(!d){const k0='none|'+(PM.fail?1:0);if(el.dataset.k!==k0){el.dataset.k=k0;el.innerHTML='<h2>삼성자라다 소아청소년과</h2><p class="kbig">'+(PM.fail?'대기 현황을 불러오지 못했습니다. 자동으로 다시 시도합니다.<br><span style="font-size:15px">계속 안 되면 접수 데스크에 카드를 보여 주세요.</span>':'지금 확인되는 접수 정보가 없습니다. 접수 후 다시 카드를 찍어 주세요.')+'</p>'+pmReceiptHtml()}return}
+function pmGiftHtml(k){
+  if(k&&k.code&&/^[A-Z0-9]{6,12}$/.test(k.code))return `<div class="pm-gift"><b>🎁 보호자 안내서 선물</b><p><b>네이버 영수증 리뷰</b>에 참여해 주시면 「보호자 안내서」(성장·성조숙증·비만 Q&amp;A 116개)가 바로 열려요.</p><a href="${PM_GUIDE_SITE}?rv=${encodeURIComponent(k.code)}" rel="noopener">네이버 리뷰 참여하고 안내서 받기</a><small>리뷰를 남기고 창을 닫으면 안내서가 자동으로 열려요 · 이 아이 전용 · 한 번만 사용</small></div>`;
+  return pmReceiptHtml();
+}
+function pmAskHtml(c,k,d){
+  if(!k.bound)return '';
+  const a=k.ask||null;
+  if(d.step>=7)return a&&a.t?`<div class="keta pm-ask"><b>❓ 원장님께 전달한 질문</b><p class="pm-q">${esc(a.t)}</p></div>`:'';
+  const val=PM.draft[c]!=null?PM.draft[c]:(a&&a.t||'');
+  return `<div class="keta pm-ask"><b>❓ 오늘 원장님께 꼭 물어볼 것</b><p class="meta">적어 두시면 진료실 화면에 미리 떠요. 진료 때 빠뜨리지 않게 챙겨 드릴게요.</p>`+
+    `<textarea id="pm-ask" data-pmdraft="${esc(c)}" rows="3" maxlength="300" placeholder="예) 요즘 밤에 자주 깨요 / 우유는 하루에 얼마나 먹여야 하나요?">${esc(val)}</textarea>`+
+    `<div class="pm-row"><button class="btn primary" id="pm-ask-send">${a&&a.t?'고쳐서 다시 전달':'원장님께 전달하기'}</button><span class="meta">${esc(PM.msg[c]||(a&&a.t?'✓ 전달됨 '+fmtT(a.at):''))}</span></div></div>`;
+}
+function pmRateHtml(c,k){
+  if(!k.bound)return pmReceiptHtml();
+  const r=k.rate;
+  if(r&&r.s&&PM.rateSel[c]==null)return `<div class="keta pm-rate"><b>소중한 의견 감사합니다 🙏</b><p class="pm-stars-done">${'★'.repeat(r.s)}<span>${'★'.repeat(5-r.s)}</span>${r.t?'<small>'+esc(r.t)+'</small>':''}</p><button class="btn sm ghost" data-pmrate-edit>별점 고치기</button>${pmGiftHtml(k)}</div>`;
+  const sel=PM.rateSel[c]||0;
+  let h=`<div class="keta pm-rate"><b>오늘 원장님 설명이 잘 이해되셨나요?</b><div class="pm-stars" role="radiogroup" aria-label="별점">`+[1,2,3,4,5].map(n=>`<button type="button" role="radio" aria-checked="${n===sel}" data-pmstar="${n}" class="${n<=sel?'on':''}" aria-label="${n}점">★</button>`).join('')+`</div>`;
+  if(sel)h+=`<textarea id="pm-rate-t" data-pmdraft="r${esc(c)}" rows="2" maxlength="300" placeholder="${sel<=3?'어떤 점이 아쉬우셨나요? 원장님께 바로 전달돼요.':'좋았던 점이나 하고 싶은 말씀 (선택)'}">${esc(PM.draft['r'+c]!=null?PM.draft['r'+c]:(r&&r.t||''))}</textarea><button class="btn primary pm-wide" id="pm-rate-send">보내기</button>`;
+  else h+=`<p class="meta">별을 눌러 주세요. 별점과 상관없이 🎁 보호자 안내서를 드려요.</p>`;
+  return h+(PM.msg['r'+c]?`<p class="meta">${esc(PM.msg['r'+c])}</p>`:'')+'</div>';
+}
+function pmTabsHtml(s){
+  const vis=s.order.filter(c=>c===PM.cur||['live','done'].indexOf((s.kids[c]||{}).st)>=0);   // 아무 정보도 없던 카드는 탭에 안 보임
+  if(vis.length<2)return '';
+  return '<div class="pm-tabs">'+vis.map(c=>{const k=s.kids[c]||{};return `<button type="button" class="${c===PM.cur?'on':''}" data-pmtab="${esc(c)}"><b>${esc(k.nm||c)}</b><small>${k.st==='done'?'진료 끝':k.st==='live'?'진료 중':k.st==='old'?'지난 카드':'확인 중'} · ${esc(c)}</small></button>`}).join('')+'</div>';
+}
+function pmLiveHtml(c,k,d,now){
   const names=['접수·대기','초진기록지','초진방 링크','키·몸무게·인바디','X-ray','채혈','결과 대기','진료','수납·귀가','귀가'];
-  const draws=d.draws||[],pend=draws.filter(x=>!x.done);
-  const key=pend.map(x=>x.off).join(',')+'|'+d.step+'|'+(PM.sound?1:0);
-  const cur=Math.min(d.step,9);
-  if(!force&&el.dataset.k===key){el.querySelectorAll('[data-due]').forEach(e=>{const l=Number(e.dataset.due)-now;e.textContent=fmtLeft(l);e.classList.toggle('late',l<=0);e.classList.toggle('soon',l>0&&l<=120000)});const se=el.querySelector('[data-since]');if(se)se.textContent=mins(now-Number(se.dataset.since))+'분째';}
-  else{
-    el.dataset.k=key;
-    const ms=['접수','계측','X-ray','채혈','결과','진료','수납'],mi=d.step<=2?0:d.step>=8?6:d.step-2;
-    let now_=d.step<0?'<div class="pm-now"><b>아직 접수 전이에요</b></div>':d.step>=8?'<div class="pm-now"><b>진료가 끝났어요</b><span>수납 후 귀가해 주세요</span></div>':`<div class="pm-now"><span>지금</span><b>${esc(names[cur])}</b><span class="pm-t"><span data-since="${d.since||now}">${mins(now-(d.since||now))}분째</span></span></div>`;
-    let h=`<div class="pm-hero"><small>삼성자라다 소아청소년과</small><h2>${esc(d.name)} 어린이</h2>${now_}</div>`+
-      (d.step<0?'':`<ol class="pm-track">`+ms.map((n,k)=>`<li class="${k<mi?'d':k===mi?'c':''}"><i>${k<mi?'✓':k+1}</i><span>${n}</span></li>`).join('')+'</ol>');
-    if(draws.length){
-      h+=`<div class="keta"><b>${esc(d.protoName||'자극검사')} 채혈 일정</b>`+draws.map(x=>`<div style="display:grid;grid-template-columns:56px 1fr auto;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)"><b>${x.off}분</b><span>${fmtT(x.due)}</span>${x.done?'<span style="color:var(--ok);font-weight:700">✓ 완료</span>':`<b data-due="${x.due}"></b>`}</div>`).join('')+
-        (pend.length?'<p class="meta" style="margin:8px 0 0">시간이 되면 채혈실로 와 주세요. 직원이 안내해 드립니다.</p>':'<p class="meta" style="margin:8px 0 0">채혈이 모두 끝났습니다.</p>')+'</div>';
-      if(pend.length&&!PM.sound)h+='<p><button class="btn primary" id="pm-alarm" style="font-size:18px;padding:12px 18px">🔔 채혈 시간 알람 켜기</button></p><p class="meta">알람은 이 화면이 켜져 있을 때만 울립니다. 화면이 꺼지면 울리지 않으니, 시간이 되면 직원이 안내해 드립니다.</p>';
-      else if(pend.length)h+='<p class="meta">🔔 알람이 켜져 있습니다. 화면이 켜져 있을 때만 소리·진동으로 알려드려요. 꺼지면 직원이 안내해 드립니다.</p>';
-    }
-    h+=kioskVideos({vids:d.vids,xv:d.xv,first:!!d.first,lab:{proto:d.proto||'single'}});
-    if(d.step>=8)h+=pmReceiptHtml();
-    el.innerHTML=h;
-    const b=$('#pm-alarm');if(b)b.addEventListener('click',pmEnableAlarm);
-    el.querySelectorAll('[data-due]').forEach(e=>{const l=Number(e.dataset.due)-now;e.textContent=fmtLeft(l);e.classList.toggle('late',l<=0);e.classList.toggle('soon',l>0&&l<=120000)});
+  const draws=d.draws||[],pend=draws.filter(x=>!x.done),cur=Math.min(d.step,9);
+  const ms=['접수','계측','X-ray','채혈','결과','진료','수납'],mi=d.step<=2?0:d.step>=8?6:d.step-2;
+  let now_=d.step<0?'<div class="pm-now"><b>아직 접수 전이에요</b></div>':d.step>=8?'<div class="pm-now"><b>진료가 끝났어요</b><span>수납 후 귀가해 주세요</span></div>':`<div class="pm-now"><span>지금</span><b>${esc(names[cur])}</b><span class="pm-t"><span data-since="${d.since||now}">${mins(now-(d.since||now))}분째</span></span></div>`;
+  let h=`<div class="pm-hero"><small>삼성자라다 소아청소년과</small><h2>${esc(d.name)} 어린이</h2>${now_}</div>`+
+    (d.step<0?'':`<ol class="pm-track">`+ms.map((n,i)=>`<li class="${i<mi?'d':i===mi?'c':''}"><i>${i<mi?'✓':i+1}</i><span>${n}</span></li>`).join('')+'</ol>');
+  if(draws.length){
+    h+=`<div class="keta"><b>${esc(d.protoName||'자극검사')} 채혈 일정</b>`+draws.map(x=>`<div style="display:grid;grid-template-columns:56px 1fr auto;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)"><b>${x.off}분</b><span>${fmtT(x.due)}</span>${x.done?'<span style="color:var(--ok);font-weight:700">✓ 완료</span>':`<b data-due="${x.due}"></b>`}</div>`).join('')+
+      (pend.length?'<p class="meta" style="margin:8px 0 0">시간이 되면 채혈실로 와 주세요. 직원이 안내해 드립니다.</p>':'<p class="meta" style="margin:8px 0 0">채혈이 모두 끝났습니다.</p>')+'</div>';
+    if(pend.length&&!PM.sound)h+='<p><button class="btn primary" id="pm-alarm" style="font-size:18px;padding:12px 18px">🔔 채혈 시간 알람 켜기</button></p><p class="meta">알람은 이 화면이 켜져 있을 때만 울립니다. 화면이 꺼지면 울리지 않으니, 시간이 되면 직원이 안내해 드립니다.</p>';
+    else if(pend.length)h+='<p class="meta">🔔 알람이 켜져 있습니다. 화면이 켜져 있을 때만 소리·진동으로 알려드려요. 꺼지면 직원이 안내해 드립니다.</p>';
   }
-  draws.forEach(x=>{
-    if(x.done)return;const k=d.step+':'+x.off,l=x.due-now;
-    if(l<=0&&!PM.alerted.has(k+'d')){PM.alerted.add(k+'d');PM.alerted.add(k+'p');if(l>-600000)pmNotify(x.off+'분 채혈 시간입니다. 채혈실로 와 주세요.')}
-    else if(l>0&&l<=120000&&!PM.alerted.has(k+'p')){PM.alerted.add(k+'p');pmNotify(x.off+'분 채혈 2분 전입니다.')}
+  if(d.step<8)h+=pmAskHtml(c,k,d);
+  if(d.step>=8)h+=pmRateHtml(c,k);
+  h+=kioskVideos({vids:d.vids,xv:d.xv,first:!!d.first,lab:{proto:d.proto||'single'}});
+  return h;
+}
+function pmTick(el,now){
+  el.querySelectorAll('[data-due]').forEach(e=>{const l=Number(e.dataset.due)-now;e.textContent=fmtLeft(l);e.classList.toggle('late',l<=0);e.classList.toggle('soon',l>0&&l<=120000)});
+  const se=el.querySelector('[data-since]');if(se)se.textContent=mins(now-Number(se.dataset.since))+'분째';
+}
+function pmAlarms(s,now){
+  const many=s.order.filter(c=>PM.live[c]).length>1;
+  s.order.forEach(c=>{
+    const d=PM.live[c];if(!d)return;
+    (d.draws||[]).forEach(x=>{
+      if(x.done)return;const k=c+':'+d.step+':'+x.off,l=x.due-now,who=many?esc(d.name)+' — ':'';
+      if(l<=0&&!PM.alerted.has(k+'d')){PM.alerted.add(k+'d');PM.alerted.add(k+'p');if(l>-600000)pmNotify(who+x.off+'분 채혈 시간입니다. 채혈실로 와 주세요.')}
+      else if(l>0&&l<=120000&&!PM.alerted.has(k+'p')){PM.alerted.add(k+'p');pmNotify(who+x.off+'분 채혈 2분 전입니다.')}
+    });
   });
+}
+function pmRender(force,ui){
+  const el=$('#kiosk'),now=Date.now()+PM.off,s=pmStore();
+  if(!ui){const a=document.activeElement;if(a&&a.tagName==='TEXTAREA'&&el.contains(a)){pmTick(el,now);pmAlarms(s,now);return}}   // 글을 쓰는 중에는 화면을 다시 그리지 않음
+  if(!s.kids[PM.cur])PM.cur=s.order[s.order.length-1]||'';
+  const c=PM.cur,k=s.kids[c]||{st:'new'},d=k.st==='live'?PM.live[c]:null;
+  const key=JSON.stringify([s.order.map(x=>[x,(s.kids[x]||{}).st,(s.kids[x]||{}).nm]),c,k.bound,k.ask,k.rate,k.code,d,PM.sound,PM.fail,PM.rateSel[c],PM.msg[c],PM.msg['r'+c],PM.loaded]);
+  if(!force&&!ui&&el.dataset.k===key){pmTick(el,now);pmAlarms(s,now);return}
+  el.dataset.k=key;
+  let h='';
+  if(d)h=pmLiveHtml(c,k,d,now);
+  else if(k.st==='old')h='<h2>삼성자라다 소아청소년과</h2><p class="kbig">지난 진료 때 받으신 카드예요.<br><span style="font-size:16px">이 카드는 다음 내원 때 반납해 주세요. 오늘 받은 카드인데 이 화면이 보이면 접수 데스크에 보여 주세요.</span></p>'+pmReceiptHtml();
+  else if(k.st==='done')h=`<div class="pm-hero"><small>삼성자라다 소아청소년과</small><h2>${esc(k.nm||'')} 어린이</h2><div class="pm-now"><b>오늘 진료가 끝났어요</b><span>수고 많으셨어요. 조심히 들어가세요.</span></div></div>`+pmRateHtml(c,k);
+  else if(!PM.loaded)h='<p class="kbig">불러오는 중…</p>';
+  else h='<h2>삼성자라다 소아청소년과</h2><p class="kbig">'+(PM.fail?'대기 현황을 불러오지 못했습니다. 자동으로 다시 시도합니다.<br><span style="font-size:15px">계속 안 되면 접수 데스크에 카드를 보여 주세요.</span>':'지금 확인되는 접수 정보가 없습니다. 접수 후 다시 카드를 찍어 주세요.')+'</p>'+pmReceiptHtml();
+  const tabs=pmTabsHtml(s);
+  el.innerHTML=tabs?(d||k.st==='done'?h.replace('<div class="pm-hero">','<div class="pm-hero">'+tabs):tabs+h):h;
+  pmTick(el,now);pmAlarms(s,now);
+}
+function pmClick(e){
+  const t=e.target.closest('button,[data-pmtab]');if(!t)return;
+  const c=PM.cur;
+  if(t.id==='pm-alarm'){pmEnableAlarm();return}
+  if(t.dataset.pmtab){PM.cur=t.dataset.pmtab;pmRender(true,true);window.scrollTo(0,0);return}
+  if(t.dataset.pmstar){PM.rateSel[c]=Number(t.dataset.pmstar);pmRender(true,true);const ta=$('#pm-rate-t');if(ta&&PM.rateSel[c]<=3)ta.focus();return}
+  if(t.hasAttribute('data-pmrate-edit')){const k=pmStore().kids[c];if(k&&k.rate){PM.rateSel[c]=k.rate.s;PM.draft['r'+c]=k.rate.t||''}pmRender(true,true);return}
+  if(t.id==='pm-ask-send'){pmAskSend();return}
+  if(t.id==='pm-rate-send'){pmRateSend();return}
+}
+async function pmAskSend(){
+  const c=PM.cur,k=pmStore().kids[c];if(!k)return;
+  const t=String(($('#pm-ask')||{}).value||'').trim().slice(0,300);
+  PM.draft[c]=t;PM.msg[c]='보내는 중…';pmRender(true,true);
+  try{
+    const r=await pmPost({action:'flowask',card:c,tok:k.tok,text:t});const s2=pmStore(),k2=s2.kids[c];
+    if(r&&r.status==='ok'&&k2){k2.ask=t?{t:t,at:Date.now()}:null;pmSave(s2);delete PM.draft[c];PM.msg[c]=t?'✓ 원장님께 전달됐어요':'질문을 지웠어요'}
+    else PM.msg[c]=(r&&r.message)||'전달하지 못했어요. 다시 눌러 주세요.';
+  }catch(e){PM.msg[c]='인터넷 연결을 확인한 뒤 다시 눌러 주세요.'}
+  pmRender(true,true);
+}
+async function pmRateSend(){
+  const c=PM.cur,k=pmStore().kids[c],sel=PM.rateSel[c];if(!k||!sel)return;
+  const t=String(($('#pm-rate-t')||{}).value||'').trim().slice(0,300);
+  PM.draft['r'+c]=t;PM.msg['r'+c]='보내는 중…';pmRender(true,true);
+  try{
+    const r=await pmPost({action:'flowrate',card:c,tok:k.tok,score:sel,text:t});const s2=pmStore(),k2=s2.kids[c];
+    if(r&&r.status==='ok'&&k2){k2.rate={s:sel,t:t,at:Date.now()};if(r.code)k2.code=String(r.code);pmSave(s2);delete PM.msg['r'+c];delete PM.draft['r'+c];delete PM.rateSel[c]}
+    else PM.msg['r'+c]=(r&&r.message)||'보내지 못했어요. 다시 눌러 주세요.';
+  }catch(e){PM.msg['r'+c]='인터넷 연결을 확인한 뒤 다시 눌러 주세요.'}
+  pmRender(true,true);
 }
 function patientMode(){
   document.title='삼성자라다 · 내 검사 안내';document.body.classList.add('pm');
   const el=$('#kiosk');el.removeAttribute('onclick');el.hidden=false;el.style.zIndex=9999;el.innerHTML='<p class="kbig">불러오는 중…</p>';
-  pmLoad();setInterval(pmLoad,10000);setInterval(()=>pmRender(false),1000);
+  if(/^[A-Z]{1,3}\d{1,4}$/.test(PM_CODE)){pmAdd(PM_CODE);PM.cur=PM_CODE}
+  el.addEventListener('click',pmClick);
+  el.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.dataset.pmdraft!=null)PM.draft[t.dataset.pmdraft]=t.value});
+  el.addEventListener('focusout',e=>{if(e.target&&e.target.tagName==='TEXTAREA')setTimeout(()=>pmRender(false),300)});
+  pmLoad().then(()=>{PM.loaded=true;pmRender(true)});setInterval(pmLoad,10000);setInterval(()=>pmRender(false),1000);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){pmLoad();if(PM.sound&&navigator.wakeLock)navigator.wakeLock.request('screen').then(w=>PM.wl=w).catch(()=>{})}});
 }
 if(PM_CODE){patientMode()}else{
@@ -2680,6 +2878,11 @@ function compute(st){
   recs.sort(function(a,b){return a.date<b.date?-1:1});
   if(!recs.length)return{error:'키가 기록된 진료 기록이 없습니다. 진료 기록에 키를 먼저 입력해 주세요.'};
   var cur=recs[recs.length-1],m={st:st,recs:recs,cur:cur},best=null;
+  /* 지난 방문과 비교: 바로 전 측정일(다른 날짜) 대비 키·백분위 변화, 최근 두 번의 골연령에서 「뼈나이 − 실제 나이」 변화 */
+  var prev=null;for(var pi=recs.length-2;pi>=0;pi--){if(recs[pi].date<cur.date){prev=recs[pi];break}}
+  if(prev){var pdays=(new Date(cur.date)-new Date(prev.date))/86400000;m.cmp={prev:prev,months:Math.max(1,Math.round(pdays/30.44)),dh:r1(cur.h-prev.h),hp:[prev.hp,cur.hp],wp:(prev.wp!=null&&cur.wp!=null)?[prev.wp,cur.wp]:null,bp:(prev.bp!=null&&cur.bp!=null)?[prev.bp,cur.bp]:null}}
+  var bas=recs.filter(function(r){return r.ba!=null});
+  if(bas.length>=2){var b1=bas[bas.length-2],b2=bas[bas.length-1];m.cmpBa={a:b1,b:b2,g1:Math.round(b1.ba-b1.ageM),g2:Math.round(b2.ba-b2.ageM)}}
   recs.slice(0,-1).forEach(function(r){
     var days=(new Date(cur.date)-new Date(r.date))/86400000;if(days<120||days>600)return;
     if(!best||Math.abs(days-365)<Math.abs(best.days-365))best={r:r,days:days};
@@ -2700,7 +2903,7 @@ function compute(st){
 
 /* ---- 성장곡선(캔버스) ---- */
 function drawChart(cv,m){
-  var ctx=cv.getContext('2d'),W=706,H=318,sc=2;cv.width=W*sc;cv.height=H*sc;ctx.setTransform(sc,0,0,sc,0,0);
+  /* 「지난 방문과 비교」 줄이 들어가면 그래프를 조금 낮춰(data-h) 한 장에 맞춤 */var ctx=cv.getContext('2d'),W=706,H=Number(cv.getAttribute('data-h'))||318,sc=2;cv.width=W*sc;cv.height=H*sc;ctx.setTransform(sc,0,0,sc,0,0);
   ctx.fillStyle='#FFFFFF';ctx.fillRect(0,0,W,H);
   var sex=m.st.sex,L=44,R=38,T=22,B=36;
   var minAge=Math.min.apply(null,m.recs.map(function(r){return r.ageM}));
@@ -2754,6 +2957,22 @@ function footQR(st){
   if(st&&st.guide){var g=qrSvg(st.guide.url,80);if(g)return'<div class="ftgd"><div class="b">'+g+'</div><div class="t"><b>🎁 보호자 안내서 선물</b>QR을 찍고 <u>네이버 영수증 리뷰</u>에 참여해 주시면 성장·성조숙증·비만 Q&amp;A 안내서가 바로 열려요.<i>이 아이 전용 1회용 · 코드 '+esc(st.guide.code)+'</i></div></div>'}
   var s=qrSvg(EV_REVIEW,44);return s?'<div class="ftqr"><div class="b">'+s+'</div><span>네이버 리뷰</span></div>':'';
 }
+function cmpArw(a,b){var d=Math.round(b)-Math.round(a);return d>=1?'<i class="up">▲'+d+'</i>':d<=-1?'<i class="dn">▼'+(-d)+'</i>':'<i class="eq">변화 없음</i>'}
+function cmpPc(x){return x<1?'1 미만':x>99?'99 이상':String(Math.round(x))}
+function cmpGap(g){return (g>0?'+':g<0?'−':'')+Math.abs(g)+'개월'}
+function cmpHTML(m){
+  var c=m.cmp,b=m.cmpBa;if(!c&&!b)return '';
+  var it=[];
+  if(c){
+    it.push('<span><em>키</em>'+(c.dh>=0?'+':'')+c.dh+' cm · 백분위 '+cmpPc(c.hp[0])+' → '+cmpPc(c.hp[1])+' '+cmpArw(c.hp[0],c.hp[1])+'</span>');
+    if(c.wp)it.push('<span><em>몸무게</em>백분위 '+cmpPc(c.wp[0])+' → '+cmpPc(c.wp[1])+' '+cmpArw(c.wp[0],c.wp[1])+'</span>');
+    if(c.bp)it.push('<span><em>BMI</em>백분위 '+cmpPc(c.bp[0])+' → '+cmpPc(c.bp[1])+' '+cmpArw(c.bp[0],c.bp[1])+'</span>');
+  }
+  if(b){var a1=Math.abs(b.g1),a2=Math.abs(b.g2),tag=Math.abs(a2-a1)<=1?'<i class="eq">비슷</i>':a2<a1?'<i class="up">실제 나이에 가까워짐</i>':'<i class="dn">차이 커짐</i>';
+    it.push('<span><em>골연령</em>뼈나이 − 실제 나이 '+cmpGap(b.g1)+' → '+cmpGap(b.g2)+' '+tag+(c&&b.a.date===c.prev.date?'':' <small>('+dots(b.a.date)+' 골연령과 비교)</small>')+'</span>')}
+  var head=c?'지난 방문('+dots(c.prev.date)+')과 비교 · '+c.months+'개월':'지난 골연령('+dots(b.a.date)+')과 비교';
+  return '<div class="rp-cmp"><b>'+head+'</b>'+it.join('')+'</div>';
+}
 function reportHTML(m){
   if(m.error)return'<div class="rp"><div class="rp-empty">'+esc(m.error)+'</div></div>';
   var st=m.st,cur=m.cur,sexTxt=st.sex==='M'?'남아':'여아',t=new Date(),todayS=t.getFullYear()+'.'+pad(t.getMonth()+1)+'.'+pad(t.getDate());
@@ -2773,8 +2992,8 @@ function reportHTML(m){
   var cm=st.comment?'<div class="rp-cm"><div class="l">원장 코멘트</div>'+esc(st.comment)+'</div>':'';
   return'<div class="rp"><div class="rp-head"><div><div class="k">GROWTH REPORT</div><h1>성장 리포트</h1></div><div class="d">삼성자라다 소아청소년과<br>작성일 '+todayS+'</div></div>'+
     '<div class="rp-who"><span><b>'+esc(st.name||'이름 미입력')+'</b>'+sexTxt+'</span><span>생년월일 '+dots(st.dob)+'</span><span>'+ageTxt(cur.ageM)+' · '+dots(cur.date)+' 측정</span></div>'+
-    '<div class="rp-stats">'+s1+s2+s3+s4+'</div>'+
-    '<div><h2>우리 아이의 키 성장곡선</h2><canvas class="chart" width="1412" height="636"></canvas></div>'+
+    '<div class="rp-stats">'+s1+s2+s3+s4+'</div>'+cmpHTML(m)+
+    '<div><h2>우리 아이의 키 성장곡선</h2>'+((m.cmp||m.cmpBa)?'<canvas class="chart" width="1412" height="580" data-h="290" style="height:290px"></canvas>':'<canvas class="chart" width="1412" height="636"></canvas>')+'</div>'+
     '<div class="rp-cols"><div><h2>측정 기록</h2><table><thead><tr><th>측정일</th><th>나이</th><th>키(cm)</th><th>몸무게(kg)</th><th>골연령</th></tr></thead><tbody>'+rows+'</tbody></table></div><div>'+boxes+'</div></div>'+cm+
     '<div class="rp-foot"><div>삼성자라다 소아청소년과 · 02-523-0111<br>평일 10:00–20:00 · 토 09:00–18:00 (목요일·공휴일 휴진)<br>2017 소아청소년 성장도표(질병관리청) 기준의 참고 자료이며 진단이 아닙니다. 자세한 해석은 진료 시 설명드립니다.</div>'+(st.nextText?'<div class="nx">다음 내원·추적<br>'+esc(st.nextText)+'</div>':'')+'</div></div>';
 }
@@ -3704,6 +3923,7 @@ function gdFlush(){var q=GD.pend.splice(0);q.forEach(function(rec){gdSave(rec).c
 function gdPick(v){
   var k=gdKid(v);if(k&&GD.kid[k])return GD.kid[k];
   var free=GD.pool.filter(function(c){return !GD.used[c]});if(!free.length)return '';
+  var even=free.filter(function(c){var n=0;for(var i=0;i<c.length;i++)n+=c.charCodeAt(i);return n%2===0});if(even.length)free=even;   // 휴대폰 별점 쪽(서버)은 홀수 코드를 먼저 씀 — 둘이 같은 코드를 고르지 않게
   var c=free[Math.floor(Math.random()*free.length)],rec={code:c,kid:k,name:v.name||'',chartNo:v.chartNo||'',vid:v.id,at:new Date().toISOString()};
   GD.used[c]=rec;if(k)GD.kid[k]=c;
   gdSave(rec).catch(function(){GD.pend.push(rec);setTimeout(gdFlush,15000)});   // 기록은 뒤에서 — 확인이 기다리지 않게
