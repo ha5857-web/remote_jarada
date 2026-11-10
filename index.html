@@ -4032,6 +4032,42 @@ function txActiveStarts(p){
   if(sp) out.push({ k:'GnRH', s:sp }); else if(man==='GnRH') out.push({ k:'GnRH', s:today });
   return out;
 }
+/* 성장 리포트 그래프용 치료 이력: 기간(끝난 것 포함)과 용량을 바꾼 날짜.
+   · 기간: 차트 글의 GH(시작~끝)·GnRHa(시작~끝) 전부(끝이 없으면 시작 뒤 「중단/종료」 날짜를 끝으로)
+   · 용량: 방문 기록마다 차트에서 읽은 GH 용량(IU)·억제제 용량(mg)을 날짜순으로 보고, 앞 방문과 달라진 날을 기록(최근 8개) */
+function txPeriodsAll(texts){
+  const out = [], seen = {}, t = String(texts||'');
+  [['GH', /\bGH\s*\(\s*(\d{4}-\d{2}(?:-\d{2})?)\s*~\s*(\d{4}-\d{2}(?:-\d{2})?)?\s*\)/gi, /GH[^\n]{0,30}?(?:중단|종료)[^\n]{0,20}?(\d{4}-\d{2}(?:-\d{2})?)/gi],
+   ['GnRH', /(?:GnRHa|GnRH\s*analog|성조숙증\s*억제제)\s*\(\s*(\d{4}-\d{2}(?:-\d{2})?)\s*~\s*(\d{4}-\d{2}(?:-\d{2})?)?\s*\)/gi, /(?:GnRHa|GnRH\s*analog|억제제)[^\n]{0,30}?(?:중단|종료)[^\n]{0,20}?(\d{4}-\d{2}(?:-\d{2})?)/gi]
+  ].forEach(([k, reR, reS])=>{
+    const stops = [...t.matchAll(reS)].map(m=>m[1]).sort();
+    for(const m of t.matchAll(reR)){
+      const st = m[1]; let en = m[2] || ''; if(!en){ const x = stops.find(d=> d >= st); if(x) en = x; }
+      const key = k + st; if(seen[key]){ if(en && !seen[key].e) seen[key].e = en; continue; }
+      const o = { k, s:st, e:en }; seen[key] = o; out.push(o);
+    }
+  });
+  return out.sort((a,b)=> a.s < b.s ? -1 : 1);
+}
+function txHistory(p){
+  if(!p) return { p:[], d:[] };
+  const per = txPeriodsAll(txTextsOf(p)), today = todayStr();
+  const man = txKind(txKey(p.chartNo, p.name), txTextsOf(p));
+  if(man && !per.some(x=> x.k===man && !x.e)) per.push({ k:man, s:today, e:'' });
+  const recs = (p.records||[]).filter(r=>r && r.date).slice().sort((a,b)=> a.date < b.date ? -1 : 1), d = [];
+  const track = (k, get, unit)=>{
+    let prev = null;
+    recs.forEach(r=>{
+      const v = get(r); if(v==null || v==='') return;
+      if(prev!=null && String(v)!==String(prev)) d.push({ k, d:r.date, a:String(prev), b:String(v), u:unit });
+      prev = v;
+    });
+  };
+  track('GH', r=>{ const n = parseFloat(r.ghDose); return n>0 ? Math.round(n*100)/100 : null; }, 'IU');
+  track('GnRH', r=>{ const m = String(r.suppDose||'').match(/([\d.]+)\s*mg/i); return m ? parseFloat(m[1]) : null; }, 'mg');
+  d.sort((a,b)=> a.d < b.d ? -1 : 1);
+  return { p:per, d:d.slice(-8) };
+}
 /* 오늘 flow에 올라온 아이마다 위 치료 정보를 붙여 줍니다(등록번호로 찾고, 등록번호가 없으면 이름이 하나뿐일 때만). 바뀐 아이만 저장. */
 async function txSyncFlow(visits){
   try{
@@ -4043,10 +4079,10 @@ async function txSyncFlow(visits){
       let p = dg(v.chartNo) ? byChart[dg(v.chartNo)] : null;
       if(!p && !dg(v.chartNo)){ const b = byName[v.name]; if(b && b.length===1) p = b[0]; }
       if(!p) continue;
-      const tx = txActiveStarts(p);
-      if(JSON.stringify(v.tx||[]) === JSON.stringify(tx)) continue;
-      const j = await bqPost({ action:'flowsave', id:v.id, patch:{ tx:tx, updatedAt:Date.now() } });
-      if(j && j.status==='ok') v.tx = tx;
+      const tx = txActiveStarts(p), h = txHistory(p), txh = (h.p.length || h.d.length) ? h : null;
+      if(JSON.stringify(v.tx||[]) === JSON.stringify(tx) && JSON.stringify(v.txh||null) === JSON.stringify(txh)) continue;
+      const j = await bqPost({ action:'flowsave', id:v.id, patch:{ tx:tx, txh:txh, updatedAt:Date.now() } });
+      if(j && j.status==='ok'){ v.tx = tx; v.txh = txh; }
     }
   }catch(e){}
 }
