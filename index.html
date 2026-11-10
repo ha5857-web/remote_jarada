@@ -194,6 +194,48 @@
   .record-item .rec-actions{ display:flex; gap:6px; margin-top:9px; }
   .record-item .rec-actions button{ font-size:11px; padding:6px 10px; }
 
+  .ge-head{ display:block !important; }
+  .ge-row{ display:flex; align-items:center; gap:8px; }
+  .emr{ margin-top:8px; }
+  .emr:empty{ display:none; }
+  .emr-tog{ display:flex; width:100%; align-items:center; justify-content:space-between; gap:8px; padding:9px 12px; border:1px solid #E6D7AE; border-radius:10px; background:#FFF8E6; font:inherit; font-size:13.5px; font-weight:700; color:#6B5310; cursor:pointer; text-align:left; }
+  .emr-tog span{ font-weight:600; font-size:12.5px; white-space:nowrap; }
+  .emr-body{ margin-top:6px; border:1px solid #E6D7AE; border-radius:10px; background:#FFFDF6; max-height:34vh; overflow:auto; -webkit-overflow-scrolling:touch; }
+  .emr-opts{ position:sticky; top:0; display:flex; gap:6px; padding:6px; background:#FFFDF6; border-bottom:1px solid #F0E6C8; }
+  .emr-opts button{ flex:1; height:32px; border:1px solid #E6D7AE; border-radius:8px; background:#fff; font:inherit; font-size:13px; font-weight:700; color:#6B5310; cursor:pointer; }
+  .emr-opts button.on{ background:#6B5310; color:#fff; border-color:#6B5310; }
+  .emr-txt{ padding:6px 10px 8px; font-size:13px; line-height:1.55; color:#2A2A2A; white-space:pre-wrap; word-break:break-all; -webkit-user-select:text; user-select:text; }
+  .emr-l.nw{ background:#FFF0B3; margin:0 -4px; padding:0 4px; border-radius:3px; }
+  .emr-none{ padding:8px 12px; border:1px dashed #E6D7AE; border-radius:10px; font-size:12.5px; color:#8A7A50; }
+  @media (max-width:760px){ .emr-tog{ font-size:14.5px; padding:11px 12px; } .emr-txt{ font-size:14.5px; } .emr-body{ max-height:36vh; } }
+  /* 진료 후 안내 초안: 아래 넘기기 단추 · 휴대폰 전체 화면 */
+  .ge-head{ position:sticky; top:-18px; z-index:2; background:var(--light); margin:-18px -18px 12px; padding:14px 18px 10px; border-bottom:1px solid var(--border); gap:8px; }
+  .ge-head h3{ flex:1; min-width:0; }
+  .ge-pos{ font-size:13px; font-weight:700; color:var(--secondary); white-space:nowrap; }
+  .ge-bar{ position:sticky; bottom:-24px; display:flex; gap:8px; margin:14px -18px -24px; padding:10px 18px calc(12px + env(safe-area-inset-bottom)); background:var(--light); border-top:1px solid var(--border); }
+  .ge-bar .ge-ok{ flex:1; height:48px; font-size:16px; font-weight:800; }
+  .ge-bar .ge-nav{ flex:none; width:52px; height:48px; font-size:24px; padding:0; }
+  .ge-bar .ge-nav:disabled{ opacity:.35; }
+  .ge-saved{ position:fixed; right:16px; top:calc(10px + env(safe-area-inset-top)); z-index:3; font-size:12px; color:#2B7A4B; font-weight:700; pointer-events:none; }
+  .gq-start{ display:block; width:100%; margin:8px 0 2px; padding:10px; border-radius:10px; border:1px solid #BFE0C8; background:#fff; font:inherit; font-size:14px; font-weight:700; color:#1E6B3A; cursor:pointer; }
+  @media (max-width:760px){
+    #guideEditOv.ge-mob{ align-items:stretch; }
+    #guideEditOv.ge-mob .modal{ max-width:none; max-height:none; height:100vh; height:100dvh; border-radius:0; padding:18px 14px 24px; }
+    #guideEditOv.ge-mob .ge-head{ margin:-18px -14px 12px; padding:calc(12px + env(safe-area-inset-top)) 14px 10px; }
+    #guideEditOv.ge-mob .ge-head h3{ font-size:17px; line-height:1.35; }
+    #guideEditOv.ge-mob .modal-close{ width:44px; height:44px; font-size:22px; }
+    #guideEditOv.ge-mob .ge-bar{ margin:14px -14px -24px; padding:10px 12px calc(12px + env(safe-area-inset-bottom)); }
+    #guideEditOv.ge-mob .ge-bar .ge-ok{ height:54px; font-size:17px; }
+    #guideEditOv.ge-mob .ge-bar .ge-nav{ width:54px; height:54px; }
+    #guideEditOv.ge-mob .field label{ font-size:13.5px; }
+    #guideEditOv.ge-mob .field textarea, #guideEditOv.ge-mob .field input{ font-size:16.5px; line-height:1.6; padding:11px 12px; border-radius:12px; }
+    #guideEditOv.ge-mob .field textarea{ min-height:48px; resize:none; overflow:hidden; }
+    #guideEditOv.ge-mob .field textarea::placeholder{ color:#A9B6BD; font-size:15px; }
+    #guideEditOv.ge-mob #ge_info{ font-size:13px !important; }
+    .gq-chip{ font-size:14.5px !important; padding:6px 4px 6px 10px !important; margin:3px 5px 3px 0 !important; border-radius:16px !important; }
+    .gq-chip .gq-x{ padding:4px 9px !important; font-size:16px; }
+    .gq-start{ padding:13px; font-size:15.5px; }
+  }
   /* --- Modal --- */
   .modal-ov{
     display:none; position:fixed; inset:0; background:rgba(27,58,75,.5);
@@ -557,7 +599,7 @@
 
 <div class="modal-ov" id="guideEditOv">
   <div class="modal">
-    <div class="modal-head"><h3 id="ge_title">📋 진료 후 안내 초안</h3><button class="modal-close" onclick="closeModal('guideEditOv')">✕</button></div>
+    <div class="modal-head ge-head"><div class="ge-row"><h3 id="ge_title">📋 진료 후 안내 초안</h3><span id="ge_pos" class="ge-pos"></span><button class="modal-close" onclick="guideEditSave()" aria-label="닫기">✕</button></div><div id="ge_emr" class="emr"></div></div>
     <div id="ge_info" style="font-size:11.5px;color:var(--secondary);margin-bottom:10px;line-height:1.6;"></div>
     <div class="field"><label>오늘 진료 요약 (지난번과 달라진 점)</label><textarea id="ge_summary" rows="4"></textarea></div>
     <div class="field"><label>혈액검사 결과 설명</label><textarea id="ge_labs" rows="3"></textarea></div>
@@ -567,7 +609,12 @@
     <div class="field"><label>🏃 운동</label><textarea id="ge_exercise" rows="3"></textarea></div>
     <div class="field"><label>🥗 영양</label><textarea id="ge_nutrition" rows="3"></textarea></div>
     <div class="field"><label>😴 수면</label><textarea id="ge_sleep" rows="3"></textarea></div>
-    <button class="btn btn-primary btn-block" onclick="guideEditSave()">저장</button>
+    <div class="ge-bar">
+      <button type="button" class="btn ge-nav" id="ge_prev" onclick="guideEditGo(-1)" aria-label="이전 아이">‹</button>
+      <button type="button" class="btn btn-primary ge-ok" id="ge_next" onclick="guideEditGo(1, true)">✓ 확인하고 다음</button>
+      <button type="button" class="btn ge-nav" id="ge_skip" onclick="guideEditGo(1)" aria-label="다음 아이">›</button>
+    </div>
+    <div id="ge_saved" class="ge-saved"></div>
   </div>
 </div>
 
@@ -3526,23 +3573,98 @@ async function runBatchGuideSend(){
 }
 /* ---- 초안 확인·수정 창 ---- */
 let guideEditId = null;
+/* 진료 후 안내 초안 고치기 — 휴대폰에서도 쉽게:
+   · 고치는 대로 0.6초 뒤 자동 저장(창을 닫아도, 다음 아이로 넘어가도 그대로)
+   · 아래 「‹  ✓ 확인하고 다음  ›」로 대기 순서대로 넘기며 확인, 확인한 아이는 칩에 ✓ 표시
+   · 휴대폰(가로 760px 이하)에서는 전체 화면 + 큰 글씨(입력할 때 화면이 확대되지 않게 16px 이상) */
+/* 📋 EMR 차트 보면서 고치기: 이 아이의 오늘 차트(의사 앱에 올린 EMR)를 편집 창 위쪽에 붙여 둡니다.
+   처음엔 지난 차트와 비교해 「오늘 새로 쓴 줄」만, 「전체」를 누르면 차트 전체(새 줄은 노란색). 펼쳐 두면 위에 고정돼서 보면서 아래 칸을 고칠 수 있어요. */
+const GE_EMR = { open:false, all:false };
+function emrNorm(l){ return String(l||'').replace(/\s+/g,' ').trim(); }
+function emrHtml(chart, base, date, opt){
+  opt = opt || {};
+  if(!String(chart||'').trim()) return '<div class="emr-none">📋 이 아이의 오늘 EMR 차트가 아직 없어요. 진료실에서 EMR을 올리면 여기서 보여요.</div>';
+  const old = {}; String(base||'').split('\n').forEach(l=>{ const n = emrNorm(l); if(n) old[n] = 1; });
+  const hasBase = !!String(base||'').trim(); let nNew = 0;
+  const rows = String(chart).replace(/\r/g,'').split('\n').map(l=>{ const n = emrNorm(l), nw = !!n && (!hasBase || !old[n]); if(nw) nNew++; return { l, n, nw }; });
+  const show = opt.all || !hasBase ? rows.filter((r,i)=> r.n || (i>0 && rows[i-1].n)) : rows.filter(r=>r.nw);
+  const body = show.map(r=>`<div class="emr-l${r.nw && hasBase ? ' nw' : ''}">${escapeHtml(r.l) || '&nbsp;'}</div>`).join('') || '<div class="emr-l">(지난 차트와 달라진 줄이 없어요)</div>';
+  return `<button type="button" class="emr-tog" data-emr="tog">📋 EMR 차트 ${escapeHtml(String(date||'').replace(/-/g,'.'))} · ${hasBase ? '오늘 새로 쓴 ' + nNew + '줄' : '전체 ' + rows.filter(r=>r.n).length + '줄'} <span>${opt.open ? '접기 ▴' : '펼치기 ▾'}</span></button>` +
+    (opt.open ? `<div class="emr-body">${hasBase ? `<div class="emr-opts"><button type="button" data-emr="new" class="${opt.all?'':'on'}">새로 쓴 줄</button><button type="button" data-emr="all" class="${opt.all?'on':''}">전체 차트</button></div>` : ''}<div class="emr-txt">${body}</div></div>` : '');
+}
+function geEmrRender(){
+  const el = document.getElementById('ge_emr'), p = getPatient(guideEditId); if(!el) return;
+  if(!p){ el.innerHTML = ''; return; }
+  const recs = (p.records||[]).filter(r=>r && r.date && String(r.chartNoteRaw||'').trim()).sort((a,b)=> a.date < b.date ? -1 : 1);
+  const td = todayStr(), cur = recs.filter(r=>r.date===td).pop() || recs[recs.length-1] || null;
+  const prev = cur ? recs.filter(r=>r.date < cur.date).pop() : null;
+  const base = (p.guideBase && p.guideBase.date===td && p.guideBase.text) || (prev && prev.chartNoteRaw) || '';
+  el.innerHTML = emrHtml(cur ? cur.chartNoteRaw : '', base, cur ? cur.date : '', GE_EMR);
+}
+function guideQueueIds(){ return patients.filter(p=>p.pendingGuideSend && p.guideDraft && !p.guideDraft.sentAt).map(p=>p.id); }
+let guideEditTimer = null;
+function guideEditPersist(){
+  clearTimeout(guideEditTimer); guideEditTimer = null;
+  const p = getPatient(guideEditId); if(!p || !p.guideDraft) return false;
+  const g = k => (document.getElementById('ge_'+k)||{value:''}).value.trim();
+  const po = p.guideDraft.post || {}; let ch = false;
+  ['summary','labs','xray','direction','nextDate','exercise','nutrition','sleep'].forEach(k=>{ const v = g(k); if((po[k]||'') !== v){ po[k] = v; ch = true; } });
+  if(ch){ p.guideDraft.post = po; p.guideDraft.edited = true; p.updatedAt = new Date().toISOString(); savePatients(); geSaid('✓ 저장됨'); }
+  return ch;
+}
+function geSaid(t){ const e = document.getElementById('ge_saved'); if(!e) return; e.textContent = t; clearTimeout(e._t); e._t = setTimeout(()=>{ e.textContent = ''; }, 1600); }
+function geAutosize(e){ if(!e || e.tagName!=='TEXTAREA') return; e.style.height = 'auto'; e.style.height = (e.scrollHeight + 2) + 'px'; }
+function guideEditGo(d, ok){
+  const p = getPatient(guideEditId);
+  guideEditPersist();
+  if(ok && p && p.guideDraft){ p.guideDraft.okAt = Date.now(); p.updatedAt = new Date().toISOString(); savePatients(); }
+  const q = guideQueueIds(), i = q.indexOf(guideEditId);
+  let nx = null;
+  if(ok){ for(let k=1;k<=q.length;k++){ const x = q[(Math.max(i,-1)+k) % q.length]; const xp = getPatient(x); if(x!==guideEditId && xp && xp.guideDraft && !xp.guideDraft.okAt){ nx = x; break; } } }
+  else { const j = i + d; if(j>=0 && j<q.length) nx = q[j]; }
+  if(nx){ guideEdit(nx); const m = document.querySelector('#guideEditOv .modal'); if(m) m.scrollTop = 0; return; }
+  if(ok){ closeModal('guideEditOv'); guideEditId = null; renderBatchSendBar(); geToast('대기 중인 안내를 모두 확인했어요. 「진료 후 안내 일괄 발송」을 누르면 보내져요.'); const b = document.getElementById('batchGuideRow'); if(b) b.scrollIntoView({behavior:'smooth', block:'center'}); }
+}
+function geToast(t){
+  let e = document.getElementById('geToast');
+  if(!e){ e = document.createElement('div'); e.id = 'geToast'; e.style.cssText = 'position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:400;max-width:min(92vw,520px);background:#1B3A4B;color:#fff;padding:12px 16px;border-radius:12px;font-size:14px;line-height:1.5;box-shadow:0 6px 24px rgba(0,0,0,.25)'; document.body.appendChild(e); }
+  e.textContent = t; e.style.display = 'block'; clearTimeout(e._t); e._t = setTimeout(()=>{ e.style.display = 'none'; }, 4500);
+}
+(function geWire(){
+  const ov = document.getElementById('guideEditOv'); if(!ov || ov._wired) return; ov._wired = true;
+  ov.addEventListener('input', e=>{ geAutosize(e.target); clearTimeout(guideEditTimer); guideEditTimer = setTimeout(guideEditPersist, 600); });
+  ov.addEventListener('change', ()=>{ clearTimeout(guideEditTimer); guideEditTimer = setTimeout(guideEditPersist, 200); });
+  ov.addEventListener('click', e=>{
+    if(e.target === ov){ guideEditSave(); return; }
+    const b = e.target.closest && e.target.closest('[data-emr]'); if(!b) return;
+    const k = b.dataset.emr; if(k==='tog') GE_EMR.open = !GE_EMR.open; else if(k==='all') GE_EMR.all = true; else if(k==='new') GE_EMR.all = false;
+    geEmrRender();
+  });
+})();
 function guideEdit(id){
   const p = getPatient(id); if(!p || !p.guideDraft) return;
+  if(guideEditId && guideEditId !== id) guideEditPersist();
   guideEditId = id; const po = p.guideDraft.post || {};
   const set = (k, v)=>{ const e = document.getElementById('ge_'+k); if(e) e.value = v || ''; };
   ['summary','labs','xray','direction','nextDate','exercise','nutrition','sleep'].forEach(k=>set(k, po[k]));
+  const q = guideQueueIds(), i = q.indexOf(id);
+  const ps = document.getElementById('ge_pos'); if(ps) ps.textContent = i>=0 && q.length>1 ? (i+1)+' / '+q.length : '';
+  const pv = document.getElementById('ge_prev'); if(pv) pv.disabled = !(i>0);
+  const sk = document.getElementById('ge_skip'); if(sk) sk.disabled = !(i>=0 && i<q.length-1);
+  const left = q.filter(x=>{ const xp = getPatient(x); return x!==id && xp && xp.guideDraft && !xp.guideDraft.okAt; }).length;
+  const nb = document.getElementById('ge_next'); if(nb) nb.textContent = left ? '✓ 확인하고 다음' : '✓ 확인 완료';
+  const ov = document.getElementById('guideEditOv'), mob = !!(window.matchMedia && matchMedia('(max-width:760px)').matches); if(ov) ov.classList.toggle('ge-mob', mob);
+  document.querySelectorAll('#guideEditOv textarea').forEach(t=>{ if(!t.dataset.rows) t.dataset.rows = t.getAttribute('rows') || '3'; t.setAttribute('rows', mob ? '1' : t.dataset.rows); if(!mob) t.style.height = ''; t.placeholder = mob ? '(비어 있음 — 눌러서 쓰기)' : ''; });
+  geEmrRender();
+  setTimeout(()=>{ if(mob) document.querySelectorAll('#guideEditOv textarea').forEach(geAutosize); }, 30);
   document.getElementById('ge_title').textContent = `📋 ${p.name||''} · ${fvGuideIsFirst(p) ? '초진' : '재진'} 진료 후 안내 초안`;
   const g = p.guideDraft;
   document.getElementById('ge_info').textContent = (g.ai ? 'AI가 이전 차트와 비교해 정리한 초안이에요.' : 'AI 없이 차트 표기로 정리한 초안이에요.') + (g.count ? ` 새로 추가된 ${g.count}줄을 근거로 썼어요.` : '') + (g.warn ? ' ※ ' + g.warn : '') + ' 꼭 읽어보고 고친 뒤 보내세요.';
   openModal('guideEditOv');
 }
 function guideEditSave(){
-  const p = getPatient(guideEditId); if(!p || !p.guideDraft) return;
-  const g = k => (document.getElementById('ge_'+k)||{value:''}).value.trim();
-  const po = p.guideDraft.post || {};
-  ['summary','labs','xray','direction','nextDate','exercise','nutrition','sleep'].forEach(k=>{ po[k] = g(k); });
-  p.guideDraft.post = po; p.guideDraft.edited = true; p.updatedAt = new Date().toISOString();
-  savePatients(); closeModal('guideEditOv'); renderBatchSendBar();
+  if(guideEditId) guideEditPersist();
+  closeModal('guideEditOv'); guideEditId = null; renderBatchSendBar();
 }
 // 서버에 쌓인 과거 네이버 예약 + 클라우드 환자 목록에서 "이미 내원한 적 있는 아이(이름|전화 뒤4자리)"를 받아옵니다. 실패해도 업로드는 그대로 진행돼요.
 let fvPastKeys = null;
@@ -7379,8 +7501,9 @@ function renderBatchSendBar(){
   if(countEl) countEl.innerHTML = `<div>📋 그래프 일괄 발송 대기: ${chartQueued.length}명</div><div style="margin-top:3px;font-size:11.5px;line-height:1.9;">${chartQueued.map(p=>chip('chart',p)).join('')}</div>`;
   const guideCountEl = document.getElementById('batchGuideCount');
   if(guideCountEl){
-    const gchip = p => `<span style="display:inline-flex;align-items:center;gap:4px;margin:2px 4px 2px 0;padding:2px 4px 2px 8px;background:#fff;border:1px solid #BFE0C8;border-radius:12px;font-weight:600;"><span role="button" title="초안 확인·수정" onclick="guideEdit('${p.id}')" style="cursor:pointer;text-decoration:underline dotted;">${escapeHtml(p.name||'')}</span>${cnum(p)}<span style="font-size:10px;color:${fvGuideIsFirst(p)?'#7B4FA3':'#C0392B'};font-weight:700;">${fvGuideReason(p)||'수동'}${p.guideDraft.edited?'·수정':''}</span><b role="button" title="이 환아만 대기에서 빼기" onclick="removeFromQueue('guide','${p.id}')" style="cursor:pointer;padding:0 5px;color:#B2452F;">✕</b></span>`;
-    guideCountEl.innerHTML = `<div>📋 진료 후 안내 일괄 발송 대기: ${guideQueued.length}명 <span style="font-weight:400;font-size:11px;">(이름을 누르면 초안을 보고 고칠 수 있어요 · 등록번호를 누르면 복사돼요)</span></div><div style="margin-top:3px;font-size:11.5px;line-height:1.9;">${guideQueued.map(gchip).join('')}</div>`;
+    const gchip = p => `<span class="gq-chip${p.guideDraft.okAt?' ok':''}" style="display:inline-flex;align-items:center;gap:4px;margin:2px 4px 2px 0;padding:2px 4px 2px 8px;background:${p.guideDraft.okAt?'#EAF7EE':'#fff'};border:1px solid #BFE0C8;border-radius:12px;font-weight:600;"><span role="button" class="gq-name" title="초안 확인·수정" onclick="guideEdit('${p.id}')" style="cursor:pointer;text-decoration:underline dotted;">${p.guideDraft.okAt?'✓ ':''}${escapeHtml(p.name||'')}</span>${cnum(p)}<span style="font-size:10px;color:${fvGuideIsFirst(p)?'#7B4FA3':'#C0392B'};font-weight:700;">${fvGuideReason(p)||'수동'}${p.guideDraft.edited?'·수정':''}</span><b role="button" class="gq-x" title="이 환아만 대기에서 빼기" onclick="removeFromQueue('guide','${p.id}')" style="cursor:pointer;padding:0 5px;color:#B2452F;">✕</b></span>`;
+    const gOk = guideQueued.filter(p=>p.guideDraft.okAt).length;
+    guideCountEl.innerHTML = `<div>📋 진료 후 안내 일괄 발송 대기: ${guideQueued.length}명${gOk?` <span style="color:#2B7A4B;">(✓ 확인 ${gOk})</span>`:''} <span style="font-weight:400;font-size:11px;">(이름을 누르면 초안을 보고 고칠 수 있어요 · 등록번호를 누르면 복사돼요)</span></div>${guideQueued.length?`<button type="button" class="gq-start" onclick="guideEdit('${(guideQueued.find(p=>!p.guideDraft.okAt)||guideQueued[0]).id}')">${gOk>=guideQueued.length?'✓ 모두 확인했어요 · 다시 보기':gOk?'✏️ 남은 '+(guideQueued.length-gOk)+'명 이어서 확인':'✏️ 첫 아이부터 차례로 확인하기'}</button>`:''}<div style="margin-top:3px;font-size:11.5px;line-height:1.9;">${guideQueued.map(gchip).join('')}</div>`;
   }
   const fvCountEl = document.getElementById('batchFvCount');
   if(fvCountEl) fvCountEl.innerHTML = `<div>🌱 초진방 링크 일괄 발송 대기: ${fvQueued.length}명</div><div style="margin-top:3px;font-size:11.5px;line-height:1.9;">${fvQueued.map(p=>chip('fv',p)).join('')}</div>`;
