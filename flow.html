@@ -124,6 +124,15 @@ button{cursor:pointer}
 .kiosk{position:fixed;inset:0;z-index:50;background:var(--bg);color:var(--ink);padding:28px 20px;overflow:auto;font-size:18px;line-height:1.5}
 .kiosk h2{margin:0 0 8px;font-size:26px}
 .kiosk .kbig{font-size:22px;margin:8px 0}
+.pill.tx{background:#FFF0E3;color:#A0521A;border-color:#F5D3B5}
+.pill.tx.gn{background:#FDECEC;color:#A3352B;border-color:#F3C1BC}
+.pill.tx.today{background:#D9822B;color:#fff;border-color:#D9822B}
+.pill.tx.gn.today{background:#C0392B;border-color:#C0392B}
+.txline{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;font-size:14px;color:#6B4A2B}
+.txline span{background:#FFF6EC;border:1px solid #F5D3B5;border-radius:8px;padding:4px 10px}
+.txline span.gn{background:#FDF1F0;border-color:#F3C1BC;color:#7A2A22}
+.txline span.today{background:#D9822B;border-color:#D9822B;color:#fff}
+.txline span.gn.today{background:#C0392B;border-color:#C0392B}
 .pill.ask{background:#FFF1D6;color:#8A5A00;border-color:#F2D9A6}
 .askbox{margin-top:8px;padding:10px 12px;border-radius:10px;background:#FFF8E8;border:1px solid #F2D9A6}
 .askbox.low{background:#FDECEC;border-color:#F3C1BC}
@@ -758,6 +767,23 @@ function fxApply(j){
     if(r.s<=3&&!FX.toasted[id+':'+r.at]&&!(v.rate&&v.rate.seen)){FX.toasted[id+':'+r.at]=1;toast('⭐ '+(v.name||'보호자')+' 만족도 '+r.s+'점'+(r.t?' — '+r.t.slice(0,40):''))}});
   renderAll(false);
 }
+/* 💉 진행 중인 성장호르몬(GH)·억제제(GnRH) — 의사 앱이 차트 메모 「GH(2025-03-04~)」·「GnRHa(…~)」와 「💉 첫 투여」 표시를 보고 오늘 방문에 붙여 줍니다(v.tx) */
+const TXN={GH:'성장호르몬',GnRH:'억제제'};
+function txDate(s){const d=new Date((String(s).length===7?s+'-01':s)+'T00:00:00');return isNaN(d)?null:d}
+function txSince(s){
+  const d=txDate(s);if(!d)return '';const t=new Date();t.setHours(0,0,0,0);
+  const days=Math.round((t-d)/864e5);if(days<=0)return '오늘 시작';
+  let m=(t.getFullYear()-d.getFullYear())*12+t.getMonth()-d.getMonth();if(t.getDate()<d.getDate())m--;
+  if(m<1)return (days+1)+'일째';
+  const y=Math.floor(m/12),mm=m%12;return [y?y+'년':'',mm?mm+'개월':''].filter(Boolean).join(' ')+'째';
+}
+const txList=v=>(Array.isArray(v.tx)?v.tx:[]).filter(x=>x&&TXN[x.k]&&txDate(x.s));
+const txPill=v=>txList(v).map(x=>{const sn=txSince(x.s),td=sn==='오늘 시작',lb=x.k==='GH'?'GH':'억제제';
+  return `<span class="pill tx${x.k==='GnRH'?' gn':''}${td?' today':''}" title="${esc(TXN[x.k]+' '+String(x.s).replace(/-/g,'.')+' 시작')}">${td?'💉 '+lb+' 오늘 시작':lb+' '+sn}</span>`}).join('');
+function txLineHtml(v){
+  const l=txList(v);if(!l.length)return '';
+  return `<div class="txline">${l.map(x=>{const sn=txSince(x.s);return `<span class="${x.k==='GnRH'?'gn':''}${sn==='오늘 시작'?' today':''}">💉 <b>${TXN[x.k]}</b> ${esc(String(x.s).replace(/-/g,'.'))} 시작 · ${sn==='오늘 시작'?'<b>오늘 첫 투여</b>':sn}</span>`}).join('')}</div>`;
+}
 const askPill=v=>v.asks&&v.asks.length?`<span class="pill ask" title="${esc(v.asks.map(a=>a.t).join(' / '))}">❓ 질문</span>`:'';
 const ratePill=v=>v.rate&&v.rate.s?`<span class="pill${v.rate.s<=3?' warn':' ok'}" title="${esc('보호자 만족도 '+v.rate.s+'점'+(v.rate.t?' — '+v.rate.t:''))}">⭐${v.rate.s}</span>`:'';
 function askBoxHtml(v){
@@ -876,7 +902,7 @@ function cardHtml(v,now){
   else if(needNotify(v)){dl=`<span class="pill warn">결과 안내 필요</span>`}
   const x=roomOf(v)==='exit'||roomOf(v)==='booked';   // 예약 칸·귀가 칸 카드는 오른쪽 위 ×로 바로 지우기
   return `<button class="card${sel?' sel':''}${w?' warn':''}${x?' hasx':''}" data-sel="${v.id}">${x?`<span class="cx" role="button" data-act="card-del" data-id="${v.id}" title="현황판에서 지우기 (6초 안에 되돌릴 수 있어요)" aria-label="${esc(v.name||'')} 지우기">×</span>`:''}
-    <span class="nm">${esc(v.name||'이름 없음')}${exTag(v)}${invTag(v)}${grPill(v)}${askPill(v)}${ratePill(v)}</span>
+    <span class="nm">${esc(v.name||'이름 없음')}${exTag(v)}${invTag(v)}${grPill(v)}${txPill(v)}${askPill(v)}${ratePill(v)}</span>
     <span class="meta">${esc(age(v))}${v.sex?' · '+esc(v.sex):''}${v.chartNo?' · '+cnoHtml(v.chartNo):''}${v.card&&isTodayV(v)?' · <b>🎫 '+esc(v.card)+'</b>':''}</span>
     <span class="st" style="${w?'color:var(--warn);font-weight:600':''}">${st}</span>
     ${dl}${v.step<0&&!v.card?`<span class="qd" role="button" data-act="card-next" data-id="${v.id}" title="카드를 주면서 누르면 연결 + 도착 처리">🎫 ${esc(nextCard())} 주기</span>`:''}${v.step>=0&&v.step<10?`<span class="qd" role="button" data-act="quick-done" data-id="${v.id}" title="남은 단계를 건너뛰고 바로 완료 처리">바로 완료 ▸</span>`:''}<span class="bar">${bar}</span></button>`;
@@ -1601,7 +1627,7 @@ function detailHtml(){
   }
   let head=`<div class="dh"><div><h2>${esc(v.name||'이름 없음')}${exTag(v)}</h2>
     <div class="sub">${esc(age(v))}${v.sex?' · '+esc(v.sex):''}${v.chartNo?' · '+cnoHtml(v.chartNo,'등록번호 '):''}${v.appt?' · 예약 '+esc(v.appt):''}</div></div>
-    <button class="btn sm ghost" data-act="close">닫기</button></div>${askBoxHtml(v)}
+    <button class="btn sm ghost" data-act="close">닫기</button></div>${txLineHtml(v)}${askBoxHtml(v)}
     <button class="btn primary" data-act="gr-open" style="width:100%;margin-top:8px;font-size:15px">📄 성장 리포트 ${v.gr&&v.gr.ready?(v.gr.reviewed?'보기 ✓':(v.gr.src&&v.gr.src!=='today'?'열기 (가안)':'열어서 확인')):'만들기'}</button>
     <details class="more" style="margin-top:8px"><summary>초진·대기 영상 설정${v.first?' (초진)':''}${v.rev?' (재진)':''}${v.vids?' · 영상 '+esc(v.vids):''}</summary>
     <label class="chk" style="margin-top:8px"><input type="checkbox" data-path="first"${v.first?' checked':''}>초진 환자 (대기 중 영상 표시)</label>
