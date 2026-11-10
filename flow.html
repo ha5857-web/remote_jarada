@@ -124,6 +124,15 @@ button{cursor:pointer}
 .kiosk{position:fixed;inset:0;z-index:50;background:var(--bg);color:var(--ink);padding:28px 20px;overflow:auto;font-size:18px;line-height:1.5}
 .kiosk h2{margin:0 0 8px;font-size:26px}
 .kiosk .kbig{font-size:22px;margin:8px 0}
+.pill.tx{background:#FFF0E3;color:#A0521A;border-color:#F5D3B5}
+.pill.tx.gn{background:#FDECEC;color:#A3352B;border-color:#F3C1BC}
+.pill.tx.today{background:#D9822B;color:#fff;border-color:#D9822B}
+.pill.tx.gn.today{background:#C0392B;border-color:#C0392B}
+.txline{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;font-size:14px;color:#6B4A2B}
+.txline span{background:#FFF6EC;border:1px solid #F5D3B5;border-radius:8px;padding:4px 10px}
+.txline span.gn{background:#FDF1F0;border-color:#F3C1BC;color:#7A2A22}
+.txline span.today{background:#D9822B;border-color:#D9822B;color:#fff}
+.txline span.gn.today{background:#C0392B;border-color:#C0392B}
 .pill.ask{background:#FFF1D6;color:#8A5A00;border-color:#F2D9A6}
 .askbox{margin-top:8px;padding:10px 12px;border-radius:10px;background:#FFF8E8;border:1px solid #F2D9A6}
 .askbox.low{background:#FDECEC;border-color:#F3C1BC}
@@ -758,6 +767,23 @@ function fxApply(j){
     if(r.s<=3&&!FX.toasted[id+':'+r.at]&&!(v.rate&&v.rate.seen)){FX.toasted[id+':'+r.at]=1;toast('⭐ '+(v.name||'보호자')+' 만족도 '+r.s+'점'+(r.t?' — '+r.t.slice(0,40):''))}});
   renderAll(false);
 }
+/* 💉 진행 중인 성장호르몬(GH)·억제제(GnRH) — 의사 앱이 차트 메모 「GH(2025-03-04~)」·「GnRHa(…~)」와 「💉 첫 투여」 표시를 보고 오늘 방문에 붙여 줍니다(v.tx) */
+const TXN={GH:'성장호르몬',GnRH:'억제제'};
+function txDate(s){const d=new Date((String(s).length===7?s+'-01':s)+'T00:00:00');return isNaN(d)?null:d}
+function txSince(s){
+  const d=txDate(s);if(!d)return '';const t=new Date();t.setHours(0,0,0,0);
+  const days=Math.round((t-d)/864e5);if(days<=0)return '오늘 시작';
+  let m=(t.getFullYear()-d.getFullYear())*12+t.getMonth()-d.getMonth();if(t.getDate()<d.getDate())m--;
+  if(m<1)return (days+1)+'일째';
+  const y=Math.floor(m/12),mm=m%12;return [y?y+'년':'',mm?mm+'개월':''].filter(Boolean).join(' ')+'째';
+}
+const txList=v=>(Array.isArray(v.tx)?v.tx:[]).filter(x=>x&&TXN[x.k]&&txDate(x.s));
+const txPill=v=>txList(v).map(x=>{const sn=txSince(x.s),td=sn==='오늘 시작',lb=x.k==='GH'?'GH':'억제제';
+  return `<span class="pill tx${x.k==='GnRH'?' gn':''}${td?' today':''}" title="${esc(TXN[x.k]+' '+String(x.s).replace(/-/g,'.')+' 시작')}">${td?'💉 '+lb+' 오늘 시작':lb+' '+sn}</span>`}).join('');
+function txLineHtml(v){
+  const l=txList(v);if(!l.length)return '';
+  return `<div class="txline">${l.map(x=>{const sn=txSince(x.s);return `<span class="${x.k==='GnRH'?'gn':''}${sn==='오늘 시작'?' today':''}">💉 <b>${TXN[x.k]}</b> ${esc(String(x.s).replace(/-/g,'.'))} 시작 · ${sn==='오늘 시작'?'<b>오늘 첫 투여</b>':sn}</span>`}).join('')}</div>`;
+}
 const askPill=v=>v.asks&&v.asks.length?`<span class="pill ask" title="${esc(v.asks.map(a=>a.t).join(' / '))}">❓ 질문</span>`:'';
 const ratePill=v=>v.rate&&v.rate.s?`<span class="pill${v.rate.s<=3?' warn':' ok'}" title="${esc('보호자 만족도 '+v.rate.s+'점'+(v.rate.t?' — '+v.rate.t:''))}">⭐${v.rate.s}</span>`:'';
 function askBoxHtml(v){
@@ -876,7 +902,7 @@ function cardHtml(v,now){
   else if(needNotify(v)){dl=`<span class="pill warn">결과 안내 필요</span>`}
   const x=roomOf(v)==='exit'||roomOf(v)==='booked';   // 예약 칸·귀가 칸 카드는 오른쪽 위 ×로 바로 지우기
   return `<button class="card${sel?' sel':''}${w?' warn':''}${x?' hasx':''}" data-sel="${v.id}">${x?`<span class="cx" role="button" data-act="card-del" data-id="${v.id}" title="현황판에서 지우기 (6초 안에 되돌릴 수 있어요)" aria-label="${esc(v.name||'')} 지우기">×</span>`:''}
-    <span class="nm">${esc(v.name||'이름 없음')}${exTag(v)}${invTag(v)}${grPill(v)}${askPill(v)}${ratePill(v)}</span>
+    <span class="nm">${esc(v.name||'이름 없음')}${exTag(v)}${invTag(v)}${grPill(v)}${txPill(v)}${askPill(v)}${ratePill(v)}</span>
     <span class="meta">${esc(age(v))}${v.sex?' · '+esc(v.sex):''}${v.chartNo?' · '+cnoHtml(v.chartNo):''}${v.card&&isTodayV(v)?' · <b>🎫 '+esc(v.card)+'</b>':''}</span>
     <span class="st" style="${w?'color:var(--warn);font-weight:600':''}">${st}</span>
     ${dl}${v.step<0&&!v.card?`<span class="qd" role="button" data-act="card-next" data-id="${v.id}" title="카드를 주면서 누르면 연결 + 도착 처리">🎫 ${esc(nextCard())} 주기</span>`:''}${v.step>=0&&v.step<10?`<span class="qd" role="button" data-act="quick-done" data-id="${v.id}" title="남은 단계를 건너뛰고 바로 완료 처리">바로 완료 ▸</span>`:''}<span class="bar">${bar}</span></button>`;
@@ -1601,7 +1627,7 @@ function detailHtml(){
   }
   let head=`<div class="dh"><div><h2>${esc(v.name||'이름 없음')}${exTag(v)}</h2>
     <div class="sub">${esc(age(v))}${v.sex?' · '+esc(v.sex):''}${v.chartNo?' · '+cnoHtml(v.chartNo,'등록번호 '):''}${v.appt?' · 예약 '+esc(v.appt):''}</div></div>
-    <button class="btn sm ghost" data-act="close">닫기</button></div>${askBoxHtml(v)}
+    <button class="btn sm ghost" data-act="close">닫기</button></div>${txLineHtml(v)}${askBoxHtml(v)}
     <button class="btn primary" data-act="gr-open" style="width:100%;margin-top:8px;font-size:15px">📄 성장 리포트 ${v.gr&&v.gr.ready?(v.gr.reviewed?'보기 ✓':(v.gr.src&&v.gr.src!=='today'?'열기 (가안)':'열어서 확인')):'만들기'}</button>
     <details class="more" style="margin-top:8px"><summary>초진·대기 영상 설정${v.first?' (초진)':''}${v.rev?' (재진)':''}${v.vids?' · 영상 '+esc(v.vids):''}</summary>
     <label class="chk" style="margin-top:8px"><input type="checkbox" data-path="first"${v.first?' checked':''}>초진 환자 (대기 중 영상 표시)</label>
@@ -2778,6 +2804,21 @@ const GROWTH_LMS = {
     F: [[24.0,-0.5684,15.6881,0.0845],[25.0,-0.5684,15.659,0.0845],[26.0,-0.5684,15.6308,0.0845],[27.0,-0.5684,15.6037,0.0845],[28.0,-0.5684,15.5777,0.0844],[29.0,-0.5684,15.5523,0.0844],[30.0,-0.5684,15.5276,0.0844],[31.0,-0.5684,15.5034,0.0845],[32.0,-0.5684,15.4798,0.0846],[33.0,-0.5684,15.4572,0.0847],[34.0,-0.5684,15.4356,0.0848],[35.0,-0.5684,15.4155,0.0851],[36.0,1.7658,15.7543,0.0677],[37.0,1.6248,15.7529,0.0685],[38.0,1.4878,15.7514,0.0694],[39.0,1.3549,15.7497,0.0702],[40.0,1.2261,15.7478,0.071],[41.0,1.1013,15.7459,0.0718],[42.0,0.9805,15.7438,0.0726],[43.0,0.8636,15.7417,0.0734],[44.0,0.7507,15.7395,0.0741],[45.0,0.6416,15.7373,0.0749],[46.0,0.5363,15.735,0.0757],[47.0,0.4348,15.7327,0.0764],[48.0,0.3375,15.7321,0.0772],[49.0,0.2441,15.7315,0.0779],[50.0,0.1545,15.7309,0.0787],[51.0,0.0685,15.7303,0.0794],[52.0,-0.0139,15.7298,0.0801],[53.0,-0.0928,15.7293,0.0808],[54.0,-0.1684,15.7288,0.0815],[55.0,-0.2408,15.7284,0.0822],[56.0,-0.31,15.728,0.0829],[57.0,-0.3762,15.7277,0.0836],[58.0,-0.4395,15.7275,0.0843],[59.0,-0.5,15.7273,0.085],[60.0,-0.5537,15.7308,0.0857],[61.0,-0.6047,15.7343,0.0865],[62.0,-0.6531,15.7379,0.0872],[63.0,-0.699,15.7416,0.0879],[64.0,-0.7425,15.7453,0.0886],[65.0,-0.7838,15.7491,0.0894],[66.0,-0.8229,15.753,0.0901],[67.0,-0.86,15.757,0.0908],[68.0,-0.8951,15.761,0.0915],[69.0,-0.9283,15.7651,0.0922],[70.0,-0.9598,15.7692,0.0929],[71.0,-0.9896,15.7734,0.0936],[72.0,-0.9929,15.7972,0.0946],[73.0,-0.9953,15.8211,0.0956],[74.0,-0.997,15.845,0.0966],[75.0,-0.998,15.8689,0.0976],[76.0,-0.9984,15.8928,0.0986],[77.0,-0.9983,15.9168,0.0995],[78.0,-0.9976,15.9408,0.1005],[79.0,-0.9964,15.9648,0.1015],[80.0,-0.9948,15.9888,0.1025],[81.0,-0.9927,16.0129,0.1034],[82.0,-0.9903,16.0369,0.1044],[83.0,-0.9876,16.061,0.1054],[84.0,-0.9677,16.1003,0.1064],[85.0,-0.9484,16.1396,0.1073],[86.0,-0.9296,16.1788,0.1083],[87.0,-0.9112,16.2181,0.1093],[88.0,-0.8933,16.2573,0.1103],[89.0,-0.8759,16.2966,0.1113],[90.0,-0.8589,16.3358,0.1122],[91.0,-0.8423,16.375,0.1132],[92.0,-0.8261,16.4142,0.1142],[93.0,-0.8103,16.4534,0.1151],[94.0,-0.7948,16.4926,0.1161],[95.0,-0.7797,16.5318,0.117],[96.0,-0.7556,16.5815,0.1179],[97.0,-0.7322,16.6312,0.1187],[98.0,-0.7095,16.6809,0.1196],[99.0,-0.6873,16.7305,0.1204],[100.0,-0.6657,16.7802,0.1212],[101.0,-0.6447,16.8298,0.1221],[102.0,-0.6242,16.8795,0.1229],[103.0,-0.6042,16.9291,0.1237],[104.0,-0.5848,16.9787,0.1245],[105.0,-0.5658,17.0283,0.1253],[106.0,-0.5474,17.0779,0.1261],[107.0,-0.5293,17.1275,0.1269],[108.0,-0.5108,17.1807,0.1276],[109.0,-0.4927,17.2339,0.1282],[110.0,-0.4749,17.287,0.1289],[111.0,-0.4575,17.3402,0.1295],[112.0,-0.4405,17.3934,0.1302],[113.0,-0.4238,17.4466,0.1308],[114.0,-0.4075,17.4998,0.1314],[115.0,-0.3915,17.5529,0.1321],[116.0,-0.3758,17.6061,0.1327],[117.0,-0.3604,17.6593,0.1333],[118.0,-0.3453,17.7125,0.1339],[119.0,-0.3305,17.7657,0.1346],[120.0,-0.3196,17.8202,0.1349],[121.0,-0.3087,17.8747,0.1353],[122.0,-0.2981,17.9293,0.1356],[123.0,-0.2875,17.9838,0.136],[124.0,-0.2771,18.0383,0.1363],[125.0,-0.2668,18.0929,0.1367],[126.0,-0.2566,18.1475,0.137],[127.0,-0.2465,18.202,0.1374],[128.0,-0.2366,18.2566,0.1377],[129.0,-0.2268,18.3112,0.138],[130.0,-0.217,18.3658,0.1384],[131.0,-0.2074,18.4204,0.1387],[132.0,-0.2055,18.4741,0.1388],[133.0,-0.2036,18.5278,0.1388],[134.0,-0.2018,18.5815,0.1388],[135.0,-0.1999,18.6352,0.1388],[136.0,-0.198,18.6889,0.1389],[137.0,-0.1962,18.7426,0.1389],[138.0,-0.1943,18.7963,0.1389],[139.0,-0.1925,18.8499,0.139],[140.0,-0.1906,18.9036,0.139],[141.0,-0.1888,18.9573,0.139],[142.0,-0.187,19.011,0.1391],[143.0,-0.1852,19.0648,0.1391],[144.0,-0.1841,19.1168,0.1388],[145.0,-0.1829,19.1689,0.1386],[146.0,-0.1817,19.221,0.1383],[147.0,-0.1805,19.273,0.138],[148.0,-0.1793,19.3251,0.1378],[149.0,-0.1781,19.3772,0.1375],[150.0,-0.1769,19.4293,0.1372],[151.0,-0.1756,19.4814,0.137],[152.0,-0.1743,19.5335,0.1367],[153.0,-0.173,19.5856,0.1364],[154.0,-0.1717,19.6377,0.1362],[155.0,-0.1703,19.6898,0.1359],[156.0,-0.1641,19.7377,0.1355],[157.0,-0.1578,19.7856,0.135],[158.0,-0.1514,19.8335,0.1346],[159.0,-0.1449,19.8814,0.1341],[160.0,-0.1382,19.9293,0.1337],[161.0,-0.1314,19.9772,0.1332],[162.0,-0.1246,20.0252,0.1328],[163.0,-0.1176,20.0731,0.1323],[164.0,-0.1104,20.1211,0.1319],[165.0,-0.1032,20.1691,0.1314],[166.0,-0.0958,20.2171,0.131],[167.0,-0.0884,20.2651,0.1305],[168.0,-0.0802,20.3049,0.13],[169.0,-0.0719,20.3446,0.1295],[170.0,-0.0635,20.3844,0.1289],[171.0,-0.0549,20.4242,0.1284],[172.0,-0.0461,20.464,0.1278],[173.0,-0.0371,20.5038,0.1273],[174.0,-0.028,20.5436,0.1268],[175.0,-0.0187,20.5834,0.1262],[176.0,-0.0092,20.6232,0.1257],[177.0,0.0004,20.663,0.1252],[178.0,0.0102,20.7029,0.1246],[179.0,0.0202,20.7427,0.1241],[180.0,0.023,20.7675,0.1236],[181.0,0.0259,20.7923,0.1232],[182.0,0.0288,20.817,0.1227],[183.0,0.0318,20.8418,0.1222],[184.0,0.0349,20.8666,0.1218],[185.0,0.038,20.8914,0.1213],[186.0,0.0412,20.9162,0.1208],[187.0,0.0445,20.941,0.1204],[188.0,0.0478,20.9657,0.1199],[189.0,0.0512,20.9905,0.1195],[190.0,0.0547,21.0153,0.119],[191.0,0.0583,21.0401,0.1186],[192.0,0.045,21.0433,0.1183],[193.0,0.0315,21.0465,0.118],[194.0,0.018,21.0498,0.1177],[195.0,0.0043,21.053,0.1175],[196.0,-0.0095,21.0562,0.1172],[197.0,-0.0235,21.0593,0.1169],[198.0,-0.0375,21.0625,0.1166],[199.0,-0.0517,21.0657,0.1164],[200.0,-0.0661,21.0689,0.1161],[201.0,-0.0806,21.072,0.1158],[202.0,-0.0952,21.0752,0.1155],[203.0,-0.1099,21.0783,0.1152],[204.0,-0.1287,21.0754,0.115],[205.0,-0.1476,21.0724,0.1148],[206.0,-0.1667,21.0694,0.1146],[207.0,-0.1859,21.0664,0.1144],[208.0,-0.2054,21.0634,0.1142],[209.0,-0.225,21.0603,0.114],[210.0,-0.2448,21.0573,0.1138],[211.0,-0.2648,21.0542,0.1136],[212.0,-0.285,21.0511,0.1134],[213.0,-0.3053,21.048,0.1132],[214.0,-0.3258,21.0449,0.113],[215.0,-0.3465,21.0417,0.1128],[216.0,-0.368,21.0362,0.1126],[217.0,-0.3897,21.0307,0.1124],[218.0,-0.4115,21.0251,0.1122],[219.0,-0.4336,21.0196,0.112],[220.0,-0.4558,21.014,0.1119],[221.0,-0.4781,21.0084,0.1117],[222.0,-0.5007,21.0028,0.1115],[223.0,-0.5234,20.9972,0.1113],[224.0,-0.5463,20.9916,0.1111],[225.0,-0.5694,20.986,0.1109],[226.0,-0.5927,20.9803,0.1107],[227.0,-0.6161,20.9747,0.1105]]
   }
 };
+/* 차트 글의 치료 기간: GH(시작~끝)·GnRHa(시작~끝) 전부 (끝이 없으면 시작 뒤 「중단/종료」 날짜를 끝으로). 성장 리포트 그래프의 띠·화살표에 씁니다. */
+function txPeriodsOf(text){
+  var t=String(text||''),out=[],seen={};
+  [['GH',/\bGH\s*\(\s*(\d{4}-\d{2}(?:-\d{2})?)\s*~\s*(\d{4}-\d{2}(?:-\d{2})?)?\s*\)/gi,/GH[^\n]{0,30}?(?:중단|종료)[^\n]{0,20}?(\d{4}-\d{2}(?:-\d{2})?)/gi],
+   ['GnRH',/(?:GnRHa|GnRH\s*analog|성조숙증\s*억제제)\s*\(\s*(\d{4}-\d{2}(?:-\d{2})?)\s*~\s*(\d{4}-\d{2}(?:-\d{2})?)?\s*\)/gi,/(?:GnRHa|GnRH\s*analog|억제제)[^\n]{0,30}?(?:중단|종료)[^\n]{0,20}?(\d{4}-\d{2}(?:-\d{2})?)/gi]
+  ].forEach(function(d){
+    var m,stops=[];d[2].lastIndex=0;while((m=d[2].exec(t)))stops.push(m[1]);stops.sort();
+    d[1].lastIndex=0;while((m=d[1].exec(t))){
+      var st=m[1],en=m[2]||'';if(!en){for(var i=0;i<stops.length;i++)if(stops[i]>=st){en=stops[i];break}}
+      var key=d[0]+st;if(seen[key]){if(en&&!seen[key].e)seen[key].e=en;continue}
+      var o={k:d[0],s:st,e:en};seen[key]=o;out.push(o);
+    }
+  });
+  return out.sort(function(a,b){return a.s<b.s?-1:1});
+}
 window.GR=(function(){
 var ADULT_M=227, DOC_KEY='jrd_remote_gh_patients_v1';
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
@@ -2861,7 +2902,10 @@ function itemsOf(p){
 function vidNos(po){return((po&&po.videos)||[]).map(function(x){return x&&x.no}).filter(function(n){return n>=1&&n<=7}).join('')}
 function build(g){
   var po=g.post||{},items=itemsOf(po),recs=parsePast(g.recsText||''),gc=String(g.gc||'');
-  return{st:{guide:/^[A-Z0-9]{6,12}$/.test(gc)?{code:gc,url:guideUrl(gc,vidNos(po))}:null,post:items.length?{date:g.date||'',items:items}:null,name:g.name||'',sex:g.sex==='M'||g.sex==='F'?g.sex:'',dob:g.dob||'',fh:num(g.fh),mh:num(g.mh),recs:recs,nextText:nextText(po),comment:''}};
+  /* 치료 이력: 기간은 이번에 붙여넣은 차트(g.txp)를 먼저, 없으면 의사 앱이 보낸 것(g.txh.p). 용량 변경은 의사 앱의 방문별 기록(g.txh.d) */
+  var th=g.txh&&typeof g.txh==='object'?g.txh:{},per=(Array.isArray(g.txp)&&g.txp.length?g.txp:(Array.isArray(th.p)?th.p:[])).filter(function(x){return x&&(x.k==='GH'||x.k==='GnRH')&&/^\d{4}-\d{2}/.test(x.s||'')}),
+      dos=(Array.isArray(th.d)?th.d:[]).filter(function(x){return x&&(x.k==='GH'||x.k==='GnRH')&&/^\d{4}-\d{2}-\d{2}/.test(x.d||'')});
+  return{st:{guide:/^[A-Z0-9]{6,12}$/.test(gc)?{code:gc,url:guideUrl(gc,vidNos(po))}:null,post:items.length?{date:g.date||'',items:items}:null,name:g.name||'',sex:g.sex==='M'||g.sex==='F'?g.sex:'',dob:g.dob||'',fh:num(g.fh),mh:num(g.mh),recs:recs,nextText:nextText(po),comment:'',tx:(per.length||dos.length)?{p:per,d:dos}:null}};
 }
 
 function compute(st){
@@ -2898,9 +2942,67 @@ function compute(st){
   }
   if(st.fh>0&&st.mh>0){var t=(st.fh+st.mh+(st.sex==='M'?13:-13))/2;m.target={v:r1(t),lo:r1(t-8.5),hi:r1(t+8.5)}}
   m.baCur=recs.slice().reverse().filter(function(r){return r.ba!=null})[0]||null;
+  if(st.tx){
+    var fd=function(s){return String(s).length===7?s+'-01':String(s).slice(0,10)};
+    var per=st.tx.p.map(function(x){var sM=ageM(st.dob,fd(x.s)),eM=x.e?ageM(st.dob,fd(x.e)):null;return sM==null?null:{k:x.k,s:x.s,e:x.e||'',sM:sM,eM:eM}}).filter(Boolean);
+    var dos=st.tx.d.map(function(x){var a=ageM(st.dob,x.d);return a==null?null:{k:x.k,d:x.d,a:x.a,b:x.b,u:x.u||'',ageM:a}}).filter(Boolean);
+    if(per.length||dos.length)m.tx={p:per,d:dos};
+  }
   return m;
 }
 
+/* ---- 💉 치료 표시: 위쪽 기간 띠 + 옅은 빗금, 아이 곡선 아래에서 위로 가리키는 화살표(시작·증량·감량) ---- */
+var TXC={GH:{c:'#2F8550',bg:'rgba(47,133,80,',n:'성장호르몬'},GnRH:{c:'#9B3F8C',bg:'rgba(155,63,140,',n:'억제제'}};
+function txHAt(m,a){   // 그 나이의 아이 키: 측정 사이면 직선으로, 바깥이면 가장 가까운 측정의 백분위를 따라
+  var r=m.recs;for(var i=0;i<r.length-1;i++){if(a>=r[i].ageM&&a<=r[i+1].ageM){var t=(a-r[i].ageM)/Math.max(1e-6,r[i+1].ageM-r[i].ageM);return r[i].h+(r[i+1].h-r[i].h)*t}}
+  var n=a<r[0].ageM?r[0]:r[r.length-1];return valAt('height',m.st.sex,a,n.hp);
+}
+function drawTx(ctx,m,fx,fy,font,xs,xe,L,W,R,T,H,B){
+  var nowM=m.cur.ageM,clampX=function(a){return fx(Math.max(xs,Math.min(xe,a)))};
+  ctx.save();
+  m.tx.p.forEach(function(p,i){
+    var a1=p.sM,a2=p.eM!=null?p.eM:nowM;if(a2<=xs||a1>=xe||a2<=a1)return;
+    var x1=clampX(a1),x2=clampX(a2),c=TXC[p.k],row=p.k==='GH'?0:1,y=T+3+row*17;
+    ctx.save();ctx.beginPath();ctx.rect(x1,T,x2-x1,H-B-T);ctx.clip();ctx.strokeStyle=c.bg+'0.10)';ctx.lineWidth=1;
+    for(var sx=x1-(H-B-T);sx<x2;sx+=7){ctx.beginPath();ctx.moveTo(sx,H-B);ctx.lineTo(sx+(H-B-T),T);ctx.stroke()}
+    ctx.restore();
+    ctx.fillStyle=c.c;ctx.fillRect(x1,y,Math.max(2,x2-x1),4);
+    ctx.font=font(600,9.5);ctx.textAlign='left';ctx.textBaseline='top';var lb=c.n+(p.eM==null?' 치료 중':' ('+dots(p.e).slice(2)+' 종료)'),lw=ctx.measureText(lb).width;
+    var lx=Math.min(x1+2,W-R-lw-2);ctx.fillStyle='rgba(255,255,255,0.85)';ctx.fillRect(lx-1,y+5,lw+2,11);ctx.fillStyle=c.c;ctx.fillText(lb,lx,y+5);
+  });
+  /* 화살표: 시작(굵게) + 용량 변경. 글자 상자는 위쪽 띠 아래 한 줄(많으면 두 줄)에 겹치지 않게 나란히 놓고, 가는 선으로 아이 곡선의 그 시점을 가리킵니다 */
+  var ev=[];
+  m.tx.p.forEach(function(p){if(p.sM>xs&&p.sM<xe)ev.push({k:p.k,a:p.sM,t1:TXC[p.k].n+' 시작',t2:dots(p.s),main:true})});
+  m.tx.d.forEach(function(d){if(d.ageM>xs&&d.ageM<xe){var A=parseFloat(d.a),Bv=parseFloat(d.b);ev.push({k:d.k,a:d.ageM,t1:(d.k==='GnRH'?'변경 ':Bv>A?'▲ 증량 ':Bv<A?'▼ 감량 ':'변경 ')+d.a+'→'+d.b+(d.u?' '+d.u:''),t2:dots(d.d),main:false})}});
+  ev.sort(function(a,b){return a.a-b.a});
+  if(ev.length){
+    ev.forEach(function(e){e.x=fx(e.a);e.yc=fy(txHAt(m,e.a));ctx.font=font(e.main?700:600,e.main?10.5:9.5);var w1=ctx.measureText(e.t1).width;ctx.font=font(400,9);e.bw=Math.max(w1,ctx.measureText(e.t2).width)+10});
+    var gap=6,top=T+40;
+    var lay=function(lanes){
+      for(var ln=0;ln<lanes;ln++){
+        var row=ev.filter(function(e,i){return i%lanes===ln}),prev=L+2;
+        row.forEach(function(e){e.bx=Math.max(prev,e.x-e.bw/2);prev=e.bx+e.bw+gap;e.by=top+ln*30});
+        var over=prev-gap-(W-R-2);if(over>0)for(var q=row.length-1;q>=0;q--){var lim=q?row[q-1].bx+row[q-1].bw+gap:L+2;var nb=Math.max(lim,row[q].bx-over);over-=row[q].bx-nb;row[q].bx=nb;if(over<=0)break}
+      }
+      return Math.max.apply(null,ev.map(function(e){return Math.abs(e.bx+e.bw/2-e.x)}));
+    };
+    if(lay(1)>130&&ev.length>1)lay(2);   // 한 줄로는 상자가 제 시점에서 너무 멀어지면 두 줄로
+    ev.forEach(function(e){
+      var c=TXC[e.k].c,lx=e.bx+e.bw/2,ly=e.by+26,tipY=e.yc-8;
+      if(tipY>ly+6){
+        ctx.strokeStyle=c;ctx.lineWidth=e.main?1.8:1.2;ctx.setLineDash(e.main?[]:[3,2]);
+        ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(e.x,tipY-6);ctx.stroke();ctx.setLineDash([]);
+        var ang=Math.atan2(tipY-(ly),e.x-lx),hl=7;ctx.fillStyle=c;ctx.beginPath();ctx.moveTo(e.x,tipY);
+        ctx.lineTo(e.x-hl*Math.cos(ang-0.42),tipY-hl*Math.sin(ang-0.42));ctx.lineTo(e.x-hl*Math.cos(ang+0.42),tipY-hl*Math.sin(ang+0.42));ctx.closePath();ctx.fill();
+      }
+      ctx.fillStyle='rgba(255,255,255,0.95)';ctx.fillRect(e.bx,e.by,e.bw,25);
+      ctx.strokeStyle=c;ctx.lineWidth=e.main?1.4:1;ctx.strokeRect(e.bx+0.5,e.by+0.5,e.bw-1,24);
+      ctx.textAlign='center';ctx.textBaseline='top';ctx.fillStyle=c;ctx.font=font(e.main?700:600,e.main?10.5:9.5);ctx.fillText(e.t1,lx,e.by+2);
+      ctx.fillStyle='#6B7B85';ctx.font=font(400,9);ctx.fillText(e.t2,lx,e.by+14);
+    });
+  }
+  ctx.restore();
+}
 /* ---- 성장곡선(캔버스) ---- */
 function drawChart(cv,m){
   /* 「지난 방문과 비교」 줄이 들어가면 그래프를 조금 낮춰(data-h) 한 장에 맞춤 */var ctx=cv.getContext('2d'),W=706,H=Number(cv.getAttribute('data-h'))||318,sc=2;cv.width=W*sc;cv.height=H*sc;ctx.setTransform(sc,0,0,sc,0,0);
@@ -2931,6 +3033,7 @@ function drawChart(cv,m){
     var e=cv2[p][cv2[p].length-1];ctx.fillStyle=p===50?'#3F5B68':'#7D8E98';ctx.font=font(p===50?600:400,10);ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillText(String(p),fx(e[0])+5,fy(e[1]));
   });
   ctx.fillStyle='#7D8E98';ctx.font=font(400,10);ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.fillText('백분위',W-R-6,12);
+  if(m.tx)drawTx(ctx,m,fx,fy,font,xs,xe,L,W,R,T,H,B);
   var pts=m.recs.map(function(r){return[fx(r.ageM),fy(r.h)]}),last=pts[pts.length-1];
   if(m.pred){ctx.setLineDash([5,4]);ctx.strokeStyle='#0B6E7F';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(last[0],last[1]);ctx.lineTo(fx(ADULT_M),fy(m.pred.v));ctx.stroke();ctx.setLineDash([])}
   ctx.strokeStyle='#0B6E7F';ctx.lineWidth=2.6;ctx.lineJoin='round';ctx.beginPath();pts.forEach(function(p,i){i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1])});ctx.stroke();
@@ -2961,7 +3064,7 @@ function cmpArw(a,b){var d=Math.round(b)-Math.round(a);return d>=1?'<i class="up
 function cmpPc(x){return x<1?'1 미만':x>99?'99 이상':String(Math.round(x))}
 function cmpGap(g){return (g>0?'+':g<0?'−':'')+Math.abs(g)+'개월'}
 function cmpHTML(m){
-  var c=m.cmp,b=m.cmpBa;if(!c&&!b)return '';
+  var c=m.cmp,b=m.cmpBa;if(!c&&!b&&!m.tx)return '';
   var it=[];
   if(c){
     it.push('<span><em>키</em>'+(c.dh>=0?'+':'')+c.dh+' cm · 백분위 '+cmpPc(c.hp[0])+' → '+cmpPc(c.hp[1])+' '+cmpArw(c.hp[0],c.hp[1])+'</span>');
@@ -2970,7 +3073,12 @@ function cmpHTML(m){
   }
   if(b){var a1=Math.abs(b.g1),a2=Math.abs(b.g2),tag=Math.abs(a2-a1)<=1?'<i class="eq">비슷</i>':a2<a1?'<i class="up">실제 나이에 가까워짐</i>':'<i class="dn">차이 커짐</i>';
     it.push('<span><em>골연령</em>뼈나이 − 실제 나이 '+cmpGap(b.g1)+' → '+cmpGap(b.g2)+' '+tag+(c&&b.a.date===c.prev.date?'':' <small>('+dots(b.a.date)+' 골연령과 비교)</small>')+'</span>')}
-  var head=c?'지난 방문('+dots(c.prev.date)+')과 비교 · '+c.months+'개월':'지난 골연령('+dots(b.a.date)+')과 비교';
+  if(m.tx){['GH','GnRH'].forEach(function(k){
+    var ps=m.tx.p.filter(function(p){return p.k===k}),pl=ps[ps.length-1],ds=m.tx.d.filter(function(d){return d.k===k});if(!pl&&!ds.length)return;
+    var seq=[];if(ds.length){seq.push(ds[0].a);ds.forEach(function(d){seq.push(d.b)})}
+    it.push('<span><em>💉 '+TXC[k].n+'</em>'+(pl?dots(pl.s)+' 시작'+(pl.e?' · '+dots(pl.e)+' 종료':''):'')+(seq.length?(pl?' · ':'')+'용량 '+seq.join(' → ')+' '+(ds[0].u||''):'')+'</span>');
+  })}
+  var head=c?'지난 방문('+dots(c.prev.date)+')과 비교 · '+c.months+'개월':b?'지난 골연령('+dots(b.a.date)+')과 비교':'치료 경과';
   return '<div class="rp-cmp"><b>'+head+'</b>'+it.join('')+'</div>';
 }
 function reportHTML(m){
@@ -2993,7 +3101,7 @@ function reportHTML(m){
   return'<div class="rp"><div class="rp-head"><div><div class="k">GROWTH REPORT</div><h1>성장 리포트</h1></div><div class="d">삼성자라다 소아청소년과<br>작성일 '+todayS+'</div></div>'+
     '<div class="rp-who"><span><b>'+esc(st.name||'이름 미입력')+'</b>'+sexTxt+'</span><span>생년월일 '+dots(st.dob)+'</span><span>'+ageTxt(cur.ageM)+' · '+dots(cur.date)+' 측정</span></div>'+
     '<div class="rp-stats">'+s1+s2+s3+s4+'</div>'+cmpHTML(m)+
-    '<div><h2>우리 아이의 키 성장곡선</h2>'+((m.cmp||m.cmpBa)?'<canvas class="chart" width="1412" height="580" data-h="290" style="height:290px"></canvas>':'<canvas class="chart" width="1412" height="636"></canvas>')+'</div>'+
+    '<div><h2>우리 아이의 키 성장곡선</h2>'+((m.cmp||m.cmpBa||m.tx)?((m.tx&&(m.cmp||m.cmpBa))?'<canvas class="chart" width="1412" height="532" data-h="266" style="height:266px"></canvas>':'<canvas class="chart" width="1412" height="580" data-h="290" style="height:290px"></canvas>'):'<canvas class="chart" width="1412" height="636"></canvas>')+'</div>'+
     '<div class="rp-cols"><div><h2>측정 기록</h2><table><thead><tr><th>측정일</th><th>나이</th><th>키(cm)</th><th>몸무게(kg)</th><th>골연령</th></tr></thead><tbody>'+rows+'</tbody></table></div><div>'+boxes+'</div></div>'+cm+
     '<div class="rp-foot"><div>삼성자라다 소아청소년과 · 02-523-0111<br>평일 10:00–20:00 · 토 09:00–18:00 (목요일·공휴일 휴진)<br>2017 소아청소년 성장도표(질병관리청) 기준의 참고 자료이며 진단이 아닙니다. 자세한 해석은 진료 시 설명드립니다.</div>'+(st.nextText?'<div class="nx">다음 내원·추적<br>'+esc(st.nextText)+'</div>':'')+'</div></div>';
 }
@@ -3324,7 +3432,7 @@ function sexOf(v){return v.sex==='남'?'M':v.sex==='여'?'F':''}
 function hasPost(po){return !!po&&['summary','labs','xray','direction','exercise','nutrition','sleep','nextDate'].some(function(k){return String(po[k]||'').trim()})}
 function modelOf(v){
   var g=v&&v.gr;if(!g)return{error:'아직 만든 리포트가 없습니다. 왼쪽에 EMR 차트를 붙여넣어 주세요.'};
-  return GR.compute(GR.build(Object.assign({name:v.name||''},g)).st);
+  return GR.compute(GR.build(Object.assign({name:v.name||'',txh:v.txh||null},g)).st);
 }
 function say(t,bad){ST.msg=t;ST.bad=!!bad;var e=document.getElementById('grmsg');if(e){e.textContent=t;e.style.color=bad?'#b63a32':''}}
 function commit(g,now){var v=V();if(!v)return;commitTo(v.id,g,now)}
@@ -3550,6 +3658,7 @@ async function runFor(id,text,useAI,opt){
     if(old.blood!=null)g.blood=old.blood;if(old.q)g.q=old.q;
     var parsed=extractGrowthTableFromNote(text),recs=parsed.length?parsed:introRecs(text,date);
     g.recsText=mergeRecs('',recs);
+    g.txp=txPeriodsOf(text);   // 💉 성장호르몬·억제제 기간(리포트 그래프 띠·화살표)
     var cdob=findDob(text),notes=[];
     g.dob=v.dob||cdob||'';
     if(v.dob&&cdob&&v.dob!==cdob)notes.push('⚠️ 차트의 생년월일('+cdob+')이 이 환자('+v.dob+')와 달라요. 다른 아이 차트가 아닌지 확인해 주세요.');
