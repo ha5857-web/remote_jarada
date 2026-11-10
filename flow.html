@@ -370,6 +370,59 @@ pre.report{white-space:pre-wrap;word-break:keep-all;overflow-wrap:anywhere;backg
 .gr-wrap{width:min(794px,100%);overflow:hidden;background:#e9eef1}
 .gr-inner{width:794px;display:flex;flex-direction:column;gap:14px;transform-origin:0 0}
 .gr-inner .rp{box-shadow:0 1px 6px rgba(0,0,0,.15)}
+/* ── 📱 휴대폰 성장 리포트 ── */
+body.mrep .scanbar,body.mrep .summary,body.mrep #detail,body.mrep #btn-add,body.mrep #alarm{display:none!important}
+body.mrep .layout{display:block}
+body.mrep .tabs{overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch}
+body.mrep .tabs button{flex:none}
+.mr-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:2px 2px 12px}
+.mr-head b{font-size:21px}.mr-head span{font-size:13px;color:var(--muted)}
+.mr-seg{display:flex;gap:6px;overflow-x:auto;margin:0 -4px 14px;padding:0 4px 4px;-webkit-overflow-scrolling:touch}
+.mr-seg button{flex:none;height:42px;padding:0 14px;border-radius:21px;border:1px solid var(--line);background:var(--surface);font:inherit;font-size:15px;font-weight:700;color:var(--muted);cursor:pointer}
+.mr-seg button b{margin-left:6px;font-size:14px}
+.mr-seg button.on{background:#0B6E7F;color:#fff;border-color:#0B6E7F}
+.mr-card{display:flex;width:100%;text-align:left;gap:10px;align-items:flex-start;padding:14px 14px 15px;margin:0 0 10px;border:1px solid var(--line);border-radius:16px;background:var(--surface);font:inherit;color:var(--ink);cursor:pointer;-webkit-tap-highlight-color:rgba(11,110,127,.12)}
+.mr-card:active{transform:scale(.99)}
+.mr-l{flex:1;min-width:0}.mr-l b{display:block;font-size:19px}.mr-l small{display:block;font-size:13px;color:var(--muted);margin-top:2px}
+.mr-l em{font-style:normal;font-size:15px;line-height:1.5;margin-top:7px;color:var(--ink);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.mr-r{flex:none;text-align:right}.mr-r small{display:block;font-size:12px;color:var(--muted);margin-top:6px}
+.mr-empty{padding:36px 10px;text-align:center;color:var(--muted);font-size:17px}
+.mr-foot{margin:18px 2px 6px;font-size:14px;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+.grov.mob{background:#F1F5F7;height:100vh;height:100dvh}
+.grov.mob .mb-top{display:flex;align-items:center;gap:10px;padding:calc(8px + env(safe-area-inset-top)) 10px 8px;background:#fff;border-bottom:1px solid #d5dde2}
+.mb-back{flex:none;width:44px;height:44px;border:0;border-radius:12px;background:#EEF3F5;font-size:30px;line-height:1;color:#14232B;cursor:pointer}
+.mb-who{flex:1;min-width:0}.mb-who b{display:block;font-size:19px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.mb-who span{font-size:13px;color:#5a6b73}
+.mb-pos{flex:none;font-size:14px;font-weight:700;color:#5a6b73}
+.mb-tabs{display:flex;gap:6px;padding:8px 10px;background:#fff;border-bottom:1px solid #d5dde2}
+.mb-tabs button{flex:1;height:42px;border:1px solid #d5dde2;border-radius:12px;background:#fff;font:inherit;font-size:16px;font-weight:700;color:#5a6b73;cursor:pointer}
+.grov.mob[data-t="edit"] .mb-tabs [data-t="edit"],.grov.mob[data-t="view"] .mb-tabs [data-t="view"]{background:#0B6E7F;color:#fff;border-color:#0B6E7F}
+.grov.mob .mb-msg{padding:7px 12px;font-size:13.5px;line-height:1.5;color:#3F5B68;background:#FFF9EC;border-bottom:1px solid #F0E2BE;flex:none;min-width:0}
+.grov.mob .mb-msg:empty{display:none}
+.grov.mob .grbody{flex:1;min-height:0;display:block;overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.grov.mob .gredit{display:none;width:auto;max-height:none;border:0;padding:12px 12px 28px;background:transparent;overflow:visible}
+.grov.mob[data-t="edit"] .gredit{display:block}
+.grov.mob .grscroll{display:none;padding:10px 8px 28px}
+.grov.mob[data-t="view"] .grscroll{display:flex}
+.grov.mob .mb-f{display:block;background:#fff;border:1px solid #DDE5EA;border-radius:14px;padding:10px 13px 12px;margin:0 0 10px;font-size:14px;font-weight:700;color:#3F5B68}
+.grov.mob .mb-f textarea,.grov.mob .mb-f>input{display:block;width:100%;box-sizing:border-box;margin-top:6px;font:inherit;font-size:17px;font-weight:400;line-height:1.6;color:#14232B;border:0;padding:0;background:transparent;resize:none;outline:none;min-height:30px}
+.grov.mob .mb-f>input{height:40px;border:1px solid #DDE5EA;border-radius:10px;padding:0 10px;margin:6px 0 4px}
+.grov.mob .mb-f:focus-within{border-color:#0B6E7F;box-shadow:0 0 0 3px rgba(11,110,127,.15)}
+.grov.mob .mb-det{display:block;background:#fff;border:1px solid #DDE5EA;border-radius:14px;padding:10px 13px;margin:0 0 10px}
+.grov.mob .mb-det>summary{font-size:15px;font-weight:700;color:#3F5B68;cursor:pointer;line-height:30px;list-style-position:inside}
+.grov.mob .mb-det textarea{width:100%;box-sizing:border-box;font-size:16px;margin-top:8px}
+.grov.mob .fr-checks label{font-size:15px;padding:7px 0;font-weight:400;color:#14232B}
+.grov.mob input,.grov.mob textarea,.grov.mob select{font-size:16px}
+.grov.mob .fr-row3{grid-template-columns:1fr 1fr}
+.grov.mob .mb-later{display:block;width:100%;height:48px;margin-top:6px;font-size:15px}
+.grov.mob .grscroll{position:relative;flex-direction:column;align-items:stretch}
+.mb-zoom{position:sticky;top:0;z-index:2;align-self:flex-end;margin:0 0 8px;height:38px;padding:0 14px;border-radius:19px;border:1px solid #C9D5DB;background:rgba(255,255,255,.95);font:inherit;font-size:14px;font-weight:700;color:#0B6E7F;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.grov.mob.zoom .gr-wrap{width:794px;max-width:none}
+.grov.mob textarea::placeholder{color:#A9B6BD;font-size:15px}
+.mb-bar{flex:none;display:flex;gap:8px;padding:10px 10px calc(10px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid #d5dde2}
+.mb-bar .btn.big{flex:1;height:54px;font-size:18px;border-radius:14px}
+.mb-bar .mb-unrev{flex:1;height:54px;font-size:16px;border-radius:14px}
+.mb-nav{flex:none;width:54px;height:54px;font-size:28px;padding:0;border-radius:14px}
+.mb-nav:disabled{opacity:.35}
 .grov{position:fixed;inset:0;z-index:300;background:#e9eef1;display:flex;flex-direction:column;color:#14232B;color-scheme:light;
   --surface:#fff;--surface2:#F5F8F8;--ink:#14232B;--muted:#5A6B73;--line:#D5DFDF;--accent:#0B7A85;--accent-ink:#fff;--accent-soft:#D9EEF0;--ok:#2B7A4B;--ok-soft:#DDF0E4;--warn:#B96A00;--warn-soft:#FBEBCF;--bad:#B63A32}
 .grbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;background:#fff;border-bottom:1px solid #d5dde2}
@@ -858,6 +911,10 @@ function loadExamples(){
 function clearExamples(){[...S.items.values()].filter(v=>v.example).forEach(v=>remove(v.id))}
 /* ---------- 화면 상태 ---------- */
 const UI={view:'board',sel:null,viewStep:null,adding:false,confirmDel:null,msg:'',cprefix:'C',cstart:1,ccount:40,cmax:4};
+/* 📱 휴대폰(가로 760px 이하): 성장 리포트를 터치로 관리 — 목록 카드 + 전체 화면 「내용 / 미리보기」 + 아래 「✅ 확인하고 다음 아이」.
+   휴대폰에서 마지막에 본 탭(현황판/성장 리포트)을 기억해 다음에 바로 엽니다. 주소 끝에 #report 를 붙이면 바로 성장 리포트. */
+function isMob(){try{const f=localStorage.getItem('jrd_mob');if(f==='1')return true;if(f==='0')return false}catch(e){}return !!(window.matchMedia&&matchMedia('(max-width:760px)').matches)}
+try{if(isMob()){const mv=localStorage.getItem('jrd_mview')||'';if(/^(report|board)$/.test(mv))UI.view=mv}if(location.hash==='#report')UI.view='report'}catch(e){}
 const ymdOf=t=>{const d=new Date(t);return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
 const allList=()=>{const td=ymdOf(Date.now());return [...S.items.values()].filter(v=>!v.hide&&!(v.step<0&&v.date&&v.date!==td))};   // ×로 지운 카드(hide)는 어디에도 안 보임
 /* 귀가까지 끝난 아이는 다음 날 현황판·요약·지도에서 자동으로 빠집니다.
@@ -1684,6 +1741,7 @@ function renderDetail(force){
 }
 function renderAll(force){
   if(UI.sel&&!S.items.has(UI.sel))UI.sel=null;
+  document.body.classList.toggle('mrep',UI.view==='report'&&isMob());   // 휴대폰 성장 리포트: 위쪽 스캔·요약 줄 숨김
   renderSummary();renderMain();renderDetail(force);renderAlarm();
   document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.view===UI.view)));
   try{const n=FR.queueCount(),tb=document.querySelector('.tabs button[data-view="report"]');if(tb){const t='성장 리포트'+(n?' 🖨 '+n:'');if(tb.textContent!==t)tb.textContent=t}}catch(e){}
@@ -1761,6 +1819,9 @@ function onAction(act,el){
     case 'gr-optauto':FR.setOpt('autoprint',!!el.checked);renderAll(false);if(el.checked)toast('이 기기에서 자동 인쇄를 켰어요. 원장 확인이 끝난 리포트가 올라오면 바로 인쇄 창이 떠요.');break;
     case 'gr-paste':FR.pasteClick();break;
     case 'gr-booked':UI.grBooked=!UI.grBooked;renderAll(false);break;
+    case 'mr-seg':UI.mrf=el.dataset.k;renderAll(false);window.scrollTo(0,0);break;
+    case 'mob-off':try{localStorage.setItem('jrd_mob','0')}catch(e){}renderAll(false);break;
+    case 'mob-on':try{localStorage.setItem('jrd_mob','1')}catch(e){}renderAll(false);break;
     case 'gr-room':{const i=id||(v&&v.id);if(i)FR.roomRetry(i);break}
     case 'copy-chart':copyText(el.dataset.c);break;
     case 'card-next':if(v){if(v.card){toast((v.name||'')+': 이미 카드 '+v.card+'가 연결돼 있어요.');break}linkCard(v,nextCard())}break;
@@ -2016,7 +2077,7 @@ function bindEvents(){
   $('#login-form').addEventListener('submit',doLogin);
   refreshStationOptions();
   S.subs.push(()=>renderAll(false));
-  document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>{UI.view=b.dataset.view;renderAll(false)}));
+  document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>{UI.view=b.dataset.view;try{if(isMob())localStorage.setItem('jrd_mview',UI.view)}catch(e){}renderAll(false)}));
   $('#btn-add').addEventListener('click',()=>onAction('add'));
   $('#btn-sound').addEventListener('click',toggleSound);
   const click=e=>{
@@ -3143,7 +3204,7 @@ function paint(root,m){var cv=root.querySelector('canvas.chart');if(cv&&m&&!m.er
 
 /* ---- 화면 ---- */
 var cache=null;
-function fit(){var w=document.getElementById('gr-wrap'),p=document.getElementById('gr-inner');if(!w||!p)return;var s=Math.min(1,w.clientWidth/794),n=p.children.length,H=n*1123+(n-1)*14;p.style.transform='scale('+s+')';p.style.height=H+'px';w.style.height=Math.round(H*s)+'px'}
+function fit(){var w=document.getElementById('gr-wrap'),p=document.getElementById('gr-inner');if(!w||!p)return;var zo=document.querySelector('.grov.mob.zoom');if(zo){var nz=p.children.length,Hz=nz*1123+(nz-1)*14;p.style.transform='none';p.style.height=Hz+'px';w.style.height=Hz+'px';return}var s=Math.min(1,w.clientWidth/794),n=p.children.length,H=n*1123+(n-1)*14;p.style.transform='scale('+s+')';p.style.height=H+'px';w.style.height=Math.round(H*s)+'px'}
 function close(){var o=document.getElementById('grov');if(o)o.remove();document.removeEventListener('keydown',onKey)}
 function onKey(e){if(e.key==='Escape')close()}
 function setM(m){cache={m:m}}
@@ -3491,6 +3552,41 @@ function editorHtml(v){
     '<div class="fr-h">집에서 다시 볼 영상 (최대 3편)</div>'+
     '<div class="fr-checks col">'+VIDEOS.map(function(x){return '<label><input type="checkbox" class="frVid" value="'+x.no+'"> '+x.no+'. '+esc(x.title)+'</label>'}).join('')+'</div>';
 }
+function mobEditorHtml(v){
+  var fh=(v.intake&&v.intake.fatherH)||'',mh=(v.intake&&v.intake.motherH)||'';
+  var ta=function(id,label){return '<label class="fr-f mb-f">'+label+'<textarea id="fr-'+id+'" rows="1" placeholder="(비어 있음 — 눌러서 쓰기)"></textarea></label>'};
+  return ta('summary','오늘 진료 요약')+ta('labs','혈액검사 결과 설명')+ta('xray','엑스레이 결과 설명')+ta('direction','앞으로의 방향')+
+    ta('exercise','🏃 운동',2)+ta('nutrition','🥗 영양',2)+ta('sleep','😴 수면',2)+
+    '<div class="fr-f mb-f">다음 내원<input type="date" id="fr-next"><div class="fr-checks">'+FV_TEST_OPTIONS.map(function(t){return '<label><input type="checkbox" class="frTest" value="'+t.key+'"> '+t.label+'</label>'}).join('')+'</div></div>'+
+    '<details class="fr-det mb-det"><summary>🎬 집에서 다시 볼 영상 (최대 3편)</summary><div class="fr-checks col">'+VIDEOS.map(function(x){return '<label><input type="checkbox" class="frVid" value="'+x.no+'"> '+x.no+'. '+esc(x.title)+'</label>'}).join('')+'</div></details>'+
+    '<details class="fr-det mb-det" id="fr-info"><summary id="fr-infosum">환자 정보 · 측정 기록</summary>'+
+      '<div class="fr-row3"><label class="fr-f">진료일<input type="date" id="fr-date"></label><label class="fr-f">생년월일<input type="date" id="fr-dob"></label><label class="fr-f">성별<select id="fr-sex"><option value="">선택</option><option value="M">남</option><option value="F">여</option></select></label></div>'+
+      '<div class="fr-row3"><label class="fr-f">아버지 키<input type="number" id="fr-fh" inputmode="decimal" step="0.1" placeholder="선택" value="'+esc(fh)+'"></label><label class="fr-f">어머니 키<input type="number" id="fr-mh" inputmode="decimal" step="0.1" placeholder="선택" value="'+esc(mh)+'"></label></div>'+
+      '<label class="fr-f">측정 기록 (한 줄에 한 번)<textarea id="fr-recs" rows="5"></textarea></label></details>'+
+    '<details class="fr-det mb-det"><summary>📋 EMR 차트 다시 붙여넣기 · AI 정리</summary><textarea id="fr-chart" rows="6" placeholder="EMR 차트를 길게 눌러 붙여넣기 하면 AI가 바로 다시 정리해요."></textarea>'+
+      '<div class="fr-row"><button class="btn primary" data-fr="ai" id="fr-aibtn">🤖 AI로 정리</button><button class="btn" data-fr="noai">AI 없이 정리</button></div></details>'+
+    '<details class="fr-det mb-det"><summary>🧪 오늘 검사 · 환자 폰 영상</summary><div class="grxv" id="fr-xv"></div></details>'+
+    '<button type="button" class="btn mb-later" data-fr="tolater">🩸 혈액검사 결과 나오면 보고로 옮기기</button>';
+}
+function mobShellHtml(v){
+  var who=[age(v),v.sex].filter(Boolean).join(' · ');
+  return '<div class="mb-top"><button type="button" class="mb-back" data-fr="close" aria-label="목록으로">‹</button><div class="mb-who"><b>'+esc(v.name||'이름 없음')+'</b><span>'+esc(who)+(v.chartNo?(who?' · ':'')+'<span class="cno" role="button" data-fr="copyno" data-c="'+esc(v.chartNo)+'">'+esc(v.chartNo)+'</span>':'')+'</span></div><span class="mb-pos" id="mb-pos"></span></div>'+
+    '<div class="mb-tabs" role="tablist"><button type="button" role="tab" data-fr="tab" data-t="edit">📝 내용</button><button type="button" role="tab" data-fr="tab" data-t="view">📄 미리보기</button></div>'+
+    '<div class="mb-msg" id="grmsg"></div><div class="grtip" id="fr-tip" hidden></div>'+
+    '<div class="grbody" id="mb-body"><div class="gredit" id="gredit"><div id="fr-diff"></div>'+mobEditorHtml(v)+'</div>'+
+    '<div class="grscroll"><button type="button" class="mb-zoom" data-fr="zoom">🔍 크게 보기</button><div class="gr-wrap" id="gr-wrap"><div class="gr-inner" id="gr-inner"></div></div></div></div>'+
+    '<div class="mb-bar"><button type="button" class="btn mb-nav" data-fr="prev" id="mb-prev" aria-label="이전 아이">‹</button>'+
+    '<button type="button" class="btn primary big" data-fr="ok" id="fr-okbtn">✅ 확인</button>'+
+    '<button type="button" class="btn mb-unrev" data-fr="unreview" id="fr-unrevbtn" hidden>확인 취소</button>'+
+    '<button type="button" class="btn mb-nav" data-fr="next" id="mb-next" aria-label="다음 아이">›</button></div>';
+}
+/* 휴대폰: 목록 순서(ST.mq)에서 이 아이 다음의 「아직 확인 안 한」 아이 */
+function mobNextId(id){
+  var q=ST.mq||[],i=q.indexOf(id);if(!q.length)return null;
+  for(var k=1;k<=q.length;k++){var x=q[(Math.max(i,-1)+k)%q.length];if(x===id)continue;var v=S.items.get(x),g=v&&v.gr;if(v&&g&&g.ready&&!g.reviewed)return x}
+  return null;
+}
+function mobGo(d){var q=ST.mq||[],i=q.indexOf(ST.id),j=i+d;if(i<0||j<0||j>=q.length||!S.items.get(q[j]))return;open(q[j],{mq:q,t:document.getElementById('grov').dataset.t})}
 function shellHtml(v){
   var who=[age(v),v.sex].filter(Boolean).join(' · ');
   return '<div class="grbar"><b>성장 리포트 · '+esc(v.name||'이름 없음')+'<span class="grwho">'+esc(who)+(v.chartNo?(who?' · ':'')+'<span class="cno" role="button" data-fr="copyno" data-c="'+esc(v.chartNo)+'" title="눌러서 등록번호 복사">등록번호 '+esc(v.chartNo)+'</span>':'')+'</span></b><span id="grmsg"></span><div class="grbtns">'+
@@ -3514,6 +3610,12 @@ function syncBar(){
   s('fr-printbtn',function(e){e.hidden=!rev;e.disabled=!(ok&&rev)});
   s('fr-pdfbtn',function(e){e.hidden=!rev;e.disabled=!(ok&&rev)});
   s('fr-editbtn',function(e){e.textContent=o.classList.contains('editing')?'✏️ 수정창 닫기':'✏️ 내용 수정'});
+  if(o.classList.contains('mob')){
+    var q=ST.mq||[],i=q.indexOf(ST.id);
+    s('fr-okbtn',function(e){e.textContent=SAVING?'저장 중…':(mobNextId(ST.id)?'✅ 확인하고 다음 아이':'✅ 확인 완료')});
+    s('mb-prev',function(e){e.disabled=!(i>0)});s('mb-next',function(e){e.disabled=!(i>=0&&i<q.length-1)});
+    s('mb-pos',function(e){e.textContent=i>=0&&q.length>1?(i+1)+' / '+q.length:''});
+  }
 }
 function refresh(){
   var v=V(),host=document.getElementById('gr-inner');if(!host||!v)return;
@@ -3538,8 +3640,10 @@ function open(id,opt){
   if(document.getElementById('grov'))close();
   ST.id=id;ST.busy=!!BUSY[id];
   if(!(GD.pool&&Date.now()-GD.at<600000)&&!GD.p&&authToken())gdLoad(false).catch(function(){});
-  var o=document.createElement('div');o.className='grov';o.id='grov';o.innerHTML=shellHtml(v);
-  if(!(v.gr&&v.gr.ready))o.classList.add('editing');
+  var mob=isMob();opt=opt||{};
+  var o=document.createElement('div');o.className='grov'+(mob?' mob':'');o.id='grov';o.innerHTML=mob?mobShellHtml(v):shellHtml(v);
+  if(mob){ST.mq=opt.mq||UI.mrq||[];o.dataset.t=opt.t||'edit'}
+  else if(!(v.gr&&v.gr.ready))o.classList.add('editing');
   document.body.appendChild(o);
   var g=Object.assign({},v.gr||{});
   if(!g.dob&&v.dob)g.dob=v.dob;if(!g.sex)g.sex=sexOf(v);if(!g.date)g.date=todayStr();
@@ -3568,6 +3672,10 @@ function open(id,opt){
     else if(k==='unreview')setReviewed(false);
     else if(k==='ai')run(true);
     else if(k==='noai')run(false);
+    else if(k==='tab'){o.dataset.t=b.dataset.t;var bd=document.getElementById('mb-body');if(bd)bd.scrollTop=0;setTimeout(function(){GR.fit();autosizeAll()},30)}
+    else if(k==='zoom'){o.classList.toggle('zoom');b.textContent=o.classList.contains('zoom')?'↙ 화면에 맞추기':'🔍 크게 보기';GR.fit()}
+    else if(k==='prev')mobGo(-1);
+    else if(k==='next')mobGo(1);
   });
   o.addEventListener('input',onEdit);o.addEventListener('change',onEdit);
   var ce=document.getElementById('fr-chart');
@@ -3576,7 +3684,8 @@ function open(id,opt){
   window.addEventListener('resize',function(){GR.fit();autosizeAll()});
   o.addEventListener('toggle',autosizeAll,true);
   refresh();
-  say(v.gr&&v.gr.ready?(v.gr.reviewed?'원장 확인이 끝난 리포트예요.':'내용을 읽고 ✅ 확인'+(pdfOn()?' · PDF 저장':'')+' (Ctrl+Enter)을 눌러 주세요.'):'EMR 차트를 붙여넣으면(Ctrl+V) AI가 바로 정리해요.');
+  if(mob)say(v.gr&&v.gr.ready?(v.gr.reviewed?'원장 확인이 끝난 리포트예요. 고치려면 「확인 취소」를 누르세요.':(v.gr.src&&v.gr.src!=='today'?'📝 진료 전 가안이에요. ':'')+'읽어 보고 고칠 곳만 눌러서 고친 뒤 아래 ✅ 확인을 누르세요. 고친 내용은 바로 저장돼요.'):'아직 차트가 없어요. 컴퓨터에서 EMR 차트를 붙여넣거나, 아래 「EMR 차트 다시 붙여넣기」를 써 주세요.');
+  else say(v.gr&&v.gr.ready?(v.gr.reviewed?'원장 확인이 끝난 리포트예요.':'내용을 읽고 ✅ 확인'+(pdfOn()?' · PDF 저장':'')+' (Ctrl+Enter)을 눌러 주세요.'):'EMR 차트를 붙여넣으면(Ctrl+V) AI가 바로 정리해요.');
   showTip(BUSY[id]?'':(isBlood(v)&&!(v.gr&&v.gr.reviewed)?'blood':srcTip(v.gr)));
   xvStrip();showDiff(id);markChanges(id);
   if(BUSY[id])say('이 아이 차트를 AI가 정리하는 중이에요… 끝나면 자동으로 채워져요.');
@@ -3786,7 +3895,7 @@ function unprint(id){var v=S.items.get(id);if(!v||!v.gr)return;v.gr=Object.assig
 var SAVING=false;
 function opt(k,d){try{var x=localStorage.getItem('jrd_gr_'+k);return x==null?d:x==='1'}catch(e){return d}}
 function setOpt(k,on){try{localStorage.setItem('jrd_gr_'+k,on?'1':'0')}catch(e){}}
-function pdfOn(){return opt('pdf',true)}
+function pdfOn(){return opt('pdf',!isMob())}   // 휴대폰은 기본으로 PDF를 내려받지 않음
 function autoOn(){return opt('autoprint',false)}
 function confirmSave(){
   var v=V();if(!v||BUSY[ST.id]||SAVING)return;
@@ -3802,7 +3911,10 @@ function confirmSave(){
     var cur=S.items.get(vid);if(!cur)return;
     if(code)g.gc=code;
     g.reviewed=true;g.reviewedAt=Date.now();g.printedAt=null;commitTo(vid,g,true);if(mine())refresh();
-    var room=hasRoom(cur),gt=code?' · 🎁 안내서 QR':'',done=function(msg){if(mine())close();toast(msg);renderAll(false);try{focusScan()}catch(e){}};
+    var room=hasRoom(cur),gt=code?' · 🎁 안내서 QR':'',done=function(msg){
+      var nx=mine()&&isMob()?mobNextId(vid):null;   // 휴대폰: 바로 다음 아이 리포트로
+      var was=mine();if(nx){open(nx,{mq:ST.mq,t:'edit'});toast(msg)}else{if(was)close();toast(msg+(was&&isMob()?' · 오늘 확인할 리포트를 모두 확인했어요 👍':''))}
+      renderAll(false);try{if(!isMob())focusScan()}catch(e){}};
     if(!pdfOn()&&!room){done(name+': 확인 완료'+gt+' — 직원 화면 「인쇄할 리포트」에 올라갔어요.');return}
     SAVING=true;syncBar();if(mine())say('PDF 만드는 중…');
     GR.pdfOf(modelOf(S.items.get(vid)),0.72).then(function(pdf){return pdf},function(){return null}).then(function(pdf){
@@ -4099,14 +4211,38 @@ function rowHtml(v){
   else{st='<span class="pill ex">차트 대기</span>';bt='<button class="btn sm" data-act="gr-open" data-id="'+v.id+'">차트 붙여넣기</button>'+bl}
   return '<div class="frrow"><div class="frnm"><b>'+esc(v.name||'이름 없음')+(v.temp?' <span class="pill" style="background:#fdeccc;color:#8a4b00">당일접수</span>':'')+'</b><span class="meta">'+esc(age(v))+(v.sex?' · '+esc(v.sex):'')+(v.chartNo?' · '+cnoHtml(v.chartNo):'')+(v.step<0&&v.appt?' · 예약 '+esc(v.appt):'')+' '+qChips(v)+'</span></div><div>'+st+'</div><div class="frbt">'+bt+'</div></div>';
 }
+/* 📱 휴대폰 목록: 위쪽 구분 단추(확인할 것·가안·결과 대기·차트 없음·확인 끝) + 큰 카드. 카드를 누르면 그 구분의 순서대로 「다음 아이」로 넘어갑니다. */
+var MSEG=[['todo','확인할 것',function(s){return s===1}],['draft','📝 가안',function(s){return s===2}],['blood','🩸 결과 대기',function(s){return s===4}],['nochart','차트 없음',function(s){return s===3}],['done','✓ 확인 끝',function(s){return s===0||s===5}]];
+function mobListHtml(){
+  var all=todayList().filter(function(v){var g=v.gr||{};return v.step>=0||g.ready||g.q||g.blood!=null||BUSY[v.id]}),cnt={};
+  MSEG.forEach(function(x){cnt[x[0]]=all.filter(function(v){return x[2](grState(v))}).length});
+  var seg=UI.mrf||'todo';if(!UI.mrf&&!cnt.todo){var f=MSEG.filter(function(x){return cnt[x[0]]})[0];if(f)seg=f[0]}
+  var def=MSEG.filter(function(x){return x[0]===seg})[0]||MSEG[0],done=seg==='done';
+  var rows=all.filter(function(v){return def[2](grState(v))}).sort(function(a,b){var ga=a.gr||{},gb=b.gr||{};return done?((gb.reviewedAt||0)-(ga.reviewedAt||0)):((ga.srcAt||ga.at||lastT(a))-(gb.srcAt||gb.at||lastT(b)))});
+  UI.mrq=rows.map(function(v){return v.id});
+  var hm=function(t){if(!t)return'';var d=new Date(t);return d.getHours()+':'+pad(d.getMinutes())};
+  var d0=new Date(),h='<div class="mr"><div class="mr-head"><b>오늘 성장 리포트</b><span>'+(d0.getMonth()+1)+'월 '+d0.getDate()+'일 · 🖨 인쇄 대기 '+printQueueCount()+'</span></div>'+
+    '<div class="mr-seg" role="tablist">'+MSEG.map(function(x){return '<button type="button" role="tab" data-act="mr-seg" data-k="'+x[0]+'" class="'+(x[0]===seg?'on':'')+'">'+x[1]+'<b>'+cnt[x[0]]+'</b></button>'}).join('')+'</div>';
+  if(!rows.length)h+='<div class="mr-empty">'+(seg==='todo'?'✓ 지금 확인할 리포트가 없어요.':'이 구분에 해당하는 아이가 없어요.')+'</div>';
+  rows.forEach(function(v){
+    var g=v.gr||{},s=grState(v),po=g.post||{},who=[age(v),v.sex,v.chartNo].filter(Boolean).join(' · ');
+    var pill=BUSY[v.id]?'<span class="pill warn">AI 정리 중…</span>':s===1?'<span class="pill warn">확인 전</span>':s===2?'<span class="pill">📝 가안</span>':s===4?'<span class="pill warn">결과 대기</span>':s===3?'<span class="pill">차트 없음</span>':s===0?'<span class="pill ok">✓ 인쇄 대기</span>':'<span class="pill ex">✓ 인쇄 끝</span>';
+    var when=s===0||s===5?'확인 '+hm(g.reviewedAt):g.srcAt?'EMR '+hm(g.srcAt):'';
+    var line=String(po.summary||'').replace(/\s+/g,' ').trim()||(s===3?'컴퓨터에서 EMR 차트를 붙여넣으면 AI가 정리해요.':s===4?esc(bloodWhy(v)):'');
+    h+='<button type="button" class="mr-card" data-act="gr-open" data-id="'+v.id+'"><span class="mr-l"><b>'+esc(v.name||'이름 없음')+'</b><small>'+esc(who)+'</small>'+(line?'<em>'+esc(line)+'</em>':'')+'</span><span class="mr-r">'+pill+(when?'<small>'+when+'</small>':'')+'</span></button>';
+  });
+  h+='<div class="mr-foot"><label><input type="checkbox" data-act="gr-optpdf"'+(pdfOn()?' checked':'')+'> 확인할 때 PDF도 내려받기</label><button type="button" class="btn sm ghost" data-act="mob-off">컴퓨터 화면으로 보기</button></div></div>';
+  return h;
+}
 function listHtml(){
+  if(isMob())return mobListHtml();
   var all=todayList();
   var a=all.filter(function(v){var g=v.gr||{};return v.step>=0||g.ready||g.q||g.blood!=null||BUSY[v.id]});
   var booked=all.filter(function(v){return a.indexOf(v)<0}).sort(function(x,y){return String(x.appt||'99').localeCompare(String(y.appt||'99'))});
   a.sort(function(x,y){var r=grState(x)-grState(y);if(r)return r;var gx=x.gr||{},gy=y.gr||{};return ((gy.reviewedAt||gy.at||0)-(gx.reviewedAt||gx.at||0))||(lastT(y)-lastT(x))});
   var cnt=[0,0,0,0,0,0];a.forEach(function(v){cnt[grState(v)]++});
   var pdf=pdfOn(),auto=autoOn();
-  var top='<div class="grq">'+
+  var top=(window.matchMedia&&matchMedia('(max-width:760px)').matches?'<p style="margin:0 0 10px"><button type="button" class="btn" data-act="mob-on">📱 휴대폰 화면으로 보기</button></p>':'')+'<div class="grq">'+
     '<div class="grq-paste" data-act="gr-paste" role="button" tabindex="0" title="눌러도 클립보드의 차트를 가져와요">'+
       '<div class="grq-k">원장님</div><b>📋 EMR 차트 복사 → 이 화면 아무 데서나 Ctrl+V</b>'+
       '<span style="display:block;margin:2px 0 4px;color:var(--ink)">붙여넣으면 그 아이 리포트 창이 바로 열려요 · <b style="display:inline;font-size:inherit">진료 전</b> 지난 차트·초진기록지로 가안 · <b style="display:inline;font-size:inherit">진료 후</b> EMR을 다시 붙여넣으면 새로 들어간 줄·바뀐 항목이 초록색 · 창이 열린 채 다음 아이 차트를 붙여넣어도 그 아이로 넘어가요</span>'+
