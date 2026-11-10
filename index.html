@@ -3441,12 +3441,14 @@ async function fvGuideBuild(p, chartText, baseline){
   const rec = {}; try{ extractFromChartNote(text, rec); }catch(e){}
   const shim = Object.assign({}, p, { firstVisit: p.firstVisit || { visitDate: todayStr() } });
   const draft = fvLocalDraft(text, add, rec, shim);
+  const lm = labMsgOf(p, todayStr()), lmCore = lm ? labCore(lm.labMsg.t) : '';   // 🩸 오늘 검사의 승인된 혈액검사 결과 문자
+  const labsIn = [add.labs, lmCore ? '[원장이 확인해 보호자에게 이미 보낸 혈액검사 결과 안내 — 이 내용과 어긋나지 않게 정리]\n' + lmCore : ''].filter(Boolean).join('\n\n');
   let ai = null, warn = '';
   if(getApiUrl()){
     try{
       const res = await fetch(getApiUrl(), { method:'POST', body: JSON.stringify({
         action:'generatefirstvisitchart', kind, compare: fvGuideCompare(p), name:p.name, gender: p.sex==='M'?'남':'여', ageText: calcAge(p.dob),
-        chart: add.parts.chart, plan: add.plan, labs: add.labs, extra: add.extra, added: add.text, intake: kind==='first' ? String(baseline||p.notes||'').slice(0,3000) : ''
+        chart: add.parts.chart, plan: add.plan, labs: labsIn, extra: add.extra, added: add.text, intake: kind==='first' ? String(baseline||p.notes||'').slice(0,3000) : ''
       })});
       const data = await res.json();
       if(data && data.via === 'jarada-codegs' && data.status === 'ok' && data.data) ai = data.data;
@@ -3455,7 +3457,7 @@ async function fvGuideBuild(p, chartText, baseline){
   } else warn = '연동 설정의 백엔드 URL이 없어 AI 없이 정리했어요';
   const pick = (k, fb)=> (ai && ai[k] && String(ai[k]).trim()) ? String(ai[k]).trim() : (fb||'');
   const post = {
-    summary: pick('summary', draft.summary), labs: pick('labs', draft.labs), xray: pick('xray', draft.xray), direction: pick('direction', draft.direction),
+    summary: pick('summary', draft.summary), labs: pick('labs', draft.labs || lmCore), xray: pick('xray', draft.xray), direction: pick('direction', draft.direction),
     nextDate: draft.nextDate || '', tests: draft.tests || [],
     exercise: pick('exercise', fvLifestyleDraft('exercise', shim)), nutrition: pick('nutrition', fvLifestyleDraft('nutrition', shim)), sleep: pick('sleep', fvLifestyleDraft('sleep', shim)),
     videos: []
@@ -4189,6 +4191,25 @@ function txHistory(p){
   track('GnRH', r=>{ const m = String(r.suppDose||'').match(/([\d.]+)\s*mg/i); return m ? parseFloat(m[1]) : null; }, 'mg');
   d.sort((a,b)=> a.d < b.d ? -1 : 1);
   return { p:per, d:d.slice(-8) };
+}
+/* 🩸 flow 방문(최근 45일)마다, 그날 검사의 승인된 혈액검사 문자(핵심만)를 붙여 줍니다 → 성장 리포트 「혈액검사 결과 설명」·AI 요약 */
+async function labSyncFlow(visits){
+  try{
+    if(!Array.isArray(visits) || typeof patients==='undefined') return;
+    const lim = new Date(Date.now()-45*864e5).toISOString().slice(0,10), dg = s => String(s||'').replace(/\D/g,'').replace(/^0+/,''), byChart = {}, byName = {};
+    patients.forEach(p=>{ if(!(p.records||[]).some(r=>r && r.labMsg)) return; const c = dg(p.chartNo); if(c) byChart[c] = p; if(p.name) (byName[p.name] = byName[p.name] || []).push(p); });
+    for(const v of visits){
+      if(!v || !v.id || v.id==='config:flow' || !v.name || v.hide || !v.date || v.date < lim) continue;
+      let p = dg(v.chartNo) ? byChart[dg(v.chartNo)] : null;
+      if(!p && !dg(v.chartNo)){ const b = byName[v.name]; if(b && b.length===1) p = b[0]; }
+      if(!p) continue;
+      const rec = labMsgOf(p, v.date); if(!rec) continue;
+      const labx = { t: labCore(rec.labMsg.t), at: rec.labMsg.at || 0, d: rec.labMsg.d || rec.date };
+      if(!labx.t || (v.labx && v.labx.at === labx.at && v.labx.t === labx.t)) continue;
+      const j = await bqPost({ action:'flowsave', id:v.id, patch:{ labx:labx, updatedAt:Date.now() } });
+      if(j && j.status==='ok') v.labx = labx;
+    }
+  }catch(e){}
 }
 /* 오늘 flow에 올라온 아이마다 위 치료 정보를 붙여 줍니다(등록번호로 찾고, 등록번호가 없으면 이름이 하나뿐일 때만). 바뀐 아이만 저장. */
 async function txSyncFlow(visits){
@@ -5821,6 +5842,24 @@ function copyLabPendingEmr(id){
 }
 let labPendingEmrMap = {}; // r.id -> EMR 기록용 텍스트 (복사 버튼에서 사용, 이스케이프 문제 없이 조회)
 let labPendingPatientMap = {}; // r.id -> patientId (승인 시 생년월일·연락처를 그 환자 기록에도 반영하기 위해 사용)
+let labPendingRecMap = {};     // r.id -> { recordId, examDate, message } (승인한 문자를 그 검사 기록에 남겨 성장 리포트·AI 요약에 쓰기 위해)
+/* 🩸 원장이 승인해 보낸 혈액검사 결과 문자에서 「검사 결과 설명 + 관리 계획」만 추립니다(인사말·영상 링크·챗봇 안내는 뺌).
+   → 성장 리포트의 「혈액검사 결과 설명」, 진료 후 안내·리포트 AI 요약의 입력으로 씁니다. */
+function labCore(text){
+  let L = String(text||'').replace(/\r/g,'').split('\n');
+  const cut = L.findIndex(l=> /도움이\s*되는\s*영상|📺|▶|자라다\s*챗봇|https?:\/\//.test(l));
+  if(cut >= 0) L = L.slice(0, cut);
+  let st = L.findIndex(l=> /^\s*[·•▪◦\-*]\s*\S/.test(l) || /→|->/.test(l));
+  if(st > 0 && /결과|검사|📋|🩸|🔬/.test(L[st-1]) && !/안녕|안내드립|입니다\.?\s*$/.test(L[st-1])) st--;
+  if(st >= 0) L = L.slice(st);
+  L = L.filter(l=> !/https?:\/\//.test(l) && !/^\s*(감사합니다|궁금하신|문의|☎|📞)/.test(l));
+  while(L.length && /^\s*\S{0,3}\s*(혈액\s*)?검사\s*결과\s*:?\s*$/.test(L[0])) L.shift();   // 「🩸 검사 결과」 같은 제목 줄은 리포트 칸 이름과 겹쳐서 뺌
+  return L.join('\n').replace(/\n{3,}/g, '\n\n').trim().slice(0, 1500);
+}
+function labMsgOf(p, date){
+  const recs = (p && p.records || []).filter(r=> r && r.labMsg && r.labMsg.t);
+  return recs.find(r=> r.date === date || r.labMsg.d === date) || null;
+}
 async function renderLabPending(){
   const list = document.getElementById('labPendingItems');
   const countEl = document.getElementById('labPendingCount');
@@ -5840,6 +5879,7 @@ async function renderLabPending(){
       try{ d = JSON.parse(r.question||'{}'); }catch(e){}
       labPendingEmrMap[r.id] = d.emrText || '';
       labPendingPatientMap[r.id] = d.patientId || '';
+      labPendingRecMap[r.id] = { recordId: d.recordId || '', examDate: d.examDate || '', message: d.message || '' };
       // 챠트번호: 승인 대기에 저장된 값이 없으면 환아 정보에서 한 번 더 찾습니다.
       const chartNoShown = String(d.chartNo || ((d.patientId && getPatient(d.patientId)) ? getPatient(d.patientId).chartNo : '') || '').trim();
       const chartChip = chartNoShown
@@ -5899,6 +5939,20 @@ async function regenLabPending(id, btnEl){
   }catch(e){ alert('문자 생성 중 오류가 발생했어요.'); }
   btnEl.disabled = false; btnEl.textContent = old;
 }
+/* 승인·발송한 혈액검사 문자를 그 검사 기록(rec.labMsg)에 남기고, 아직 안 보낸 진료 후 안내 초안의 「혈액검사 결과 설명」이 비어 있으면 채웁니다.
+   flow(성장 리포트)에는 다음 동기화 때(바로 한 번) 「혈액검사 결과 설명」으로 넘어갑니다. */
+function labMsgSave(pid, info, edited){
+  const p = pid ? getPatient(pid) : null; if(!p || !info) return;
+  const text = String(edited != null ? edited : info.message || '').trim(); if(!text) return;
+  p.records = p.records || [];
+  let rec = (info.recordId && p.records.find(r=>r.id===info.recordId)) || (info.examDate && p.records.find(r=>r.date===info.examDate)) || null;
+  if(!rec){ rec = { id: uid(), date: info.examDate || todayStr(), callDone:false }; p.records.push(rec); }
+  rec.labMsg = { t: text, at: Date.now(), d: info.examDate || rec.date };
+  const core = labCore(text);
+  if(core && p.guideDraft && !p.guideDraft.sentAt && p.guideDraft.post && !String(p.guideDraft.post.labs||'').trim()){ p.guideDraft.post.labs = core; p.guideDraft.labsFrom = 'msg'; }
+  p.updatedAt = new Date().toISOString(); savePatients();
+  clearTimeout(window._labFlowT); window._labFlowT = setTimeout(()=>{ try{ rvFlowPoll(); }catch(e){} }, 1200);
+}
 async function approveLabPending(id, btnEl){
   const api = getApiUrl();
   if(!api) return;
@@ -5930,6 +5984,7 @@ async function approveLabPending(id, btnEl){
     const data = await res.json();
     if(data.status==='ok'){
       if(card) card.innerHTML = `<div style="color:var(--ok);font-size:12.5px;font-weight:700;padding:8px 0;">✅ 발송 완료</div>`;
+      try{ labMsgSave(pid, labPendingRecMap[id], editedText); }catch(e){}
       return true;
     } else {
       if(btnEl){ btnEl.disabled=false; btnEl.textContent='승인 · 발송'; }
@@ -9413,7 +9468,7 @@ function rvSyncFlow(visits){
 async function rvFlowPoll(){
   if(document.hidden || !getApiUrl()) return;
   try{ if(typeof isDoctorAppUnlocked==='function' && !isDoctorAppUnlocked()) return; }catch(e){}
-  try{ const fl = await bqPost({ action:'flowlist' }); if(fl && fl.status==='ok' && Array.isArray(fl.visits)){ rvSyncFlow(fl.visits); txSyncFlow(fl.visits); } }catch(e){}
+  try{ const fl = await bqPost({ action:'flowlist' }); if(fl && fl.status==='ok' && Array.isArray(fl.visits)){ rvSyncFlow(fl.visits); txSyncFlow(fl.visits); labSyncFlow(fl.visits); } }catch(e){}
 }
 setTimeout(rvFlowPoll, 7000);
 setInterval(rvFlowPoll, 90000);

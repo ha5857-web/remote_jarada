@@ -436,6 +436,13 @@ body.mrep .tabs button{flex:none}
 .mb-bar .mb-unrev{flex:1;height:54px;font-size:16px;border-radius:14px}
 .mb-nav{flex:none;width:54px;height:54px;font-size:28px;padding:0;border-radius:14px}
 .mb-nav:disabled{opacity:.35}
+.labx:empty{display:none}
+.labx-d{margin:-2px 0 10px;padding:8px 10px;border:1px solid #F3C1BC;border-radius:10px;background:#FFF6F5}
+.labx-d>summary{cursor:pointer;font-size:13px;font-weight:700;color:#9B2C22;line-height:1.5}
+.labx-t{margin:8px 0;font-size:13px;line-height:1.6;white-space:pre-wrap;color:#3A2A28;max-height:240px;overflow:auto;-webkit-user-select:text;user-select:text}
+.grov.mob .labx-d>summary{font-size:14.5px}
+.grov.mob .labx-t{font-size:15px}
+.grov.mob .labx-d .btn{width:100%;height:44px;font-size:15px}
 .grov{position:fixed;inset:0;z-index:300;background:#e9eef1;display:flex;flex-direction:column;color:#14232B;color-scheme:light;
   --surface:#fff;--surface2:#F5F8F8;--ink:#14232B;--muted:#5A6B73;--line:#D5DFDF;--accent:#0B7A85;--accent-ink:#fff;--accent-soft:#D9EEF0;--ok:#2B7A4B;--ok-soft:#DDF0E4;--warn:#B96A00;--warn-soft:#FBEBCF;--bad:#B63A32}
 .grbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;background:#fff;border-bottom:1px solid #d5dde2}
@@ -806,6 +813,7 @@ async function poll(){
     if(first||sig!==S.sig){S.sig=sig;emit()}
     hideConn();
     setTimeout(fxPoll,0);
+    setTimeout(function(){try{FR.labxApply()}catch(e){}},0);   // 🩸 승인된 혈액검사 문자 → 리포트
   }catch(e){if(!e||e.code!=='AUTH_REQUIRED')showConn(e&&e.message==='server-old'?HALT_MSG:(e&&e.code==='HALT'?HALT_MSG:'서버와 연결이 끊겼습니다. 다시 시도하는 중…'))}
   finally{polling=false}
 }
@@ -3537,8 +3545,9 @@ function mergeRecs(oldText,parsed){
   return Object.keys(map).sort().slice(-12).map(function(k){return recLine(map[k])}).join('\n');
 }
 async function callAI(v,g,add,compare,intake,kind){
+  var lx=v.labx&&v.labx.t?'[원장이 확인해 보호자에게 이미 보낸 혈액검사 결과 안내 — 이 내용과 어긋나지 않게 정리]\n'+v.labx.t:'';   // 🩸 의사 앱에서 승인·발송한 혈액검사 문자
   var j=await api({action:'generatefirstvisitchart',kind:kind,compare:compare,name:v.name||'',gender:g.sex==='M'?'남':'여',ageText:g.dob?calcAge(g.dob):'',
-    intake:intake,chart:add.parts.chart,plan:add.plan,labs:add.labs,extra:add.extra,added:add.text});
+    intake:intake,chart:add.parts.chart,plan:add.plan,labs:[add.labs,lx].filter(Boolean).join('\n\n'),extra:add.extra,added:add.text});
   if(j&&j.via==='jarada-codegs'&&j.status==='ok'&&j.data)return{ok:true,data:j.data};
   return{ok:false,old:!(j&&j.via==='jarada-codegs'),msg:(j&&j.message)||''};
 }
@@ -3568,10 +3577,19 @@ function collect(){
   po.videos=[].slice.call(document.querySelectorAll('.frVid:checked')).map(function(e){return VID(+e.value)}).filter(Boolean);
   g.post=po;return g;
 }
+function labxRender(){
+  var el=document.getElementById('fr-labx'),v=V();if(!el)return;var x=v&&v.labx;
+  if(!x||!x.t){el.innerHTML='';return}
+  var d=new Date(x.at||Date.now()),when=(d.getMonth()+1)+'/'+d.getDate();
+  var cur=String(((v.gr||{}).post||{}).labs||'').trim(),same=cur===String(x.t).trim();
+  el.innerHTML='<details class="labx-d"'+(cur?'':' open')+'><summary>🩸 보호자에게 보낸 혈액검사 결과 문자 (원장 승인 '+when+')'+(same?' · 설명 칸과 같음':'')+'</summary><div class="labx-t">'+esc(x.t)+'</div>'+
+    (same?'':'<button type="button" class="btn sm" data-fr="labx-use">⬆ 이 내용으로 「혈액검사 결과 설명」 바꾸기</button>')+'</details>';
+}
 function fillEditor(g){
   g=g||{};var po=g.post||{},set=function(id,x){var e=document.getElementById(id);if(e)e.value=x==null?'':x};
   set('fr-date',g.date||todayStr());set('fr-dob',g.dob||'');set('fr-sex',g.sex||'');set('fr-fh',g.fh||'');set('fr-mh',g.mh||'');set('fr-recs',g.recsText||'');
   ['summary','labs','xray','direction','exercise','nutrition','sleep'].forEach(function(k){set('fr-'+k,po[k])});
+  setTimeout(labxRender,0);
   set('fr-next',po.nextDate||'');
   [].forEach.call(document.querySelectorAll('.frTest'),function(e){e.checked=(po.tests||[]).indexOf(e.value)>=0});
   var vn=(po.videos||[]).map(function(x){return x&&x.no});
@@ -3603,7 +3621,7 @@ function editorHtml(v){
     '<div class="fr-row3"><label class="fr-f">아버지 키(cm)<input type="number" id="fr-fh" inputmode="decimal" step="0.1" placeholder="선택" value="'+esc(fh)+'"></label><label class="fr-f">어머니 키(cm)<input type="number" id="fr-mh" inputmode="decimal" step="0.1" placeholder="선택" value="'+esc(mh)+'"></label></div>'+
     '<label class="fr-f">측정 기록 (한 줄에 한 번 — 차트 표에서 자동으로 채워져요. 직접 고쳐도 돼요)<textarea id="fr-recs" rows="5" placeholder="2026-10-21  키 162.4  몸무게 58.6  골연령 13세 9개월"></textarea></label></details>'+
     '<div class="fr-h">③ 진료 후 기록 (보호자용)</div>'+
-    ta('summary','오늘 진료 요약')+ta('labs','혈액검사 결과 설명')+ta('xray','엑스레이 결과 설명')+ta('direction','앞으로의 방향')+
+    ta('summary','오늘 진료 요약')+ta('labs','혈액검사 결과 설명')+'<div id="fr-labx" class="labx"></div>'+ta('xray','엑스레이 결과 설명')+ta('direction','앞으로의 방향')+
     ta('exercise','🏃 운동')+ta('nutrition','🥗 영양')+ta('sleep','😴 수면')+
     '<div class="fr-f">다음 내원<input type="date" id="fr-next"></div>'+
     '<div class="fr-checks">'+FV_TEST_OPTIONS.map(function(t){return '<label><input type="checkbox" class="frTest" value="'+t.key+'"> '+t.label+'</label>'}).join('')+'</div>'+
@@ -3613,7 +3631,7 @@ function editorHtml(v){
 function mobEditorHtml(v){
   var fh=(v.intake&&v.intake.fatherH)||'',mh=(v.intake&&v.intake.motherH)||'';
   var ta=function(id,label){return '<label class="fr-f mb-f">'+label+'<textarea id="fr-'+id+'" rows="1" placeholder="(비어 있음 — 눌러서 쓰기)"></textarea></label>'};
-  return ta('summary','오늘 진료 요약')+ta('labs','혈액검사 결과 설명')+ta('xray','엑스레이 결과 설명')+ta('direction','앞으로의 방향')+
+  return ta('summary','오늘 진료 요약')+ta('labs','혈액검사 결과 설명')+'<div id="fr-labx" class="labx"></div>'+ta('xray','엑스레이 결과 설명')+ta('direction','앞으로의 방향')+
     ta('exercise','🏃 운동',2)+ta('nutrition','🥗 영양',2)+ta('sleep','😴 수면',2)+
     '<div class="fr-f mb-f">다음 내원<input type="date" id="fr-next"><div class="fr-checks">'+FV_TEST_OPTIONS.map(function(t){return '<label><input type="checkbox" class="frTest" value="'+t.key+'"> '+t.label+'</label>'}).join('')+'</div></div>'+
     '<details class="fr-det mb-det"><summary>🎬 집에서 다시 볼 영상 (최대 3편)</summary><div class="fr-checks col">'+VIDEOS.map(function(x){return '<label><input type="checkbox" class="frVid" value="'+x.no+'"> '+x.no+'. '+esc(x.title)+'</label>'}).join('')+'</div></details>'+
@@ -3748,6 +3766,7 @@ function open(id,opt){
     else if(k==='noai')run(false);
     else if(k==='tab'){o.dataset.t=b.dataset.t;var bd=document.getElementById('mb-body');if(bd)bd.scrollTop=0;setTimeout(function(){GR.fit();autosizeAll()},30)}
     else if(k==='zoom'){o.classList.toggle('zoom');b.textContent=o.classList.contains('zoom')?'↙ 화면에 맞추기':'🔍 크게 보기';GR.fit()}
+    else if(k==='labx-use'){var vx=V();if(vx&&vx.labx&&vx.labx.t){var te=document.getElementById('fr-labs');if(te){te.value=vx.labx.t;te.dispatchEvent(new Event('input',{bubbles:true}))}setTimeout(labxRender,600);say('🩸 혈액검사 결과 설명을 승인된 문자 내용으로 바꿨어요. 필요하면 고쳐 주세요.')}}
     else if(k==='prev')mobGo(-1);
     else if(k==='next')mobGo(1);
   });
@@ -3872,7 +3891,7 @@ async function runFor(id,text,useAI,opt){
     }
     var pick=function(k,fb){return(A&&A[k]&&String(A[k]).trim())?String(A[k]).trim():(fb||'')};
     var shim={diagnosis:'',notes:text,firstVisit:{post:{summary:''}}};
-    g.post={summary:pick('summary',draft.summary),labs:pick('labs',draft.labs),xray:pick('xray',draft.xray),direction:pick('direction',draft.direction),
+    g.post={summary:pick('summary',draft.summary),labs:pick('labs',draft.labs||(v.labx&&v.labx.t)||''),xray:pick('xray',draft.xray),direction:pick('direction',draft.direction),
       exercise:pick('exercise',fvLifestyleDraft('exercise',shim)),nutrition:pick('nutrition',fvLifestyleDraft('nutrition',shim)),sleep:pick('sleep',fvLifestyleDraft('sleep',shim)),
       nextDate:draft.nextDate||'',tests:draft.tests||[],videos:pickVideos(add.text||text,v.vids)};
     g.reviewed=false;g.reviewedAt=null;g.printedAt=null;g.ai=!!A;
@@ -4273,6 +4292,20 @@ function grState(v){
   if(g.ready)return (g.src&&g.src!=='today')?2:1;      // 1 오늘 EMR 반영·원장 확인 전 / 2 진료 전 가안
   return 3;                                            // 차트 대기
 }
+/* 🩸 의사 앱에서 혈액검사 결과 문자를 승인하면(v.labx) — 아직 원장 확인 전인 리포트는 「혈액검사 결과 설명」이 비어 있을 때 채우고,
+   「결과 나오면 보고」로 미뤄 둔 아이는 「확인할 것」으로 돌아옵니다(한 번만, 같은 문자로 다시 하지 않음). */
+function labxApply(){
+  var n=0;
+  S.items.forEach(function(v){
+    var x=v.labx,g=v.gr;if(!x||!x.t||!g||g.reviewed||g.labxAt===x.at||pending(v.id)||BUSY[v.id])return;
+    var ng=Object.assign({},g,{labxAt:x.at}),po=Object.assign({},g.post||{});
+    if(!String(po.labs||'').trim()||g.labsFrom==='msg'){po.labs=x.t;ng.labsFrom='msg';ng.post=po;if(g.post||g.ready)ng.ready=hasPost(po)}
+    if(isBlood(v))ng.blood=false;
+    v.gr=ng;put(v,false);n++;
+    if(ST.id===v.id&&document.getElementById('grov')){fillEditor(ng);refresh()}
+  });
+  if(n)renderAll(false);
+}
 function printQueueCount(){return todayList().filter(function(v){return grState(v)===0}).length}
 function rowHtml(v){
   var g=v.gr||{},s=grState(v),st,bt,hm=function(t){var d=new Date(t);return d.getHours()+':'+pad(d.getMinutes())};
@@ -4339,7 +4372,7 @@ function listHtml(){
   if(!a.length&&!booked.length)return top+'<div class="empty"><h2>오늘 등록된 환자가 없습니다</h2><p>환자가 등록되면 여기에서 성장 리포트를 만들고 인쇄할 수 있어요.</p></div>';
   return top+rows+bk;
 }
-return{open:open,close:close,listHtml:listHtml,print:printFor,unprint:unprint,queueCount:printQueueCount,printAll:printAll,toggleBlood:toggleBlood,roomRetry:roomRetry,setOpt:setOpt,pasteClick:pasteClick,fromChart:fromChart,pasteIntoOpen:pasteIntoOpen,looksLikeChart:looksLikeChart,autoTick:autoTick,importCodes:importCodes};
+return{labxApply:labxApply,open:open,close:close,listHtml:listHtml,print:printFor,unprint:unprint,queueCount:printQueueCount,printAll:printAll,toggleBlood:toggleBlood,roomRetry:roomRetry,setOpt:setOpt,pasteClick:pasteClick,fromChart:fromChart,pasteIntoOpen:pasteIntoOpen,looksLikeChart:looksLikeChart,autoTick:autoTick,importCodes:importCodes};
 })();
 /* 어디서든 EMR 차트를 Ctrl+V → 성장 리포트 (스캔 칸에 커서가 있어도 됨, 다른 입력칸은 그대로) */
 document.addEventListener('paste',function(e){try{
