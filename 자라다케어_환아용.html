@@ -355,7 +355,7 @@
       <h2 data-i18n="callTitle">화상통화 참여</h2>
       <p class="notice" id="callNotice" data-i18n="callNoticeDefault">병원에서 안내한 시간에 아래 버튼을 눌러 화상통화에 참여해주세요.</p>
       <div style="height:12px;"></div>
-      <a class="btn" id="zoomBtn" data-i18n="btnJoinNow" href="#" target="_blank" onclick="return guardOverseasOnly(event)">지금 참여하기</a>
+      <a class="btn" id="zoomBtn" data-i18n="btnJoinNow" href="#" target="_blank" rel="noopener" onclick="return guardOverseasOnly(event)">지금 참여하기</a>
     </div>
     <div class="card">
       <h2 data-i18n="callMemoTitle">통화 후 이해한 내용 남기기</h2>
@@ -388,7 +388,7 @@
       <h2 data-i18n="botTitle">자라다케어 챗봇</h2>
       <p class="notice" data-i18n="botNotice">성장, 성조숙증, 검사 결과 등 자주 묻는 질문은 챗봇에서 바로 안내받을 수 있어요.</p>
       <div style="height:12px;"></div>
-      <a class="btn" id="chatbotBtn" data-i18n="btnOpenBot" href="#" target="_blank">챗봇 열기</a>
+      <a class="btn" id="chatbotBtn" data-i18n="btnOpenBot" href="#" target="_blank" rel="noopener">챗봇 열기</a>
     </div>
   </div>
 
@@ -579,7 +579,9 @@ function applyI18n(){
 
 const qs = new URLSearchParams(location.search);
 const PID = qs.get('pid') || '';
-const API = qs.get('api') || '';
+/* 주소의 api= 는 우리 서버(구글 Apps Script)만 받습니다 — 누가 가짜 서버 주소를 넣은 링크를 보내도 기록·사진이 그쪽으로 가지 않게 합니다. */
+function safeApi(u){ u = String(u||'').trim(); if(!u) return ''; const dev = location.protocol === 'file:' || /^(localhost|127\.0\.0\.1)$/.test(location.hostname); try{ const x = new URL(u); if(x.protocol === 'https:' && x.hostname === 'script.google.com') return u; if(dev) return u; }catch(e){} return ''; }
+const API = safeApi(qs.get('api'));
 const DOB = qs.get('dob') || '';
 /* ---------------- 보안 연동 (서버의 Security.gs "검문소"와 짝) ----------------
  * 서버는 환아 요청에 접속 코드(pid)가 있어야 "그 환아 본인 기록"만 내려주고 받아줍니다.
@@ -606,7 +608,7 @@ const DOB = qs.get('dob') || '';
  * 파일은 드라이브에 비공개로 보관되어 주소만으로는 열 수 없습니다. 서버가 "본인 파일인지" 확인한 뒤 대신 읽어 보내주므로,
  * 화면에는 jrd-file://파일ID?sz=w400 형태의 가짜 주소를 쓰고, 이 코드가 실제 이미지로 바꿔 끼웁니다. */
 const FILE_SCHEME = 'jrd-file://';
-function fileUrl(fileId, sz){ return FILE_SCHEME + fileId + '?sz=' + sz; }
+function fileUrl(fileId, sz){ return FILE_SCHEME + String(fileId||'').replace(/[^A-Za-z0-9_-]/g,'') + '?sz=' + String(sz||'').replace(/[^A-Za-z0-9]/g,''); }
 const _fileCache = {};
 async function resolveFileUrl(url){
   if(!url || url.indexOf(FILE_SCHEME) !== 0) return url;
@@ -629,10 +631,12 @@ function hydrateFileImages(){
 }
 new MutationObserver(hydrateFileImages).observe(document.documentElement, { childList:true, subtree:true });
 const SEX = qs.get('sex') || '';
-const ZOOM = qs.get('zoom') || '';
+/* 주소로 들어온 링크는 http(s) 또는 같은 폴더의 파일 이름만 받습니다 (javascript: 같은 주소는 버림) */
+function safeLink(u, allowRel){ u = String(u||'').trim(); if(/^https?:\/\//i.test(u)) return u; if(allowRel && /^[^:\/\\][^:]*$/.test(u) && u.indexOf('//') !== 0) return u; return ''; }
+const ZOOM = safeLink(qs.get('zoom'));
 const NEXTCALL = qs.get('nextcall') || '';
 const NEXT_PLAN = (qs.get('plan') || '').split(',').map(s=>s.trim()).filter(Boolean); // ['bloodtest','boneage'] 등
-const CHATBOT_URL = qs.get('bot') || '자라다케어_챗봇.html';
+const CHATBOT_URL = safeLink(qs.get('bot'), true) || '자라다케어_챗봇.html';
 // 국내/해외 여부: 화상통화·엑스레이는 해외 환자만 쓰는 기능이라, 링크의 ?loc= 값으로 구분합니다.
 const LOCATION = (qs.get('loc') || 'domestic').toLowerCase();
 const IS_OVERSEAS = LOCATION === 'overseas';
@@ -729,6 +733,8 @@ function acceptGate(){
 if(PID && localStorage.getItem(CONSENT_KEY)){
   document.getElementById('consentGate').style.display = 'none';
 }
+/* onclick 안의 따옴표 문자열에 넣을 주소: http(s)이고 따옴표·꺾쇠·역슬래시·공백이 없을 때만 */
+function jsUrl(u){ u = String(u||'').trim(); return /^https?:\/\/[^\s'"<>\\`]+$/i.test(u) ? u.replace(/&/g,'&amp;') : ''; }
 function escapeHtml(s){ return (s||'').toString().replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function fmtDate(d){ if(!d) return ''; const dt=new Date(d+'T00:00:00'); if(isNaN(dt)) return t('dateUnknown'); return `${dt.getFullYear()}.${String(dt.getMonth()+1).padStart(2,'0')}.${String(dt.getDate()).padStart(2,'0')}`; }
 
@@ -1007,7 +1013,7 @@ async function loadPastMeasurements(){
   try{
     const res = await fetch(API + (API.includes('?')?'&':'?') + 't=' + Date.now());
     const rows = await res.json();
-    if(!Array.isArray(rows)){ frDiag('❌ 서버가 목록 대신 오류를 보냈어요: ' + ((rows && (rows.message || rows.code)) || '알 수 없음')); try{ renderFirstRoom([]); }catch(e){} list.innerHTML = `<div class="empty">서버 응답 오류 — ${(rows && (rows.message || rows.code)) || ''}</div>`; return; }
+    if(!Array.isArray(rows)){ frDiag('❌ 서버가 목록 대신 오류를 보냈어요: ' + ((rows && (rows.message || rows.code)) || '알 수 없음')); try{ renderFirstRoom([]); }catch(e){} list.innerHTML = `<div class="empty">서버 응답 오류 — ${escapeHtml((rows && (rows.message || rows.code)) || '')}</div>`; return; }
     // 초진방은 그래프 그리기와 무관하게 먼저 그립니다 (그래프 오류가 초진방을 막지 않도록)
     try{ renderVisitGuide(rows.filter(r=>r.pid===PID && r.type==='visitGuide')); }catch(e){ console.error(e); }
     window._frRep = rows.filter(r=>r.pid===PID && r.type==='fvreport');
@@ -1079,7 +1085,7 @@ function renderRecVideos(rows){
   card.style.display='block';
   box.innerHTML = videos.map(v=>{
     const thumb = youtubeThumbUrl(v.link);
-    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer;" onclick="window.open('${v.link}','_blank')">
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer;" onclick="window.open('${jsUrl(v.link)}','_blank')">
       ${thumb ? `<img src="${thumb}" style="width:88px;height:66px;object-fit:cover;border-radius:8px;flex-shrink:0;background:#ddd;">` : `<div style="width:88px;height:66px;border-radius:8px;background:var(--border);flex-shrink:0;"></div>`}
       <div style="flex:1;min-width:0;">
         <div style="font-size:13px;font-weight:700;">${escapeHtml(v.title||'')}</div>
@@ -1560,7 +1566,7 @@ function frSetWatch(id, list){
 function frVideoHtml(list){
   return (list||[]).map(v=>{
     const thumb = youtubeThumbUrl(v.link);
-    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer;" onclick="window.open('${escapeHtml(v.link)}','_blank')">
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer;" onclick="window.open('${jsUrl(v.link)}','_blank')">
       ${thumb ? `<img src="${thumb}" style="width:88px;height:66px;object-fit:cover;border-radius:8px;flex-shrink:0;background:#ddd;">` : `<div style="width:88px;height:66px;border-radius:8px;background:var(--border);flex-shrink:0;"></div>`}
       <div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:700;">${escapeHtml(v.title||'')}</div><div style="font-size:11.5px;color:var(--secondary);margin-top:2px;">${escapeHtml(v.question||'')}</div></div>
       <div style="color:var(--secondary);font-size:18px;flex-shrink:0;">▶</div></div>`;

@@ -2241,7 +2241,7 @@ const PM_CODE=String(new URLSearchParams(location.search).get('c')||'').trim().t
 const PM={off:0,alerted:new Set(),sound:false,ctx:null,wl:null,notif:false,fail:0,live:{},cur:'',busy:false,binding:{},draft:{},rateSel:{},msg:{}};
 const PM_DEFAULT_ID='AKfycbzTNYUR8rlsZSmQl1AQrIkB-HGARhUQDwP4nrDFti3R7-ip4ipRGOqk4lVfVZpIFSwONg';
 const PM_GUIDE_SITE='https://jaradacare.com/app.html';
-function pmApi(){const a=new URLSearchParams(location.search).get('a')||PM_DEFAULT_ID;return /^https?:/.test(a)?a:'https://script.google.com/macros/s/'+a+'/exec'}
+function pmApi(){let a=String(new URLSearchParams(location.search).get('a')||PM_DEFAULT_ID);const dev=location.protocol==='file:'||/^(localhost|127\.0\.0\.1)$/.test(location.hostname);if(/^https?:/.test(a)){let ok=dev;try{const x=new URL(a);if(x.protocol==='https:'&&x.hostname==='script.google.com')ok=true}catch(e){}if(ok)return a;a=PM_DEFAULT_ID}if(!/^[A-Za-z0-9_-]+$/.test(a))a=PM_DEFAULT_ID;return 'https://script.google.com/macros/s/'+a+'/exec'}
 function pmToday(){const n=new Date(Date.now()+PM.off);return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0')}
 /* 귀가했거나 어제 이전 방문이면 카드를 찍어도 보여주지 않음(서버도 같은 기준으로 거르고, 여기서 한 번 더) */
 function pmUsable(v){if(!v||v.step>=9)return false;if(v.date&&v.date!==pmToday())return false;return true}

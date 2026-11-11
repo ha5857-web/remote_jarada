@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest-doctor.json">
 <meta name="theme-color" content="#1B3A4B">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   :root{
@@ -1827,6 +1827,7 @@ function genAccessCode(){
   }
   return uid()+uid();
 }
+function jsUrl(u){ u = String(u||'').trim(); return /^https?:\/\/[^\s'"<>\\`]+$/i.test(u) ? u.replace(/&/g,'&amp;') : ''; }   // onclick 안 따옴표 문자열에 넣을 주소
 function escapeHtml(s){ return (s||'').toString().replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function fmtDate(d){ if(!d) return ''; const dt=new Date(d+'T00:00:00'); if(isNaN(dt)) return '날짜 미상'; return `${dt.getFullYear()}.${String(dt.getMonth()+1).padStart(2,'0')}.${String(dt.getDate()).padStart(2,'0')}`; }
 function timeAgo(isoStr){
@@ -2914,7 +2915,7 @@ function previewPhoneOnlyUpdate(rows2D){
     <table style="width:100%;font-size:11.5px;border-collapse:collapse;">
       <tr style="text-align:left;color:var(--secondary);"><th>이름</th><th>챠트번호</th><th>기존 전화</th><th>새 전화</th><th>기존 주소</th><th>새 주소</th></tr>
       ${phoneOnlyParsedRows.map(r=>`<tr>
-        <td>${escapeHtml(r.name||'')}</td><td>${r.chartNo}</td>
+        <td>${escapeHtml(r.name||'')}</td><td>${escapeHtml(r.chartNo||'')}</td>
         <td>${escapeHtml(r.oldPhone||'(없음)')}</td>
         <td>${cell(r.phoneChanged, r.newPhone, !r.newPhone)}</td>
         <td style="max-width:160px;">${escapeHtml(r.oldAddress||'(없음)')}</td>
@@ -4526,11 +4527,11 @@ function renderDetail(){
     <div id="ghx_doc"></div>
     <div class="contact-row">
       ${p.phone ? `<a class="btn btn-outline" href="tel:${escapeHtml(p.phone)}">📞 전화</a>` : ''}
-      ${p.phone ? `<a class="btn btn-outline" href="https://wa.me/${escapeHtml(p.phone.replace(/[^0-9]/g,''))}" target="_blank">💬 통화 연결</a>` : ''}
+      ${p.phone ? `<a class="btn btn-outline" href="https://wa.me/${escapeHtml(p.phone.replace(/[^0-9]/g,''))}" target="_blank" rel="noopener">💬 통화 연결</a>` : ''}
       ${p.email ? `<a class="btn btn-outline" href="mailto:${escapeHtml(p.email)}">✉️ 이메일</a>` : ''}
     </div>
     <div class="contact-row">
-      ${p.zoomLink ? `<a class="btn btn-primary" href="${escapeHtml(p.zoomLink)}" target="_blank">🎥 화상통화 시작</a>` : ''}
+      ${/^https?:\/\//i.test(p.zoomLink||'') ? `<a class="btn btn-primary" href="${escapeHtml(p.zoomLink)}" target="_blank" rel="noopener">🎥 화상통화 시작</a>` : ''}
       <button class="btn btn-outline" onclick="sendPatientLink('${p.id}')">🔗 환아 링크 보내기</button>
       <button class="btn btn-outline" id="queueLinkBtn" onclick="toggleQueueLinkSend()">☐ 링크도 일괄 발송 대기</button>
       <button class="btn btn-outline" onclick="openChatbot()">💬 챗봇 열기</button>
@@ -5895,7 +5896,7 @@ async function renderLabPending(){
           </span>
         </div>
         <div style="display:flex;gap:8px;" onclick="event.stopPropagation()">
-          <input type="date" id="labDob_${r.id}" value="${d.dob||''}" style="flex:1;font-size:11px;padding:6px;border:1px solid var(--border);border-radius:6px;">
+          <input type="date" id="labDob_${r.id}" value="${escapeHtml(d.dob||'')}" style="flex:1;font-size:11px;padding:6px;border:1px solid var(--border);border-radius:6px;">
           <input type="text" id="labPhone_${r.id}" value="${escapeHtml(d.phone||'')}" placeholder="연락처 (010-...)" style="flex:1;font-size:11px;padding:6px;border:1px solid var(--border);border-radius:6px;">
         </div>
         ${!d.dob ? `<div style="font-size:11px;color:var(--danger);">⚠️ 생년월일이 없어 나이가 빠진 문자입니다 — 생년월일 입력 후 아래 「문자 다시 만들기」를 눌러주세요.</div>` : ''}
@@ -6612,10 +6613,12 @@ function handleAuthFailure(){
 (function installAuthFetch(){
   const origFetch = window.fetch.bind(window);
   window.fetch = function(input, init){
+    let isApiGet = false;
     try{
       const api = localStorage.getItem('jrd_api_url') || '';
       let url = typeof input === 'string' ? input : ((input && input.url) || '');
       const token = getAuthToken();
+      isApiGet = !!api && url.indexOf(api) === 0 && ((init && init.method) || 'GET').toUpperCase() === 'GET';
       if(api && token && url.indexOf(api) === 0){
         const method = ((init && init.method) || 'GET').toUpperCase();
         if(method === 'POST'){
@@ -6626,14 +6629,27 @@ function handleAuthFailure(){
         }
       }
     }catch(e){}
-    return origFetch(input, init);
+    const out = origFetch(input, init);
+    if(!isApiGet) return out;
+    /* 서버에서 받은 행의 id·pid·type·fileId는 화면의 버튼(onclick) 안에 그대로 들어갑니다.
+       환아 쪽에서 만든 행은 id를 직접 정할 수 있으므로, 따옴표·꺾쇠 같은 글자는 받자마자 지워 둡니다. */
+    return out.then(res=>{
+      try{ const oj = res.json.bind(res); res.json = ()=>oj().then(jrdCleanRows); }catch(e){}
+      return res;
+    });
   };
 })();
+function jrdCleanRows(rows){
+  if(!Array.isArray(rows)) return rows;
+  const bad = /['"<>`\\&\s]/g, keys = ['id','pid','type','fileId'];
+  rows.forEach(r=>{ if(!r || typeof r !== 'object') return; keys.forEach(k=>{ const v = r[k]; if(v == null) return; if(typeof v !== 'string'){ if(typeof v === 'object') r[k] = ''; return; } if(bad.test(v)){ bad.lastIndex = 0; r[k] = v.replace(bad, ''); } bad.lastIndex = 0; }); });
+  return rows;
+}
 /* ---------------- 사진·PDF 불러오기 ----------------
  * 파일은 드라이브에 비공개로 보관되어 주소만으로는 열 수 없습니다. 서버가 권한을 확인한 뒤 대신 읽어 보내주므로,
  * 화면에는 jrd-file://파일ID?sz=w400 형태의 가짜 주소를 쓰고, 이 코드가 실제 이미지로 바꿔 끼웁니다. */
 const FILE_SCHEME = 'jrd-file://';
-function fileUrl(fileId, sz){ return FILE_SCHEME + fileId + '?sz=' + sz; }
+function fileUrl(fileId, sz){ return FILE_SCHEME + String(fileId||'').replace(/[^A-Za-z0-9_-]/g,'') + '?sz=' + String(sz||'').replace(/[^A-Za-z0-9]/g,''); }
 const _fileCache = {};
 async function resolveFileUrl(url){
   if(!url || url.indexOf(FILE_SCHEME) !== 0) return url;
@@ -8006,7 +8022,7 @@ function computeAndRenderVideoRecs(p){
     const thumb = youtubeThumbUrl(r.v['영상링크']);
     html += `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);border-left:3px solid ${tierColors[info.tier]};padding-left:8px;">
       <input type="checkbox" class="videoRecCheck" data-idx="${i}" ${i<3?'checked':''} onclick="event.stopPropagation()" style="flex-shrink:0;">
-      <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;cursor:pointer;" onclick="window.open('${r.v['영상링크']}','_blank')">
+      <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;cursor:pointer;" onclick="window.open('${jsUrl(r.v['영상링크'])}','_blank')">
         ${thumb ? `<img src="${thumb}" style="width:72px;height:54px;object-fit:cover;border-radius:6px;flex-shrink:0;background:#ddd;">` : `<div style="width:72px;height:54px;border-radius:6px;background:var(--border);flex-shrink:0;"></div>`}
         <div style="flex:1;min-width:0;">
           <div style="font-size:12.5px;font-weight:700;">${escapeHtml(r.v['영상명']||r.v['질문']||'')}</div>
@@ -11023,7 +11039,7 @@ async function bqFileText(f){
       if(ai && ai.rows){ return { text: '', pre: { rows: ai.rows, cancelled: ai.cancelled, skipped: [] } }; }
       bqSay('AI 읽기를 쓸 수 없어 글자 인식으로 대신해요 (' + ((ai && ai.fail) || '') + ')', true);
     }catch(e){ bqSay('AI 읽기에 실패해 글자 인식으로 대신해요 (' + (e.message || e) + ')', true); }
-    if(typeof Tesseract === 'undefined') await bqLoadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js');
+    if(typeof Tesseract === 'undefined') await bqLoadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js');
     const r = await Tesseract.recognize(f, 'kor+eng');
     return { text: r.data.text || '', pre: null };
   }
@@ -11117,7 +11133,7 @@ function bqRenderPreview(skipped, cancelled, batchUsed){
   { const br = document.getElementById('bq_batchRow'); if(br) br.style.display = ((skipped || []).length ? 'flex' : 'none'); }   // 날짜를 못 읽은 줄이 있을 때만 이용일 칸을 보여줘요
   if(!bqParsed.length && bqCancelNos.length){ box.innerHTML = '<div style="font-size:12px;margin-bottom:6px;">새로 저장할 예약은 없고, <b>취소된 예약 ' + bqCancelNos.length + '건</b>을 읽었어요.</div><button type="button" class="btn btn-primary btn-block" onclick="bqApplyCancels()">대기열에서도 취소 처리</button>'; return; }
   if(!bqParsed.length){ box.innerHTML = '<div style="color:var(--danger);font-size:12px;">읽을 수 있는 예약을 찾지 못했어요. 이름·연락처·날짜가 같이 보이는지 확인하거나 「＋ 직접 추가」를 쓰세요.' + (skipped.length ? '<br>읽지 못한 줄: ' + escapeHtml(skipped.slice(0,3).join(' / ')) : '') + '</div>'; return; }
-  const inp = (id, v, ph, type, w) => `<input type="${type||'text'}" id="${id}" value="${escapeHtml(v||'')}" placeholder="${ph||''}" style="font-size:12px;padding:5px;width:${w||'100%'};min-width:0;">`;
+  const inp = (id, v, ph, type, w) => `<input type="${type||'text'}" id="${id}" value="${escapeHtml(v||'')}" placeholder="${escapeHtml(ph||'')}" style="font-size:12px;padding:5px;width:${w||'100%'};min-width:0;">`;
   box.innerHTML = '<div style="font-size:12px;margin-bottom:4px;"><b>' + bqParsed.length + '건</b>을 읽었어요. 맞는지 확인하고 고친 뒤 저장하세요.' + (cancelled ? ' (취소 ' + cancelled + '건은 뺐어요' + (bqCancelNos.length ? ' · 저장하면 대기열의 같은 예약번호도 취소 처리해요' : '') + ')' : '') + (skipped.length ? ' (읽지 못한 줄 ' + skipped.length + '개)' : '') + (batchUsed ? '<br><span style="color:var(--secondary);">날짜가 표에 없어서 위에서 고른 이용일(' + batchUsed.slice(5).replace('-', '/') + ')로 넣었어요.</span>' : '') + '</div>'
     + bqParsed.map((r, i) => `<div style="padding:6px 0;border-bottom:1px solid var(--border);"><label style="font-size:12px;"><input type="checkbox" id="bq_p_ok${i}" checked> ${i+1}번 예약</label>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:3px;">${inp('bq_p_name'+i, r.name, '예약자')}${inp('bq_p_phone'+i, r.phone, r.last4 ? '연락처(전체 번호 모르면 비워두세요 · 뒤 ' + r.last4 + ')' : '연락처')}${inp('bq_p_vis'+i, r.visitor, '방문자(아이) 이름')}<span></span>${inp('bq_p_date'+i, r.date, '', 'date')}${inp('bq_p_time'+i, r.time, '', 'time')}</div>${inp('bq_p_svc'+i, r.service, '상품(초진 등)')}</div>`).join('')
