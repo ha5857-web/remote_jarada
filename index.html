@@ -1790,8 +1790,7 @@ function autoSyncToCloud(){
       // 덮어써서 지워버릴 수 있었습니다. 이 기기의 변경은 그대로 남아 있고, 다음에 연결이 되면 그때 같이 올라갑니다.
       let rows;
       try{
-        const res = await fetch(api + '?key=' + encodeURIComponent(key) + '&only=doctordata');
-        rows = await res.json();
+        rows = await cloudDoctorRows(api, key);
       }catch(e){ throw new Error('클라우드 읽기 실패'); }
       if(!Array.isArray(rows)) throw new Error('서버 응답 이상: ' + describeServerReply(rows));
       const combined = reassembleDoctorData(rows, key);
@@ -1803,6 +1802,7 @@ function autoSyncToCloud(){
       await fetch(api, { method:'POST', body: JSON.stringify({ action:'savedoctordata', key, data: JSON.stringify(withTombs(merged)) }) });
       patients = merged;
       savePatientsLocalOnly();
+      cloudDeltaCommit();
       if(typeof renderPatientList==='function') renderPatientList();
       if(typeof renderDashboard==='function') renderDashboard();
       const s=document.getElementById('syncStatus'); if(s){ s.textContent = `자동 동기화됨 (${new Date().toLocaleTimeString('ko-KR')})`; s.style.color='var(--ok)'; }
@@ -6625,7 +6625,7 @@ function handleAuthFailure(){
         const method = ((init && init.method) || 'GET').toUpperCase();
         if(method === 'POST'){
           let b = null; try{ b = JSON.parse(init.body); }catch(e){}
-          if(b && typeof b === 'object' && b.action !== 'login'){ b.auth = token; init = Object.assign({}, init, { body: JSON.stringify(b) }); }
+          if(b && typeof b === 'object' && b.action !== 'login' && b.action !== 'caps'){ b.auth = token; init = Object.assign({}, init, { body: JSON.stringify(b) }); }
         } else if(url.indexOf('auth=') === -1){
           input = url + (url.indexOf('?') === -1 ? '?' : '&') + 'auth=' + encodeURIComponent(token);
         }
@@ -6781,6 +6781,61 @@ function groupDoctorDataSaves(rows, key){
     const complete = total > 0 && g.length === total && g.every((r,i)=> parseInt(r.refId||0) === i);
     return { ts:k, rows:g, total, complete };
   });
+}
+/* ───────── 바뀐 아이만 받기 (2026-11-11) ─────────
+ * 예전: 2분마다·저장할 때마다 클라우드의 환아 전체를 통째로 내려받아 이 기기 것과 합쳤습니다.
+ * 지금: 서버(Security.gs의 docpull)에 ① "마지막 저장이 내가 아는 것(stamp)과 같은지"만 먼저 묻고(몇 글자),
+ *       ② 다르면 내가 가진 아이들의 "id|수정시각" 목록을 보내 수정시각이 다른 아이만 받습니다.
+ * 받은 것은 예전과 똑같은 모양(조각 행)으로 돌려주므로, 합치는 규칙(mergePatientArrays)과 저장은 한 글자도 바뀌지 않았습니다.
+ * 서버가 예전 것이거나(caps 없음) 조금이라도 이상하면 예전 방식(전체 받기)으로 받습니다.
+ * stamp는 "그때 클라우드 내용이 이 기기에 다 들어 있다"는 뜻이라, 실제로 합친 뒤(cloudDeltaCommit)에만 기억하고,
+ * 이 기기 목록이 그 뒤로 줄거나 옛것으로 바뀐 흔적이 있으면(백업 복원 등) 버리고 ②부터 다시 합니다. 새로고침하면 처음부터 다시 확인합니다. */
+const DELTA = { caps:null, capsAt:0, key:'', stamp:'', map:null, pending:null, stat:{ same:0, part:0, full:0 } };
+async function deltaCaps(api){
+  if(localStorage.getItem('jrd_delta_off') === '1') return false;
+  if(DELTA.caps === true) return true;
+  if(DELTA.caps === false && Date.now() - DELTA.capsAt < 600000) return false;
+  try{ const j = await (await fetch(api, { method:'POST', body: JSON.stringify({ action:'caps' }) })).json(); DELTA.caps = !!(j && j.status === 'ok' && j.caps && j.caps.docpull); }
+  catch(e){ DELTA.caps = false; }
+  DELTA.capsAt = Date.now();
+  return DELTA.caps;
+}
+function deltaStillCovers(key){
+  if(!DELTA.stamp || !DELTA.map || DELTA.key !== key) return false;
+  const cur = new Map(); patients.forEach(p=>{ if(p && p.id) cur.set(p.id, p.updatedAt || ''); });
+  let tomb = {}; try{ tomb = tombLoad() || {}; }catch(e){}
+  for(const [id, u] of DELTA.map){ if(tomb[id]) continue; const c = cur.get(id); if(c === undefined || c < u) return false; }
+  return true;
+}
+async function cloudDoctorRows(api, key){
+  DELTA.pending = null;
+  if(await deltaCaps(api)){
+    try{
+      const ask = async extra => (await fetch(api, { method:'POST', body: JSON.stringify(Object.assign({ action:'docpull', key }, extra)) })).json();
+      let j = null;
+      if(deltaStillCovers(key)) j = await ask({ stamp: DELTA.stamp });
+      if(!j || (j.status === 'ok' && !j.same && !j.none && !Array.isArray(j.patients)))
+        j = await ask({ have: patients.filter(p=>p && p.id).map(p=>p.id + '|' + (p.updatedAt || '')).join('\n') });
+      if(j && j.status === 'ok'){
+        if(j.none) return [];
+        const list = j.same ? [] : j.patients;
+        if(Array.isArray(list) && j.stamp){
+          DELTA.pending = { key, stamp: String(j.stamp) };
+          DELTA.stat[j.same ? 'same' : 'part']++;
+          return [{ type:'doctordata', pid:key, refId:'0', answer:'1', timestamp:String(j.stamp), question: JSON.stringify(list) }];
+        }
+      }
+    }catch(e){ /* 아래 예전 방식으로 */ }
+  }
+  DELTA.stat.full++;
+  const res = await fetch(api + '?key=' + encodeURIComponent(key) + '&only=doctordata');
+  return res.json();
+}
+// 받은 것을 patients 에 실제로 합친 뒤에 부릅니다 — 이때부터 "이 stamp 까지는 이 기기에 다 있다"고 기억합니다.
+function cloudDeltaCommit(){
+  const pd = DELTA.pending; DELTA.pending = null; if(!pd) return;
+  DELTA.key = pd.key; DELTA.stamp = pd.stamp;
+  DELTA.map = new Map(); patients.forEach(p=>{ if(p && p.id) DELTA.map.set(p.id, p.updatedAt || ''); });
 }
 function reassembleDoctorData(rows, key){
   const parts = rows.filter(r=>r.type==='doctordata' && r.pid===key);
@@ -7080,8 +7135,7 @@ async function pullFromCloudQuiet(force){
   if(ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) return;
   quietPulling = true; lastQuietPullAt = Date.now();
   try{
-    const res = await fetch(api + '?key=' + encodeURIComponent(key) + '&only=doctordata');
-    const rows = await res.json();
+    const rows = await cloudDoctorRows(api, key);
     if(!Array.isArray(rows)) return;
     const combined = reassembleDoctorData(rows, key);
     if(combined == null) return;
@@ -7089,10 +7143,11 @@ async function pullFromCloudQuiet(force){
     if(!Array.isArray(loaded)) return;
     const sig = list => JSON.stringify(list.map(p=>[p.id, p.updatedAt||'', !!p.pendingChartSend, !!p.pendingLinkSend, !!p.pendingFvLinkSend, !!p.pendingGuideSend, p.firstFlag ? (p.firstFlag.done ? 2 : 1) : 0]).sort());
     const merged = mergePatientArrays(patients, loaded);
-    if(sig(merged) === sig(patients)) return;          // 달라진 게 없으면 아무것도 안 함
+    if(sig(merged) === sig(patients)){ cloudDeltaCommit(); return; }   // 달라진 게 없으면 아무것도 안 함(여기까지 받았다는 것만 기억)
     if(batchSendRunning) return;                       // 기다리는 사이 발송이 시작됐으면 건너뜀
     patients = merged;
     savePatientsLocalOnly();                           // 이 기기에만 저장 (클라우드에는 쓰지 않음)
+    cloudDeltaCommit();
     renderPatientList();                               // 대기 바도 같이 다시 그립니다
   }catch(e){ /* 조용히 무시 — 다음 기회에 다시 시도 */ }
   finally{ quietPulling = false; }
@@ -7111,8 +7166,7 @@ async function syncPatientsNow(){
     // [안전장치] 클라우드의 기존 데이터를 못 읽으면 저장하지 않고 멈춥니다(다른 기기의 더 많은 데이터를 덮어써서 지우는 걸 막기 위해).
     let rows;
     try{
-      const res = await fetch(api + '?key=' + encodeURIComponent(key) + '&only=doctordata');
-      rows = await res.json();
+      rows = await cloudDoctorRows(api, key);
     }catch(e){ throw new Error('클라우드 읽기 실패'); }
     if(!Array.isArray(rows)) throw new Error('서버 응답 이상: ' + describeServerReply(rows));
     const combined = reassembleDoctorData(rows, key);
@@ -7124,6 +7178,7 @@ async function syncPatientsNow(){
     await fetch(api, { method:'POST', body: JSON.stringify({ action:'savedoctordata', key, data: JSON.stringify(withTombs(merged)) }) });
     patients = merged;
     savePatientsLocalOnly();
+    cloudDeltaCommit();
     const s=document.getElementById('syncStatus'); if(s){ s.textContent = `자동 동기화됨 (${new Date().toLocaleTimeString('ko-KR')})`; s.style.color='var(--ok)'; }
   }catch(err){
     const s=document.getElementById('syncStatus');

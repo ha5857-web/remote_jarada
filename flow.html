@@ -2912,6 +2912,24 @@ function docPatients(force){
   }).catch(function(){DOC.p=DOC.p||docLocal();DOC.err='net';return DOC.p}).then(function(x){DOC.busy=null;return x});
   return DOC.busy;
 }
+/* 서버가 새 것이면(caps.docone) 환아 전체 대신 이 아이 한 명의 차트만 받습니다. 아니면 위의 예전 방식(전체 받기). 아이별로 10분 기억. */
+var DOCCAP={ok:null,at:0},DOC1={};
+function docCaps(){
+  if(DOCCAP.ok===true||(DOCCAP.ok===false&&Date.now()-DOCCAP.at<600000))return Promise.resolve(DOCCAP.ok);
+  return fetch(apiUrl(),{method:'POST',body:JSON.stringify({action:'caps'})}).then(function(r){return r.json()}).then(function(j){DOCCAP.ok=!!(j&&j.status==='ok'&&j.caps&&j.caps.docone)}).catch(function(){DOCCAP.ok=false}).then(function(){DOCCAP.at=Date.now();return DOCCAP.ok});
+}
+function docFor(v){
+  var key=ls.get('jrd_sync_key'),url=apiUrl(),t=authToken();
+  if(!key||!url||!t||!v)return docPatients(false);
+  var c=DOC1[v.id];if(c&&Date.now()-c.at<600000)return Promise.resolve(c.list);
+  return docCaps().then(function(ok){
+    if(!ok)return docPatients(false);
+    return fetch(url,{method:'POST',body:JSON.stringify({action:'docone',auth:t,key:key,charts:[String(v.chartNo||'')],names:[String(v.name||'')]})}).then(function(r){return r.json()}).then(function(j){
+      if(!j||j.status!=='ok'||!Array.isArray(j.patients))return docPatients(false);
+      DOC.err='';DOC1[v.id]={at:Date.now(),list:j.patients};return j.patients;
+    }).catch(function(){return docPatients(false)});
+  });
+}
 function docFind(list,v){
   var dg=function(x){return String(x||'').replace(/\D/g,'').replace(/^0+/,'')},c=dg(v.chartNo);
   var m=c?list.filter(function(p){return dg(p.chartNo)===c}):[];
@@ -3621,8 +3639,8 @@ function mbEmrRender(){
     el.innerHTML=emrHtml(cur?cur.chartNoteRaw:'',prev?prev.chartNoteRaw:'',cur?cur.date:'',EMRV,want);
     var go=document.getElementById('grov');if(go)go.classList.toggle('emr-open',!!EMRV.open&&!!cur);
   };
-  if(DOC.p)draw(DOC.p);else el.innerHTML='<div class="emr-none">📋 EMR 차트 불러오는 중…</div>';
-  docPatients(false).then(draw);
+  if(DOC1[v.id])draw(DOC1[v.id].list);else if(DOC.p)draw(DOC.p);else el.innerHTML='<div class="emr-none">📋 EMR 차트 불러오는 중…</div>';
+  docFor(v).then(draw);
 }
 function mobGo(d){var q=ST.mq||[],i=q.indexOf(ST.id),j=i+d;if(i<0||j<0||j>=q.length||!S.items.get(q[j]))return;open(q[j],{mq:q,t:document.getElementById('grov').dataset.t})}
 function shellHtml(v){
