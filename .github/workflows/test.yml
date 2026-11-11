@@ -1,0 +1,36 @@
+name: 자동 시험
+on:
+  push:
+    branches: [main, flow-report-swap-fix]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      TZ: Asia/Seoul
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tests/package-lock.json
+      - name: 시험 도구 설치
+        working-directory: tests
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: 시험 실행
+        working-directory: tests
+        run: npm test
+      - name: 실패했을 때 화면 사진 보관
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-output
+          path: tests/out
+          if-no-files-found: ignore

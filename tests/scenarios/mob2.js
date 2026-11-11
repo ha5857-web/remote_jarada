@@ -1,0 +1,17 @@
+const { chromium, devices } = require('playwright');const {seed,route}=require('./mob_seed');
+const FLOW=process.argv[2],OUT=process.argv[3];
+(async()=>{const b=await chromium.launch();const ctx=await b.newContext(Object.assign({},devices['iPhone 13']));const DB=seed();await route(ctx,DB);
+const p=await ctx.newPage();const errs=[];p.on('pageerror',e=>errs.push(String(e)));
+await p.goto('file://'+FLOW+'#report');await p.waitForFunction(()=>typeof S!=='undefined'&&S.loaded);await p.waitForTimeout(400);
+await p.tap('.mr-card >> nth=1');await p.waitForTimeout(700);await p.screenshot({path:OUT+'/o1_edit.png'});
+console.log('heights:',await p.evaluate(()=>['summary','labs','xray'].map(k=>document.getElementById('fr-'+k).offsetHeight)));
+await p.tap('#fr-labs');await p.keyboard.type('갑상선 수치 정상이에요.');await p.waitForTimeout(800);
+await p.tap('[data-fr="tab"][data-t="view"]');await p.waitForTimeout(500);await p.tap('[data-fr="zoom"]');await p.waitForTimeout(400);
+console.log('zoom:',await p.evaluate(()=>document.getElementById('gr-inner').style.transform),'· body scrollWidth',await p.evaluate(()=>document.getElementById('mb-body').scrollWidth));
+await p.screenshot({path:OUT+'/o2_zoom.png'});
+await p.tap('[data-fr="zoom"]');await p.waitForTimeout(300);console.log('unzoom:',await p.evaluate(()=>document.getElementById('gr-inner').style.transform));
+await p.tap('[data-fr="next"]').catch(()=>{});await p.waitForTimeout(300);
+await p.tap('[data-fr="prev"]');await p.waitForTimeout(600);console.log('prev →',await p.locator('.mb-who b').innerText(),'· tab kept',await p.evaluate(()=>document.getElementById('grov').dataset.t),'· labs saved',JSON.stringify(DB.get('r2').gr.post.labs));
+await p.tap('#fr-okbtn');await p.waitForTimeout(1200);await p.tap('#fr-okbtn');await p.waitForTimeout(1200);
+console.log('last toast:',await p.locator('.toast').first().innerText().catch(()=>''));
+console.log('errors',errs);await b.close()})().catch(e=>{console.error('FAIL',e);process.exit(1)});

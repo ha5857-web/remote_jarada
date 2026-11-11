@@ -1,0 +1,75 @@
+[
+ {
+  "file": "cards.js",
+  "name": "카드 번호 배정·교체"
+ },
+ {
+  "file": "cardx.js",
+  "name": "카드 × 로 지우기"
+ },
+ {
+  "file": "cardsheet.js",
+  "name": "카드 인쇄 시트(낮은 번호 더 많이)"
+ },
+ {
+  "file": "release.js",
+  "name": "귀가·전날 카드는 QR 차단"
+ },
+ {
+  "file": "nextday.js",
+  "name": "다음 날 넘어간 아이 처리"
+ },
+ {
+  "file": "sameday.js",
+  "name": "같은 날 재접수"
+ },
+ {
+  "file": "bookx.js",
+  "name": "예약 칸 × 삭제"
+ },
+ {
+  "file": "cancel.js",
+  "name": "취소·삭제 예약 숨김"
+ },
+ {
+  "file": "open.js",
+  "name": "아이 카드 열기·상세"
+ },
+ {
+  "file": "copy.js",
+  "name": "복사 버튼"
+ },
+ {
+  "file": "report.js",
+  "name": "성장 리포트 만들기·확인"
+ },
+ {
+  "file": "cmp.js",
+  "name": "리포트: 지난 방문과 비교"
+ },
+ {
+  "file": "txchart.js",
+  "name": "리포트: 치료 시작·용량 화살표"
+ },
+ {
+  "file": "txflow.js",
+  "name": "현황판: 치료 시작 표시"
+ },
+ {
+  "file": "labx.js",
+  "name": "혈액검사 문자 → 리포트 반영"
+ },
+ {
+  "file": "mob.js",
+  "name": "휴대폰 리포트 관리"
+ },
+ {
+  "file": "mob2.js",
+  "name": "휴대폰 리포트 편집"
+ },
+ {
+  "file": "emr.js",
+  "name": "휴대폰 EMR 차트 칸 (현황판·의사 앱)",
+  "args": "flow+index"
+ }
+]
