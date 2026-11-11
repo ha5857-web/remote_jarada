@@ -23,9 +23,8 @@ jobs:
         working-directory: tests
         run: |
           npm ci
-          # 글꼴 등 시스템 꾸러미까지 설치(가끔 우분투 저장소 접속이 끊겨서 3번까지 다시 시도). 끝내 안 되면 브라우저만 설치합니다.
-          for i in 1 2 3; do npx playwright install --with-deps chromium && exit 0; echo "다시 시도 $i"; sleep 20; done
-          npx playwright install chromium
+          # 글꼴 등 시스템 꾸러미까지 설치. 우분투 저장소 접속이 끊겨 4분 안에 안 되면 브라우저만 설치합니다.
+          timeout 240 npx playwright install --with-deps chromium || npx playwright install chromium
       - name: 시험 실행
         working-directory: tests
         run: npm test
