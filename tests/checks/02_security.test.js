@@ -45,7 +45,7 @@ test('카드 QR 화면: a= 로 다른 서버를 가리킬 수 없다(규칙이 �
 });
 
 test('의사 앱: 서버 행의 id·pid 에서 따옴표·꺾쇠를 지운다 + 영상 링크 검증', async () => {
-  const rows = [{ id: "x');window.__pwn=1;//", pid: 'p"<1>', type: 'que`stion', fileId: 'ab c', question: '<b>그대로</b>' }, { id: 'ok_1-2.3:4', pid: 'abcDEF', type: 'measurement' }];
+  const rows = [{ id: "x');window.__pwn=1;//", pid: 'p"<1>', type: 'que`stion', fileId: 'ab c', date: "2026-11-10');x('", question: '<b>그대로</b>' }, { id: 'ok_1-2.3:4', pid: 'abcDEF', type: 'measurement' }];
   const o = await open(b, page('index.html'), { storage: { jrd_api_url: API, jrd_auth_token: doctorToken() }, api: q => q.method === 'GET' ? rows : undefined });
   const r = await o.p.evaluate(async api => {
     const got = await (await fetch(api + '?x=1')).json();
@@ -53,6 +53,7 @@ test('의사 앱: 서버 행의 id·pid 에서 따옴표·꺾쇠를 지운다 + 
   }, API);
   assert.strictEqual(r.got[0].id, 'x);window.__pwn=1;//');
   assert.strictEqual(r.got[0].pid, 'p1'); assert.strictEqual(r.got[0].type, 'question'); assert.strictEqual(r.got[0].fileId, 'abc');
+  assert.strictEqual(r.got[0].date, '2026-11-10);x(');
   assert.strictEqual(r.got[0].question, '<b>그대로</b>');          // 본문은 건드리지 않음(화면에 낼 때 이스케이프)
   assert.deepStrictEqual(r.got[1], rows[1]);
   assert.strictEqual(r.pwn, 0);

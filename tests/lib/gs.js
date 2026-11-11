@@ -9,6 +9,7 @@ function load() {
   const file = find(); if (!file) return null;
   const props = { DOCTOR_APP_PASSWORD: 'doc-pw-1', STAFF_APP_PASSWORD: 'staff-pw-1', TOKEN_SECRET: 'sec' }, cache = {};
   const store = { chunks: [], saves: 0, gets: 0, clock: Date.parse('2026-11-11T00:00:00Z') };   // doctordata 조각 행
+  const hooks = { ai: () => ({ code: 500, body: '' }) };
   const out = t => ({ t, setMimeType() { return this; }, getContent() { return this.t; } });
   const env = {
     Utilities: { formatDate: d => new Date(d).toISOString().slice(0, 10), sleep() {}, base64EncodeWebSafe: x => String(x), computeHmacSha256Signature: (a, b) => String(a + '|' + b).replace(/[^A-Za-z0-9]/g, '_'), getUuid: () => 'u' + Math.random().toString(36).slice(2) },
@@ -29,7 +30,8 @@ function load() {
       }
       return out(JSON.stringify({ status: 'ok', legacy: b.action || 'append' }));
     },
-    flowMe_: () => out('{"status":"ok","visit":null}')
+    flowMe_: () => out('{"status":"ok","visit":null}'),
+    UrlFetchApp: { fetch: (url, opt) => { const r = hooks.ai(url, opt); return { getResponseCode: () => r.code, getContentText: () => r.body }; } }
   };
   const names = Object.keys(env);
   const G = new Function(...names, fs.readFileSync(file, 'utf8') + '\nreturn {doPost,doGet,signToken_:typeof signToken_==="function"?signToken_:null};')(...names.map(n => env[n]));
@@ -38,6 +40,6 @@ function load() {
   const login = pw => post({ action: 'login', password: pw });
   const cloud = key => { const r = store.chunks.filter(x => x.pid === key).sort((a, b) => a.refId - b.refId); return r.length ? JSON.parse(r.map(x => x.question).join('')) : null; };
   const setCloud = (key, list) => env.legacyDoPost_({ postData: { contents: JSON.stringify({ action: 'savedoctordata', key, data: JSON.stringify(list) }) } });
-  return { post, get, login, store, cloud, setCloud, props, cache, file };
+  return { post, get, login, store, cloud, setCloud, props, cache, file, hooks };
 }
 module.exports = { load, find };

@@ -6643,7 +6643,7 @@ function handleAuthFailure(){
 })();
 function jrdCleanRows(rows){
   if(!Array.isArray(rows)) return rows;
-  const bad = /['"<>`\\&\s]/g, keys = ['id','pid','type','fileId'];
+  const bad = /['"<>`\\&\s]/g, keys = ['id','pid','type','fileId','date'];
   rows.forEach(r=>{ if(!r || typeof r !== 'object') return; keys.forEach(k=>{ const v = r[k]; if(v == null) return; if(typeof v !== 'string'){ if(typeof v === 'object') r[k] = ''; return; } if(bad.test(v)){ bad.lastIndex = 0; r[k] = v.replace(bad, ''); } bad.lastIndex = 0; }); });
   return rows;
 }
@@ -6795,8 +6795,8 @@ async function deltaCaps(api){
   if(localStorage.getItem('jrd_delta_off') === '1') return false;
   if(DELTA.caps === true) return true;
   if(DELTA.caps === false && Date.now() - DELTA.capsAt < 600000) return false;
-  try{ const j = await (await fetch(api, { method:'POST', body: JSON.stringify({ action:'caps' }) })).json(); DELTA.caps = !!(j && j.status === 'ok' && j.caps && j.caps.docpull); }
-  catch(e){ DELTA.caps = false; }
+  try{ const j = await (await fetch(api, { method:'POST', body: JSON.stringify({ action:'caps' }) })).json(); DELTA.capsAll = (j && j.status === 'ok' && j.caps) || {}; DELTA.caps = !!DELTA.capsAll.docpull; }
+  catch(e){ DELTA.caps = false; DELTA.capsAll = {}; }
   DELTA.capsAt = Date.now();
   return DELTA.caps;
 }
@@ -6806,6 +6806,15 @@ function deltaStillCovers(key){
   let tomb = {}; try{ tomb = tombLoad() || {}; }catch(e){}
   for(const [id, u] of DELTA.map){ if(tomb[id]) continue; const c = cur.get(id); if(c === undefined || c < u) return false; }
   return true;
+}
+// 서버(Security.gs)가 할 줄 아는 새 기능 목록. 예전 서버면 빈 목록.
+async function serverCaps(){
+  const api = getApiUrl(); if(!api) return {};
+  if(!DELTA.capsAll || (DELTA.caps === false && Date.now() - DELTA.capsAt >= 600000)){
+    const off = localStorage.getItem('jrd_delta_off'); if(off === '1') localStorage.removeItem('jrd_delta_off');
+    DELTA.caps = null; try{ await deltaCaps(api); }finally{ if(off === '1') localStorage.setItem('jrd_delta_off', '1'); }
+  }
+  return DELTA.capsAll || {};
 }
 async function cloudDoctorRows(api, key){
   DELTA.pending = null;
@@ -7470,6 +7479,7 @@ async function renderInbox(p, forceFetch){
           ${thumbUrl ? `<img src="${thumbUrl}" alt="${label}" style="width:100%;border-radius:8px;margin-top:8px;cursor:pointer;border:1px solid var(--border);" onclick="openLightbox('${fullUrl}')">` : `<div class="rec-body">${escapeHtml(r.fileName||'파일')}</div>`}
           <div class="rec-actions">
             <button class="btn btn-outline" onclick="openLightbox('${fullUrl}')">크게 보기</button>
+            ${r.type==='growthsheet' && r.fileId ? `<button class="btn btn-outline" onclick="gsReadOpen('${r.id}','${r.fileId}')">🤖 사진에서 키·몸무게 읽기${p.gsDraft && p.gsDraft[r.id] ? ' (초안 있음)' : ''}</button>` : ''}
             <button class="btn btn-primary" onclick="openRecordFromInbox('${r.id}','${r.date||''}')">${r.type==='growthsheet' ? '차트에 키·몸무게 입력' : '판독 결과 기록하기'}</button>
             ${delBtn(r.id)}
           </div>
@@ -9266,8 +9276,191 @@ async function fvLoadUploadInfo(p){
     el.innerHTML = `<div style="margin-bottom:6px;"><b>📎 내원 전 성장기록지 ${mine.length}건 제출됨</b> <span style="font-weight:400;">(눌러서 크게 보기 · 아래 "환아 제출함"에도 있어요)</span></div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;">${mine.slice(0,8).map(r=> r.fileId
         ? `<img src="${fileUrl(r.fileId,'w400')}" alt="성장기록지" title="${escapeHtml(fmtDate(r.date)||'')}" style="width:78px;height:78px;object-fit:cover;border-radius:8px;border:1px solid var(--border);cursor:pointer;" onclick="openLightbox('${fileUrl(r.fileId,'w2000')}')">`
-        : `<span style="font-size:11px;">${escapeHtml(r.fileName||'파일')}</span>`).join('')}</div>`;
+        : `<span style="font-size:11px;">${escapeHtml(r.fileName||'파일')}</span>`).join('')}</div>`
+      + (mine.some(r=>r.fileId) ? `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;">${mine.filter(r=>r.fileId).slice(0,8).map((r,i)=>`<button class="btn btn-outline" style="font-size:12px;padding:6px 10px;" onclick="gsReadOpen('${r.id}','${r.fileId}')">🤖 ${mine.length>1 ? (i+1)+'번 사진' : '사진'}에서 키·몸무게 읽기${p.gsDraft && p.gsDraft[r.id] ? ' (초안 있음)' : ''}</button>`).join('')}</div><div style="font-size:11px;color:var(--secondary);margin-top:4px;">AI가 읽은 값은 초안이에요. 사진과 나란히 보고 확인한 줄만 기록에 들어갑니다.</div>` : '');
   }catch(e){}
+}
+
+/* =====================================================================
+ * 성장기록지 사진 판독 (초안 → 원장 확인 → 기록)   2026-11-11
+ * 보호자가 초진방에 올린 성장기록지 사진을 서버(Security.gs의 readgrowthsheet)가 AI로 읽어 날짜·키·몸무게 초안을 만듭니다.
+ * 초안은 그대로 기록에 들어가지 않습니다. 사진과 나란히 보고, 원장이 체크한 줄만 들어가며,
+ * 이미 있는 기록의 값은 덮어쓰지 않습니다(빈 칸만 채움). 사진만 보내고 이름·등록번호는 보내지 않습니다.
+ * ===================================================================== */
+const GS = { rowId:'', fileId:'', pid:'', rows:[], busy:false, img:'', memo:'', kind:'', err:'', info:'' };
+function gsOv(){
+  let ov = document.getElementById('gsOv');
+  if(!ov){
+    ov = document.createElement('div'); ov.id = 'gsOv'; ov.className = 'modal-ov'; ov.style.cssText = 'align-items:center;justify-content:center;';
+    ov.innerHTML = '<div id="gsBox" style="background:var(--light);width:96%;max-width:1000px;max-height:94vh;overflow:auto;border-radius:14px;padding:16px;box-sizing:border-box;"></div>';
+    document.body.appendChild(ov);
+  }
+  return ov;
+}
+function gsClose(){ const ov = document.getElementById('gsOv'); if(ov) ov.classList.remove('open'); GS.busy = false; }
+function gsPatient(){ return getPatient(GS.pid); }
+// "만 5세 3개월" · "36개월" · "7세" 처럼 나이만 적힌 줄은 생년월일로 날짜를 어림합니다(확인 필요 표시).
+function gsDateFromAge(ageText, dob){
+  if(!ageText || !/^\d{4}-\d{2}-\d{2}$/.test(dob||'')) return '';
+  const t = String(ageText); let mo = null;
+  const y = t.match(/(\d{1,2})\s*(?:세|살)/), m = t.match(/(\d{1,3})\s*개월/);
+  if(y) mo = Number(y[1]) * 12 + (m ? Number(m[1]) : 0); else if(m) mo = Number(m[1]);
+  if(mo == null || mo < 0 || mo > 240) return '';
+  const d = new Date(dob + 'T00:00:00'); d.setMonth(d.getMonth() + mo);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function gsRowFromAi(r, p){
+  const row = { on:false, date: r.date || '', height: r.height == null ? '' : r.height, weight: r.weight == null ? '' : r.weight, sure: r.sure !== false, note: r.note || '', ageText: r.ageText || '' };
+  if(!row.date && row.ageText){ const d = gsDateFromAge(row.ageText, p && p.dob); if(d){ row.date = d; row.sure = false; row.note = (row.note ? row.note + ' · ' : '') + '날짜는 나이(' + row.ageText + ')로 어림'; } }
+  return row;
+}
+// 한 줄씩 점검: 넣을 수 없는 이유(bad)와 주의할 점(warn), 이미 있는 기록(ex)
+function gsCheck(row, i, rows, p){
+  const out = { bad:'', warn:[], ex:null };
+  const h = row.height === '' ? null : Number(row.height), w = row.weight === '' ? null : Number(row.weight);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(row.date||'') || isNaN(new Date(row.date + 'T00:00:00'))) out.bad = '날짜를 넣어 주세요';
+  else if(row.date > todayStr()) out.bad = '오늘보다 뒤 날짜';
+  else if(p && p.dob && row.date < p.dob) out.bad = '생일보다 앞 날짜';
+  if(!out.bad && h == null && w == null) out.bad = '키·몸무게가 없어요';
+  if(h != null && (isNaN(h) || h < 40 || h > 210)) out.bad = out.bad || '키 값 확인(40~210cm)';
+  if(w != null && (isNaN(w) || w < 2 || w > 200)) out.bad = out.bad || '몸무게 값 확인(2~200kg)';
+  if(!row.sure) out.warn.push('AI가 확신하지 못함');
+  if(row.note) out.warn.push(row.note);
+  if(!out.bad){
+    const prev = rows.filter((x, j)=> j !== i && x.date && x.date < row.date && x.height !== '' && !isNaN(Number(x.height))).sort((a,b)=> a.date < b.date ? 1 : -1)[0];
+    if(prev && h != null && h < Number(prev.height) - 0.5) out.warn.push('앞 날짜(' + prev.date + ' ' + prev.height + 'cm)보다 키가 작아요');
+    if(prev && h != null){ const yrs = (new Date(row.date) - new Date(prev.date)) / (365.25 * 86400000); if(yrs > 0.2 && (h - Number(prev.height)) / yrs > 15) out.warn.push('앞 기록보다 너무 많이 컸어요(연 ' + Math.round((h - Number(prev.height)) / yrs) + 'cm)'); }
+    if(rows.some((x, j)=> j !== i && x.date === row.date)) out.warn.push('같은 날짜 줄이 또 있어요');
+    const ex = p && (p.records||[]).find(x=>x.date === row.date);
+    if(ex && (ex.height || ex.weight)) out.ex = ex;
+  }
+  return out;
+}
+function gsRender(){
+  const box = document.getElementById('gsBox'); if(!box) return;
+  const p = gsPatient(), rows = GS.rows, narrow = window.innerWidth < 760;
+  const n = rows.filter((r,i)=> r.on && !gsCheck(r, i, rows, p).bad).length;
+  const head = `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;">
+      <h3 style="font-size:16px;font-weight:800;">🤖 성장기록지 읽기 — ${escapeHtml((p && p.name) || '')} <span style="font-size:11px;font-weight:600;color:var(--secondary);">초안 · 확인한 줄만 기록됩니다</span></h3>
+      <button onclick="gsClose()" style="background:none;border:none;font-size:20px;color:var(--secondary);">✕</button></div>`;
+  const pic = GS.img ? `<img src="${GS.img}" alt="성장기록지" onclick="openLightbox('${fileUrl(GS.fileId,'w2000')}')" style="width:100%;max-height:${narrow ? '34vh' : '76vh'};object-fit:contain;background:#fff;border-radius:10px;border:1px solid var(--border);cursor:zoom-in;">
+      <div style="font-size:11px;color:var(--secondary);margin-top:4px;">사진을 누르면 크게 볼 수 있어요.</div>` : `<div style="padding:30px;text-align:center;color:var(--secondary);font-size:13px;">사진 불러오는 중…</div>`;
+  const msg = (GS.err ? `<div style="background:#FDECEC;border:1px solid #F3B4B4;border-radius:8px;padding:8px 10px;font-size:12px;margin-bottom:8px;">❌ ${escapeHtml(GS.err)}</div>` : '')
+    + (GS.info ? `<div style="background:#FFF6E5;border:1px solid #F0D49A;border-radius:8px;padding:8px 10px;font-size:12px;margin-bottom:8px;">${escapeHtml(GS.info)}</div>` : '')
+    + (GS.busy ? `<div style="padding:10px;font-size:13px;color:var(--secondary);">🤖 AI가 사진을 읽는 중… (10~30초)</div>` : '')
+    + ((GS.kind || GS.memo) && !GS.busy ? `<div style="font-size:12px;color:var(--secondary);margin-bottom:6px;">${GS.kind ? '종류: <b>' + escapeHtml(GS.kind) + '</b>' : ''}${GS.memo ? ' · ' + escapeHtml(GS.memo) : ''}</div>` : '');
+  const inp = 'border:1px solid var(--border);border-radius:6px;padding:6px;font-size:13px;box-sizing:border-box;';
+  const trs = rows.map((r, i)=>{
+    const c = gsCheck(r, i, rows, p);
+    const tone = c.bad ? '#FDECEC' : (c.warn.length || c.ex) ? '#FFF9EA' : 'transparent';
+    const exTxt = c.ex ? `기록에 이미 있음: ${c.ex.height ? c.ex.height + 'cm' : '키 없음'} / ${c.ex.weight ? c.ex.weight + 'kg' : '몸무게 없음'} → 빈 칸만 채워요` : '';
+    const notes = [c.bad ? '⛔ ' + c.bad : ''].concat(c.warn.map(w=>'⚠️ ' + w)).concat(exTxt ? ['📌 ' + exTxt] : []).filter(Boolean);
+    return `<tr style="background:${tone};">
+      <td style="padding:4px;text-align:center;"><input type="checkbox" ${r.on && !c.bad ? 'checked' : ''} ${c.bad ? 'disabled' : ''} onchange="gsSet(${i},'on',this.checked)" style="width:20px;height:20px;"></td>
+      <td style="padding:4px;"><input type="date" value="${escapeHtml(r.date)}" onchange="gsSet(${i},'date',this.value)" style="${inp}width:140px;"></td>
+      <td style="padding:4px;"><input type="number" step="0.1" inputmode="decimal" value="${escapeHtml(String(r.height))}" onchange="gsSet(${i},'height',this.value)" style="${inp}width:76px;" placeholder="cm"></td>
+      <td style="padding:4px;"><input type="number" step="0.1" inputmode="decimal" value="${escapeHtml(String(r.weight))}" onchange="gsSet(${i},'weight',this.value)" style="${inp}width:76px;" placeholder="kg"></td>
+      <td style="padding:4px;"><button onclick="gsDel(${i})" title="이 줄 지우기" style="background:none;border:none;color:var(--secondary);font-size:15px;">✕</button></td>
+    </tr>${notes.length ? `<tr style="background:${tone};"><td></td><td colspan="4" style="padding:0 4px 6px;font-size:11px;line-height:1.5;color:${c.bad ? 'var(--danger)' : '#8A6100'};">${notes.map(escapeHtml).join('<br>')}</td></tr>` : ''}`;
+  }).join('');
+  const table = `<table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead><tr style="font-size:11px;color:var(--secondary);text-align:left;"><th style="padding:4px;width:34px;">확인</th><th style="padding:4px;">측정일</th><th style="padding:4px;">키(cm)</th><th style="padding:4px;">몸무게(kg)</th><th></th></tr></thead>
+      <tbody>${trs || `<tr><td colspan="5" style="padding:14px;text-align:center;color:var(--secondary);font-size:12px;">${GS.busy ? '' : '읽은 줄이 없어요. 「＋ 줄 추가」로 사진을 보며 직접 적을 수 있어요.'}</td></tr>`}</tbody></table>`;
+  const tools = `<div style="display:flex;flex-wrap:wrap;gap:6px;margin:10px 0;">
+      <button class="btn btn-outline" style="font-size:12px;padding:6px 10px;" onclick="gsAdd()">＋ 줄 추가</button>
+      <button class="btn btn-outline" style="font-size:12px;padding:6px 10px;" onclick="gsTickClean()">주의 표시 없는 줄 모두 체크</button>
+      <button class="btn btn-outline" style="font-size:12px;padding:6px 10px;" onclick="gsRun(true)" ${GS.busy || !GS.img ? 'disabled' : ''}>🔄 AI로 다시 읽기</button></div>`;
+  const foot = `<div style="display:flex;gap:8px;justify-content:flex-end;align-items:center;margin-top:8px;flex-wrap:wrap;">
+      <span style="font-size:11px;color:var(--secondary);margin-right:auto;">사진과 값이 맞는지 본 줄만 체크해 주세요. 이미 있는 기록의 값은 바꾸지 않습니다.</span>
+      <button class="btn btn-outline" onclick="gsClose()">닫기</button>
+      <button class="btn btn-primary" id="gsApplyBtn" onclick="gsApply()" ${n ? '' : 'disabled'}>체크한 ${n}줄 기록에 넣기</button></div>`;
+  box.innerHTML = head + `<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;">
+      <div style="flex:1 1 320px;min-width:260px;max-width:100%;${narrow ? 'position:sticky;top:-16px;z-index:2;background:var(--light);padding-bottom:4px;' : 'position:sticky;top:0;'}">${pic}</div>
+      <div style="flex:1 1 380px;min-width:300px;">${msg}${table}${tools}</div></div>` + foot;
+}
+function gsSet(i, k, v){ const r = GS.rows[i]; if(!r) return; if(k === 'on') r.on = !!v; else { r[k] = v; if(k === 'date' || k === 'height' || k === 'weight'){ r.sure = true; r.note = ''; r.on = false; } } gsKeep(); gsRender(); }
+function gsDel(i){ GS.rows.splice(i, 1); gsKeep(); gsRender(); }
+function gsAdd(){ GS.rows.push({ on:false, date:'', height:'', weight:'', sure:true, note:'', ageText:'' }); gsRender(); }
+function gsTickClean(){ const p = gsPatient(); GS.rows.forEach((r, i)=>{ const c = gsCheck(r, i, GS.rows, p); if(!c.bad && !c.warn.length) r.on = true; }); gsRender(); }
+// 초안을 환아 기록 옆에 보관(다시 열어도 AI를 또 부르지 않게). 체크 표시는 보관하지 않습니다 — 열 때마다 다시 확인.
+function gsKeep(){
+  const p = gsPatient(); if(!p || !GS.rowId) return;
+  if(!p.gsDraft) p.gsDraft = {};
+  p.gsDraft[GS.rowId] = { at: Date.now(), kind: GS.kind, memo: GS.memo, rows: GS.rows.map(r=>({ date:r.date, height:r.height, weight:r.weight, sure:r.sure, note:r.note, ageText:r.ageText })) };
+  p.updatedAt = new Date().toISOString(); savePatients();
+}
+function gsShrink(dataUrl){
+  return new Promise((ok, no)=>{
+    const im = new Image();
+    im.onload = ()=>{ const sc = Math.min(1, 1600 / Math.max(im.naturalWidth, im.naturalHeight)); const cv = document.createElement('canvas'); cv.width = Math.round(im.naturalWidth * sc); cv.height = Math.round(im.naturalHeight * sc); cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height); ok({ data: cv.toDataURL('image/jpeg', 0.9).split(',')[1], mediaType: 'image/jpeg' }); };
+    im.onerror = ()=> no(new Error('사진 형식을 열 수 없어요(PDF는 아직 읽지 못해요)'));
+    im.src = dataUrl;
+  });
+}
+async function gsReadOpen(rowId, fileId){
+  const p = getPatient(currentPatientId); if(!p) return;
+  Object.assign(GS, { rowId, fileId, pid: p.id, rows: [], busy: false, img: '', memo: '', kind: '', err: '', info: '' });
+  const saved = p.gsDraft && p.gsDraft[rowId];
+  if(saved){ GS.rows = (saved.rows||[]).map(r=>Object.assign({ on:false }, r)); GS.memo = saved.memo || ''; GS.kind = saved.kind || ''; }
+  gsOv().classList.add('open'); gsRender();
+  try{ GS.img = await resolveFileUrl(fileUrl(fileId, 'w1600')); }
+  catch(e){ GS.err = '사진을 불러오지 못했어요: ' + (e.message || e); gsRender(); return; }
+  if(GS.rowId !== rowId) return;
+  gsRender();
+  if(!saved) await gsRun(false);
+}
+async function gsRun(again){
+  const p = gsPatient(), rowId = GS.rowId; if(!p || !GS.img || GS.busy) return;
+  if(again && GS.rows.length && !confirm('지금 표의 내용을 지우고 AI로 다시 읽을까요?')) return;
+  GS.busy = true; GS.err = ''; GS.info = ''; gsRender();
+  try{
+    const caps = await serverCaps();
+    if(!caps.readgrowthsheet){ GS.info = 'AI 읽기는 서버(Security.gs)를 새 버전으로 배포한 뒤에 쓸 수 있어요. 지금은 「＋ 줄 추가」로 사진을 보며 직접 적어 넣을 수 있습니다.'; return; }
+    const small = await gsShrink(GS.img);
+    const d = await bqPost({ action:'readgrowthsheet', image: small.data, mediaType: small.mediaType, dob: /^\d{4}-\d{2}-\d{2}$/.test(p.dob||'') ? p.dob : '', today: todayStr() });
+    if(GS.rowId !== rowId) return;
+    if(!d || d.status !== 'ok' || !Array.isArray(d.rows)){
+      if(d && d.code === 'nokey') GS.info = (d.message || 'AI 키가 없어요.') + ' 지금은 「＋ 줄 추가」로 직접 적어 넣을 수 있습니다.';
+      else GS.err = (d && d.message) || 'AI가 읽지 못했어요. 다시 시도해 주세요.';
+      return;
+    }
+    GS.kind = d.kind || ''; GS.memo = d.memo || '';
+    GS.rows = d.rows.map(r=>gsRowFromAi(r, p)).sort((a,b)=> (a.date||'9') < (b.date||'9') ? -1 : 1);
+    if(!GS.rows.length) GS.info = '사진에서 키·몸무게 기록을 찾지 못했어요.' + (GS.memo ? ' (' + GS.memo + ')' : '');
+    gsKeep();
+  }catch(e){ GS.err = 'AI 읽기에 실패했어요: ' + (e.message || e); }
+  finally{ if(GS.rowId === rowId){ GS.busy = false; gsRender(); } }
+}
+function gsApply(){
+  const p = gsPatient(); if(!p) return;
+  const rows = GS.rows, picked = rows.filter((r, i)=> r.on && !gsCheck(r, i, rows, p).bad);
+  if(!picked.length) return;
+  if(!p.records) p.records = [];
+  let added = 0, filled = 0, kept = 0;
+  picked.forEach(r=>{
+    const h = r.height === '' ? null : Math.round(Number(r.height) * 10) / 10, w = r.weight === '' ? null : Math.round(Number(r.weight) * 10) / 10;
+    const ex = p.records.find(x=>x.date === r.date);
+    if(ex){
+      let ch = false;
+      if(h != null){ if(ex.height == null || ex.height === '') { ex.height = h; ch = true; } else if(Number(ex.height) !== h) kept++; }
+      if(w != null){ if(ex.weight == null || ex.weight === '') { ex.weight = w; ch = true; } else if(Number(ex.weight) !== w) kept++; }
+      if(ch) filled++;
+    }else{
+      const rec = { id: uid(), date: r.date, callDone: false, fromSheet: true };
+      if(h != null) rec.height = h; if(w != null) rec.weight = w;
+      p.records.push(rec); added++;
+    }
+  });
+  GS.rows = rows.filter(r=> picked.indexOf(r) < 0);
+  if(!p.appliedInboxIds) p.appliedInboxIds = [];
+  if(!p.appliedInboxIds.includes(GS.rowId)) p.appliedInboxIds.push(GS.rowId);
+  if(!p.gsDraft) p.gsDraft = {};
+  if(GS.rows.length) p.gsDraft[GS.rowId] = { at: Date.now(), kind: GS.kind, memo: GS.memo, rows: GS.rows.map(r=>({ date:r.date, height:r.height, weight:r.weight, sure:r.sure, note:r.note, ageText:r.ageText })) };
+  else delete p.gsDraft[GS.rowId];
+  p.updatedAt = new Date().toISOString(); savePatients();
+  gsClose();
+  try{ renderDetail(); }catch(e){}
+  alert(`성장기록지에서 ${added + filled}건을 기록에 넣었어요.` + (added ? `\n· 새 날짜 ${added}건` : '') + (filled ? `\n· 기존 기록의 빈 칸 채움 ${filled}건` : '') + (kept ? `\n· 이미 값이 있어 그대로 둔 칸 ${kept}개` : ''));
 }
 function fvCur(){ return getPatient(currentPatientId); }
 async function fvDownloadReport(){
