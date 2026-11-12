@@ -125,6 +125,7 @@
   .fr-care b{ display:block; font-size:13px; margin-bottom:3px; }
   .fr-care span{ font-size:13px; line-height:1.65; white-space:pre-wrap; display:block; }
   .fr-test{ display:inline-block; font-size:12px; background:var(--light); border:1px solid var(--border); border-radius:14px; padding:3px 10px; margin:2px 4px 2px 0; }
+.mfb .mfb-val{font-size:13px;color:var(--secondary)}.mfb .mfb-big{font-size:26px;font-weight:800;color:var(--primary);margin-top:6px;line-height:1.2}.mfb .mfb-big.up{color:var(--ok)}.mfb .mfb-sub{font-size:13px;margin-top:4px;line-height:1.5}.mfb .mfb-tip{font-size:12px;color:var(--secondary);background:rgba(0,0,0,.04);border-radius:8px;padding:8px 10px;margin-top:8px;line-height:1.5}.mfb-ack{margin-top:10px;font-size:13px;font-weight:700;color:var(--ok);line-height:1.5}.past-item .mfb-ack{margin-top:4px;font-size:12px}.mfb-wait{margin-top:10px;font-size:12px;color:var(--secondary);line-height:1.5}.mfb-new{font-size:11px;background:var(--ok);color:#fff;border-radius:10px;padding:2px 8px;vertical-align:middle;font-weight:700}.mfb-flash{animation:mfbf 1.4s ease}@keyframes mfbf{0%{box-shadow:0 0 0 0 rgba(46,139,87,.55)}100%{box-shadow:0 0 0 16px rgba(46,139,87,0)}}
 </style>
 </head>
 <body>
@@ -308,6 +309,7 @@
       <button class="btn btn-outline" id="m_cancelBtn" data-i18n="btnCancelEdit" style="display:none;margin-top:8px;" onclick="cancelEditMeasurement()">수정 취소</button>
       <div class="msg" id="m_msg"></div>
     </div>
+    <div class="card mfb" id="mfbCard" style="display:none;"></div>
     <div class="card" id="recVideoCard" style="display:none;">
       <h2 data-i18n="recVideoTitle">담당 의료진 추천 영상</h2>
       <p class="notice" data-i18n="recVideoNotice">우리 아이에게 도움이 될 만한 교육 영상이에요.</p>
@@ -574,6 +576,7 @@ function applyI18n(){
   if(typeof loadCallMemos === 'function' && document.getElementById('v-call').classList.contains('active')) loadCallMemos();
   applyOverseasOnlyLock();
   try{ if(window._frRows && typeof renderFirstRoom==='function') renderFirstRoom(window._frRows); if(window._vgRows && typeof renderVisitGuide==='function') renderVisitGuide(window._vgRows); }catch(e){}
+  try{ if(typeof mfbRender === 'function') mfbRender(); }catch(e){}
   if(typeof renderInjCalendar === 'function' && document.getElementById('v-injection') && document.getElementById('v-injection').classList.contains('active')) renderInjCalendar();
 }
 
@@ -967,6 +970,7 @@ async function submitMeasurement(){
     }
     if(editId && data.updated === false){ msg.textContent = '수정할 기록을 찾지 못했어요. 새로 입력해 주세요.'; msg.style.color = 'var(--accent)'; return; }
     msg.textContent = editId ? t('msgUpdated') : t('msgSent'); msg.style.color = 'var(--ok)';
+    mfbJust = editId || body.id;
     cancelEditMeasurement();
     loadPastMeasurements();
   }catch(err){
@@ -1014,6 +1018,7 @@ async function loadPastMeasurements(){
     const res = await fetch(API + (API.includes('?')?'&':'?') + 't=' + Date.now());
     const rows = await res.json();
     if(!Array.isArray(rows)){ frDiag('❌ 서버가 목록 대신 오류를 보냈어요: ' + ((rows && (rows.message || rows.code)) || '알 수 없음')); try{ renderFirstRoom([]); }catch(e){} list.innerHTML = `<div class="empty">서버 응답 오류 — ${escapeHtml((rows && (rows.message || rows.code)) || '')}</div>`; return; }
+    mfbAcks = {}; rows.filter(r=>r.pid===PID && r.type==='answer' && r.refId).forEach(r=>{ mfbAcks[r.refId] = r.answer; });
     // 초진방은 그래프 그리기와 무관하게 먼저 그립니다 (그래프 오류가 초진방을 막지 않도록)
     try{ renderVisitGuide(rows.filter(r=>r.pid===PID && r.type==='visitGuide')); }catch(e){ console.error(e); }
     window._frRep = rows.filter(r=>r.pid===PID && r.type==='fvreport');
@@ -1027,6 +1032,7 @@ async function loadPastMeasurements(){
           <div class="info">
             <div>${r.height?`${t('btnHeight')} ${r.height}cm `:''}${r.weight?`${t('btnWeight')} ${r.weight}kg`:''}</div>
             <div class="d">${fmtDate(r.date)||t('dateUnknown')}</div>
+            ${mfbAckHtml(r.id, true)}
           </div>
           <div class="acts">
             <button class="btn btn-outline" onclick="editMeasurement('${r.id}','${r.date}','${r.height||''}','${r.weight||''}')">${t('btnEdit')}</button>
@@ -1048,11 +1054,69 @@ async function loadPastMeasurements(){
       try{ treatmentPeriodsCache = JSON.parse(raw); }catch(e){ treatmentPeriodsCache = null; }
     }
     if(mine.length) drawGrowthChart(mine); // 골연령 데이터가 늦게 잡혀도 다시 그려서 반영
+    try{ mfbRender(); frTranslateIn(list); }catch(e){ console.error(e); }
   }catch(err){ frDiag('❌ 불러오기 실패: ' + (err && err.message ? err.message : err)); list.innerHTML = `<div class="empty">${t('msgDeleteFail')}</div>`; }
 }
 let doctorPointsCache = [];
 let treatmentPeriodsCache = null;
 let lastMeasureRows = [];
+/* ---------------- 키 입력 즉시 반응 + 원장 확인(✓) ----------------
+ * 키·몸무게를 넣으면 바로: 지난 기록보다 몇 cm, 1년으로 치면 몇 cm 속도, 또래 100명 중 몇 번째.
+ * 원장이 의사 앱에서 확인하면 type:'answer', refId:<측정 id> 행이 생기고, 여기 「✓ 원장 확인 · 한마디」가 붙습니다.
+ * 한마디가 [[ack:코드]] 꼴이면 미리 정한 문장(보호자 언어로), 그 밖은 원장이 직접 쓴 글(자동 번역). */
+Object.entries({"ko": {"mfb_title": "📈 최근 기록", "mfb_new": "방금 입력", "mfb_first": "첫 기록이에요. 다음 기록부터 지난번과 비교해 보여 드려요.", "mfb_diff": "지난 기록({date})보다 · {days}일 사이", "mfb_vel": "1년으로 치면 약 {v}cm 자라는 속도예요 (집에서 잰 값이라 참고용)", "mfb_velShort": "자라는 속도는 기록 사이가 3개월 이상이면 보여 드려요", "mfb_same": "재는 시간과 자세에 따라 1cm 안팎은 달라질 수 있어요. 아침에 맨발로 벽에 붙어 재 주세요.", "mfb_pct": "또래 100명 중 작은 쪽부터 {n}번째", "mfb_pctPrev": "(지난번 {n}번째)", "mfb_ackDone": "✓ 원장 확인", "mfb_ackWait": "⏳ 원장님이 확인하면 여기에 ✓ 표시와 한마디가 붙어요", "ack_good": "잘 크고 있어요 👍", "ack_thanks": "꾸준히 재 주셔서 고마워요", "ack_next": "다음 진료 때 같이 볼게요", "ack_check": "재는 방법을 한 번 확인해 주세요 — 아침, 맨발, 벽에 붙어서", "ack_ok": "확인했어요"}, "en": {"mfb_title": "📈 Latest record", "mfb_new": "Just added", "mfb_first": "This is the first record. From the next one, we will compare it with the previous record.", "mfb_diff": "compared with the last record ({date}) · {days} days apart", "mfb_vel": "That is a growth rate of about {v} cm per year (home measurement, for reference)", "mfb_velShort": "Growth rate is shown when records are at least 3 months apart", "mfb_same": "Height can differ by about 1 cm depending on the time and posture. Please measure in the morning, barefoot, against a wall.", "mfb_pct": "Among 100 children of the same age: No. {n} from the shortest", "mfb_pctPrev": "(last time: No. {n})", "mfb_ackDone": "✓ Checked by the doctor", "mfb_ackWait": "⏳ When the doctor checks it, a ✓ and a short note will appear here", "ack_good": "Growing well 👍", "ack_thanks": "Thank you for measuring regularly", "ack_next": "We'll look at it together at the next visit", "ack_check": "Please check how you measure — morning, barefoot, against a wall", "ack_ok": "Checked"}, "zh": {"mfb_title": "📈 最新记录", "mfb_new": "刚刚录入", "mfb_first": "这是第一条记录。从下一条开始，会与上次比较。", "mfb_diff": "与上次记录（{date}）相比 · 相隔{days}天", "mfb_vel": "换算成一年约长{v}厘米（在家测量，仅供参考）", "mfb_velShort": "两次记录相隔3个月以上时显示生长速度", "mfb_same": "身高会因测量时间和姿势相差约1厘米。请在早上赤脚、贴墙测量。", "mfb_pct": "同龄100个孩子中，从矮到高排第{n}位", "mfb_pctPrev": "（上次第{n}位）", "mfb_ackDone": "✓ 医生已确认", "mfb_ackWait": "⏳ 医生确认后，这里会出现✓和一句话", "ack_good": "长得很好 👍", "ack_thanks": "谢谢您坚持测量", "ack_next": "下次就诊时一起看", "ack_check": "请确认一下测量方法——早上、赤脚、贴墙", "ack_ok": "已确认"}, "zt": {"mfb_title": "📈 最新紀錄", "mfb_new": "剛剛輸入", "mfb_first": "這是第一筆紀錄。從下一筆開始，會與上次比較。", "mfb_diff": "與上次紀錄（{date}）相比 · 相隔{days}天", "mfb_vel": "換算成一年約長{v}公分（在家測量，僅供參考）", "mfb_velShort": "兩次紀錄相隔3個月以上時顯示生長速度", "mfb_same": "身高會因測量時間和姿勢相差約1公分。請在早上赤腳、貼牆測量。", "mfb_pct": "同齡100個孩子中，從矮到高排第{n}位", "mfb_pctPrev": "（上次第{n}位）", "mfb_ackDone": "✓ 醫師已確認", "mfb_ackWait": "⏳ 醫師確認後，這裡會出現✓和一句話", "ack_good": "長得很好 👍", "ack_thanks": "謝謝您持續測量", "ack_next": "下次看診時一起看", "ack_check": "請確認一下測量方法——早上、赤腳、貼牆", "ack_ok": "已確認"}, "vi": {"mfb_title": "📈 Lần ghi gần nhất", "mfb_new": "Vừa nhập", "mfb_first": "Đây là lần ghi đầu tiên. Từ lần sau, chúng tôi sẽ so sánh với lần trước.", "mfb_diff": "so với lần ghi trước ({date}) · cách {days} ngày", "mfb_vel": "Tương đương tốc độ cao khoảng {v} cm mỗi năm (đo tại nhà, chỉ để tham khảo)", "mfb_velShort": "Tốc độ tăng trưởng sẽ hiển thị khi hai lần ghi cách nhau từ 3 tháng trở lên", "mfb_same": "Chiều cao có thể chênh khoảng 1 cm tùy thời điểm và tư thế đo. Hãy đo vào buổi sáng, đi chân trần, đứng sát tường.", "mfb_pct": "Trong 100 trẻ cùng tuổi: thứ {n} tính từ bé thấp nhất", "mfb_pctPrev": "(lần trước: thứ {n})", "mfb_ackDone": "✓ Bác sĩ đã xem", "mfb_ackWait": "⏳ Khi bác sĩ xem, dấu ✓ và một lời nhắn sẽ hiện ở đây", "ack_good": "Bé đang lớn tốt 👍", "ack_thanks": "Cảm ơn bố mẹ đã đo đều đặn", "ack_next": "Chúng ta sẽ cùng xem ở lần khám tới", "ack_check": "Hãy kiểm tra lại cách đo — buổi sáng, chân trần, sát tường", "ack_ok": "Đã xem"}, "ja": {"mfb_title": "📈 最新の記録", "mfb_new": "いま入力", "mfb_first": "初めての記録です。次の記録から前回と比べてお見せします。", "mfb_diff": "前回の記録（{date}）と比べて · {days}日あいだ", "mfb_vel": "1年に換算すると約{v}cmの伸びです（ご家庭での測定のため参考値）", "mfb_velShort": "伸びの速さは記録の間隔が3か月以上になると表示します", "mfb_same": "身長は測る時間や姿勢で1cmほど変わることがあります。朝、はだしで、壁に背をつけて測ってください。", "mfb_pct": "同じ年齢の子100人のうち、低い方から{n}番目", "mfb_pctPrev": "（前回{n}番目）", "mfb_ackDone": "✓ 院長確認済み", "mfb_ackWait": "⏳ 院長が確認すると、ここに✓とひとことが付きます", "ack_good": "順調に伸びています 👍", "ack_thanks": "続けて測ってくださりありがとうございます", "ack_next": "次の診察で一緒に見ましょう", "ack_check": "測り方を一度確認してください — 朝・はだし・壁に背をつけて", "ack_ok": "確認しました"}, "es": {"mfb_title": "📈 Último registro", "mfb_new": "Recién añadido", "mfb_first": "Es el primer registro. A partir del próximo, lo compararemos con el anterior.", "mfb_diff": "frente al registro anterior ({date}) · {days} días de diferencia", "mfb_vel": "Equivale a crecer unos {v} cm al año (medido en casa, solo como referencia)", "mfb_velShort": "La velocidad de crecimiento se muestra cuando los registros están separados al menos 3 meses", "mfb_same": "La talla puede variar alrededor de 1 cm según la hora y la postura. Mida por la mañana, descalzo y apoyado en la pared.", "mfb_pct": "Entre 100 niños de la misma edad: n.º {n} empezando por el más bajo", "mfb_pctPrev": "(la vez anterior: n.º {n})", "mfb_ackDone": "✓ Revisado por el médico", "mfb_ackWait": "⏳ Cuando el médico lo revise, aparecerá aquí un ✓ y un breve comentario", "ack_good": "Está creciendo bien 👍", "ack_thanks": "Gracias por medir con regularidad", "ack_next": "Lo veremos juntos en la próxima consulta", "ack_check": "Revise cómo mide — por la mañana, descalzo, contra la pared", "ack_ok": "Revisado"}, "th": {"mfb_title": "📈 บันทึกล่าสุด", "mfb_new": "เพิ่งบันทึก", "mfb_first": "นี่คือบันทึกครั้งแรก ตั้งแต่ครั้งถัดไปจะเปรียบเทียบกับครั้งก่อนให้", "mfb_diff": "เทียบกับบันทึกครั้งก่อน ({date}) · ห่างกัน {days} วัน", "mfb_vel": "คิดเป็นความเร็วการเพิ่มส่วนสูงประมาณ {v} ซม. ต่อปี (วัดที่บ้าน ใช้เป็นข้อมูลอ้างอิง)", "mfb_velShort": "จะแสดงความเร็วการเจริญเติบโตเมื่อบันทึกห่างกันอย่างน้อย 3 เดือน", "mfb_same": "ส่วนสูงอาจต่างกันประมาณ 1 ซม. ตามเวลาและท่าทางที่วัด กรุณาวัดตอนเช้า เท้าเปล่า ยืนชิดผนัง", "mfb_pct": "ในเด็กวัยเดียวกัน 100 คน: ลำดับที่ {n} นับจากคนที่เตี้ยที่สุด", "mfb_pctPrev": "(ครั้งก่อน ลำดับที่ {n})", "mfb_ackDone": "✓ แพทย์ตรวจดูแล้ว", "mfb_ackWait": "⏳ เมื่อแพทย์ตรวจดูแล้ว จะมีเครื่องหมาย ✓ และข้อความสั้น ๆ ที่นี่", "ack_good": "เติบโตได้ดี 👍", "ack_thanks": "ขอบคุณที่วัดอย่างสม่ำเสมอ", "ack_next": "ไว้ดูด้วยกันในการนัดครั้งหน้า", "ack_check": "กรุณาตรวจสอบวิธีวัด — ตอนเช้า เท้าเปล่า ยืนชิดผนัง", "ack_ok": "ตรวจดูแล้ว"}, "id": {"mfb_title": "📈 Catatan terbaru", "mfb_new": "Baru ditambahkan", "mfb_first": "Ini catatan pertama. Mulai catatan berikutnya, kami akan membandingkannya dengan yang sebelumnya.", "mfb_diff": "dibanding catatan sebelumnya ({date}) · berselang {days} hari", "mfb_vel": "Setara pertumbuhan sekitar {v} cm per tahun (diukur di rumah, hanya sebagai acuan)", "mfb_velShort": "Kecepatan tumbuh ditampilkan bila jarak antarcatatan minimal 3 bulan", "mfb_same": "Tinggi badan bisa berbeda sekitar 1 cm tergantung waktu dan posisi. Ukur di pagi hari, tanpa alas kaki, menempel ke dinding.", "mfb_pct": "Di antara 100 anak seusia: urutan ke-{n} dari yang paling pendek", "mfb_pctPrev": "(sebelumnya urutan ke-{n})", "mfb_ackDone": "✓ Sudah dicek dokter", "mfb_ackWait": "⏳ Setelah dokter mengecek, tanda ✓ dan pesan singkat akan muncul di sini", "ack_good": "Tumbuh dengan baik 👍", "ack_thanks": "Terima kasih sudah rutin mengukur", "ack_next": "Kita lihat bersama di kunjungan berikutnya", "ack_check": "Mohon cek cara mengukur — pagi hari, tanpa alas kaki, menempel ke dinding", "ack_ok": "Sudah dicek"}, "ar": {"mfb_title": "📈 آخر تسجيل", "mfb_new": "أُضيف الآن", "mfb_first": "هذا هو التسجيل الأول. ابتداءً من التسجيل التالي سنقارنه بالسابق.", "mfb_diff": "مقارنة بالتسجيل السابق ({date}) · بفارق {days} يومًا", "mfb_vel": "أي ما يعادل نموًا بنحو {v} سم في السنة (قياس منزلي، للاسترشاد فقط)", "mfb_velShort": "تظهر سرعة النمو عندما يفصل بين التسجيلين 3 أشهر على الأقل", "mfb_same": "قد يختلف الطول بنحو 1 سم حسب وقت القياس ووضعية الجسم. يُرجى القياس صباحًا، حافي القدمين، مع الاستناد إلى الحائط.", "mfb_pct": "من بين 100 طفل في نفس العمر: الترتيب {n} بدءًا من الأقصر", "mfb_pctPrev": "(في المرة السابقة: {n})", "mfb_ackDone": "✓ راجعه الطبيب", "mfb_ackWait": "⏳ عندما يراجعه الطبيب ستظهر هنا علامة ✓ وكلمة قصيرة", "ack_good": "ينمو بشكل جيد 👍", "ack_thanks": "شكرًا لمواظبتكم على القياس", "ack_next": "سنراجعه معًا في الزيارة القادمة", "ack_check": "يُرجى التأكد من طريقة القياس — صباحًا، حافي القدمين، مع الاستناد إلى الحائط", "ack_ok": "تمت المراجعة"}, "mn": {"mfb_title": "📈 Сүүлийн бүртгэл", "mfb_new": "Дөнгөж нэмсэн", "mfb_first": "Энэ бол анхны бүртгэл. Дараагийнхаас эхлэн өмнөхтэй харьцуулж харуулна.", "mfb_diff": "Өмнөх бүртгэлээс ({date}) · {days} хоногийн зайтай", "mfb_vel": "Жилд шилжүүлбэл ойролцоогоор {v} см өсөх хурд (гэртээ хэмжсэн тул лавлах зорилготой)", "mfb_velShort": "Бүртгэлүүдийн хооронд 3-аас дээш сар болсон үед өсөлтийн хурдыг харуулна", "mfb_same": "Хэмжих цаг, байрлалаас хамаарч өндөр 1 см орчим зөрж болно. Өглөө, хөл нүцгэн, хананд наалдаж хэмжинэ үү.", "mfb_pct": "Ижил насны 100 хүүхдээс намаас нь эхлэн {n}-р байр", "mfb_pctPrev": "(өмнө нь {n}-р байр)", "mfb_ackDone": "✓ Эмч шалгасан", "mfb_ackWait": "⏳ Эмч шалгахад энд ✓ тэмдэг болон товч үг гарна", "ack_good": "Сайн өсөж байна 👍", "ack_thanks": "Тогтмол хэмжиж байгаад баярлалаа", "ack_next": "Дараагийн үзлэгээр хамт харъя", "ack_check": "Хэмжих аргаа нэг шалгана уу — өглөө, хөл нүцгэн, хананд наалдаж", "ack_ok": "Шалгасан"}}).forEach(([l,o])=>{ if(I18N[l]) Object.assign(I18N[l], o); });
+let mfbAcks = {};
+let mfbJust = '';   // 방금 입력·수정한 기록 id (카드를 반짝여 보여 줌)
+function mfbAckHtml(id, compact){
+  const a = mfbAcks[id];
+  if(a == null) return compact ? '' : `<div class="mfb-wait">${t('mfb_ackWait')}</div>`;
+  const m = String(a).match(/^\[\[ack:([a-z]+)\]\]$/);
+  const say = m ? escapeHtml(t('ack_'+m[1])) : (String(a).trim() ? frTrSpan(String(a).trim()) : '');
+  return `<div class="mfb-ack">${t('mfb_ackDone')}${say ? ' · ' + say : ''}</div>`;
+}
+function mfbPct(h, date){
+  if(!DOB || !h || !date) return null;
+  const am = ageInMonths(DOB, date); if(am == null || am < 0) return null;
+  const lms = getLMS('height', sexCode(SEX), am); if(!lms) return null;
+  const p = lmsPercentile(lms.L, lms.M, lms.S, parseFloat(h));
+  return isFinite(p) ? Math.max(1, Math.min(99, Math.round(p))) : null;
+}
+function mfbRender(){
+  const card = document.getElementById('mfbCard'); if(!card) return;
+  const rows = (lastMeasureRows||[]).filter(r=>r.date && (r.height || r.weight)).slice()
+    .sort((a,b)=> a.date !== b.date ? (a.date < b.date ? 1 : -1) : (String(a.timestamp||'') < String(b.timestamp||'') ? 1 : -1));
+  const last = rows[0];
+  if(!last){ card.style.display = 'none'; card.innerHTML = ''; return; }
+  const key = last.height ? 'height' : 'weight', unit = key === 'height' ? 'cm' : 'kg';
+  // 비교할 앞 기록: 이 날짜보다 앞선 기록 중 가장 최근 것 (집에서 잰 것 + 병원에서 잰 것)
+  const pool = rows.filter(r=>r !== last && r[key]).map(r=>({ date:r.date, v:parseFloat(r[key]) }))
+    .concat((doctorPointsCache||[]).filter(r=>r[key]).map(r=>({ date:r.date, v:parseFloat(r[key]) })))
+    .filter(r=> r.date && r.date < last.date && isFinite(r.v)).sort((a,b)=> a.date < b.date ? 1 : -1);
+  const prev = pool[0];
+  const vals = [last.height ? `${t('btnHeight')} ${last.height}cm` : '', last.weight ? `${t('btnWeight')} ${last.weight}kg` : ''].filter(Boolean).join(' · ');
+  const out = [];
+  if(!prev) out.push(`<div class="mfb-sub">${t('mfb_first')}</div>`);
+  else {
+    const dv = Math.round((parseFloat(last[key]) - prev.v) * 10) / 10;
+    const days = Math.round((new Date(last.date+'T00:00:00') - new Date(prev.date+'T00:00:00')) / 86400000);
+    out.push(`<div class="mfb-big${dv > 0 ? ' up' : ''}">${dv > 0 ? '+' : ''}${dv}${unit}</div><div class="mfb-sub">${t('mfb_diff', { date: fmtDate(prev.date), days })}</div>`);
+    if(key === 'height'){
+      if(dv <= 0) out.push(`<div class="mfb-tip">${t('mfb_same')}</div>`);
+      else if(days >= 90) out.push(`<div class="mfb-sub">${t('mfb_vel', { v: Math.round(dv / days * 365 * 10) / 10 })}</div>`);
+      else out.push(`<div class="mfb-sub" style="color:var(--secondary);font-size:12px;">${t('mfb_velShort')}</div>`);
+    }
+  }
+  const pc = key === 'height' ? mfbPct(last.height, last.date) : null;
+  if(pc != null){
+    const pp = prev ? mfbPct(prev.v, prev.date) : null;
+    out.push(`<div class="mfb-sub">${t('mfb_pct', { n: pc })}${pp != null ? ' ' + t('mfb_pctPrev', { n: pp }) : ''}</div>`);
+  }
+  card.innerHTML = `<h2>${t('mfb_title')}${mfbJust === last.id ? ` <span class="mfb-new">${t('mfb_new')}</span>` : ''}</h2>
+    <div class="mfb-val">${escapeHtml(fmtDate(last.date) || '')} · ${escapeHtml(vals)}</div>${out.join('')}${mfbAckHtml(last.id)}`;
+  card.style.display = '';
+  if(mfbJust === last.id){ card.classList.remove('mfb-flash'); void card.offsetWidth; card.classList.add('mfb-flash'); }
+  try{ frTranslateIn(card); }catch(e){}
+}
 async function loadLifestyleNote(){
   const card = document.getElementById('lifestyleNoteCard');
   const body = document.getElementById('lifestyleNoteBody');

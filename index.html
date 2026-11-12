@@ -179,6 +179,11 @@
   .chart-legend span{ display:inline-flex; align-items:center; gap:5px; }
   .chart-legend i{ width:9px; height:9px; border-radius:50%; display:inline-block; }
 
+  .mack-ctx{ font-size:12px; color:var(--secondary); margin-top:4px; line-height:1.5; }
+  .mack-row{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .mack-chip{ border:1px solid var(--ok); background:#fff; color:var(--ok); border-radius:16px; padding:7px 11px; font-size:12px; font-weight:700; cursor:pointer; }
+  .mack-chip:active{ background:var(--ok); color:#fff; }
+  .mack-done{ font-size:12px; color:var(--ok); font-weight:700; margin-top:6px; }
   .record-item{
     background:#fff; border:1px solid var(--border); border-radius:var(--radius);
     padding:13px 14px; margin-bottom:9px;
@@ -2533,8 +2538,10 @@ async function renderPendingMeasurements(){
   try{
     const res = await fetch(api);
     const rows = await res.json();
+    const acked = new Set(rows.filter(r=>r.type==='answer' && r.refId).map(r=>r.refId));
     const pending = rows.filter(r=>{
       if(r.type!=='measurement') return false;
+      if(acked.has(r.id)) return false;
       const p = patients.find(pp=>pp.accessCode===r.pid);
       if(!p) return false;
       if(getPatientCategory(p)!=='overseas') return false; // 국내 환자는 정기 대면진료로 확인하니 이 목록에서 제외 — 해외 환자만 남겨둠
@@ -2551,11 +2558,82 @@ async function renderPendingMeasurements(){
         <div>
           <div class="name-row"><span class="name">${escapeHtml(p.name)}</span><span style="font-size:10px;color:var(--secondary);font-weight:700;margin-left:6px;">${timeAgo(r.timestamp)}</span></div>
           <div class="sub">${escapeHtml(vals)} · ${fmtDate(r.date)}</div>
+          ${r.height ? `<div class="mack-ctx">${escapeHtml(mackContext(p, r))}</div>` : ''}
+          ${mackChips(p.id, r)}
         </div>
         <div class="arrow">›</div>
       </div>`;
     }).join('');
   }catch(err){ list.innerHTML = `<div class="empty-note">불러오지 못했습니다.</div>`; }
+}
+
+/* ---------------- 키 입력에 「확인 ✓ + 한마디」 ----------------
+ * 해외 환자가 올린 키·몸무게에 버튼 한 번으로: ① 보호자 앱에 「✓ 원장 확인 · 한마디」 ② 차트에 반영.
+ * 저장은 질문 답변과 같은 칸(type:'answer', refId:측정 id)이라 서버를 바꾸지 않아도 됩니다.
+ * 정해진 한마디는 [[ack:코드]]로 보내고, 환아 앱이 보호자 언어(11개)로 바꿔 보여 줍니다. 직접 쓴 글은 자동 번역됩니다. */
+const MACK = [['good','잘 크고 있어요 👍'],['thanks','꾸준히 재 주셔서 고마워요'],['next','다음 진료 때 같이 볼게요'],['check','재는 방법 확인 부탁'],['ok','확인만']];
+function mackLabel(a){ const m = String(a||'').match(/^\[\[ack:([a-z]+)\]\]$/); if(!m) return String(a||''); const f = MACK.find(x=>x[0]===m[1]); return f ? f[1] : '확인'; }
+function mackPct(p, h, date){
+  if(!p || !p.dob || !h || !date) return null;
+  const am = ageInMonths(p.dob, date); if(am == null || am < 0) return null;
+  const lms = getLMS('height', sexCode(p.sex), am); if(!lms) return null;
+  const v = lmsPercentile(lms.L, lms.M, lms.S, parseFloat(h));
+  return isFinite(v) ? Math.max(1, Math.min(99, Math.round(v))) : null;
+}
+// 원장이 한마디를 고를 수 있게: 지난 기록보다 몇 cm, 연 속도, 백분위
+function mackContext(p, r){
+  if(!r.height) return '';
+  const prev = (p.records||[]).filter(x=>x.date && x.height && x.date < r.date && isFinite(parseFloat(x.height))).sort((a,b)=> a.date < b.date ? 1 : -1)[0];
+  const bits = [];
+  if(prev){
+    const dv = Math.round((parseFloat(r.height) - parseFloat(prev.height)) * 10) / 10;
+    const days = Math.round((new Date(r.date+'T00:00:00') - new Date(prev.date+'T00:00:00')) / 86400000);
+    bits.push(`지난 기록(${fmtDate(prev.date)}, ${days}일 전)보다 ${dv > 0 ? '+' : ''}${dv}cm`);
+    if(days >= 90 && dv > 0) bits.push(`연 ${Math.round(dv / days * 365 * 10) / 10}cm 속도`);
+    if(dv <= 0) bits.push('⚠️ 줄었거나 그대로 — 측정 오차 확인');
+  } else bits.push('차트에 앞선 키 기록 없음');
+  const pc = mackPct(p, r.height, r.date);
+  if(pc != null){ const pp = prev ? mackPct(p, prev.height, prev.date) : null; bits.push(`백분위 ${pc}${pp != null ? ` (지난번 ${pp})` : ''}`); }
+  return bits.join(' · ');
+}
+function mackChips(patientId, r){
+  const a = `'${patientId}','${r.id}','${r.date||''}','${r.height||''}','${r.weight||''}'`;
+  return `<div class="mack-row" onclick="event.stopPropagation()">` + MACK.map(([c,l])=>`<button class="mack-chip" onclick="measAck(${a},'${c}')">${l}</button>`).join('') + `</div>`;
+}
+function measApply(p, id, date, height, weight){
+  if((p.appliedInboxIds||[]).includes(id)) return;
+  if(!date || isNaN(new Date(date+'T00:00:00'))) date = todayStr();
+  if(!p.records) p.records = [];
+  const ex = p.records.find(r=>r.date===date);
+  if(ex){ if(height) ex.height = height; if(weight) ex.weight = weight; }
+  else p.records.push({ id: uid(), date, height, weight, callDone:false });
+  if(!p.appliedInboxIds) p.appliedInboxIds = [];
+  p.appliedInboxIds.push(id);
+  p.updatedAt = new Date().toISOString();
+  savePatients();
+}
+let mackBusy = false;
+async function measAck(patientId, measId, date, height, weight, code, text){
+  const p = getPatient(patientId), api = getApiUrl();
+  if(!p || !api || !p.accessCode || mackBusy) return;
+  const answer = text != null ? String(text).trim() : `[[ack:${code}]]`;
+  if(!answer) return;
+  mackBusy = true;
+  try{
+    const res = await fetch(api, { method:'POST', body: JSON.stringify({ id: uid(), pid: p.accessCode, type:'answer', refId: measId, answer }) });
+    let j = null; try{ j = await res.json(); }catch(e){}
+    if(j && j.status && j.status !== 'ok') throw new Error(j.message || j.code || '');
+  }catch(e){ mackBusy = false; alert('확인 보내기에 실패했습니다.' + (e && e.message ? '\n' + e.message : '')); return; }
+  mackBusy = false;
+  measApply(p, measId, date, height, weight);
+  if(currentPatientId === patientId){ try{ renderDetail(); }catch(e){} }
+  renderPendingMeasurements();
+}
+function measAckTyped(patientId, measId, date, height, weight){
+  const el = document.getElementById('mackt_' + measId);
+  const v = el ? el.value.trim() : '';
+  if(!v){ if(el) el.focus(); return; }
+  measAck(patientId, measId, date, height, weight, '', v);
 }
 function goToInboxMeasurement(patientId, measureId){
   openDetail(patientId);
@@ -7463,9 +7541,13 @@ async function renderInbox(p, forceFetch){
       }
       if(r.type==='measurement'){
         const applied = (p.appliedInboxIds||[]).includes(r.id);
+        const ack = answerText[r.id];
+        const ackBox = ack != null ? `<div class="mack-done">✓ 보호자에게 확인 보냄 · ${escapeHtml(mackLabel(ack))}</div>`
+          : `<div class="mack-ctx">${escapeHtml(mackContext(p, r))}</div>${mackChips(p.id, r)}
+             <div style="display:flex;gap:6px;margin-top:6px;"><input id="mackt_${r.id}" placeholder="직접 한마디 (보호자 언어로 자동 번역)" style="flex:1;min-width:0;font-size:12px;padding:7px 9px;border:1px solid var(--border);border-radius:8px;"><button class="btn btn-outline" style="font-size:12px;padding:6px 10px;" onclick="measAckTyped('${p.id}','${r.id}','${r.date||''}','${r.height||''}','${r.weight||''}')">✓ 보내기</button></div>`;
         return `<div class="record-item" id="meas_${r.id}">
           <div class="rec-top"><div class="rec-date">${fmtDate(r.date)||'날짜 미상'} · 환아 제출</div><span style="font-size:10px;color:${applied?'var(--secondary)':'var(--ok)'};font-weight:700;">${applied?'반영됨':'측정값'}</span></div>
-          <div class="rec-body"><div class="row"><b>성장</b>${r.height?`키 ${r.height}cm `:''}${r.weight?`몸무게 ${r.weight}kg`:''}</div></div>
+          <div class="rec-body"><div class="row"><b>성장</b>${r.height?`키 ${r.height}cm `:''}${r.weight?`몸무게 ${r.weight}kg`:''}</div>${ackBox}</div>
           <div class="rec-actions">${applied ? '' : `<button class="btn btn-primary" onclick="applyInboxMeasurement('${r.id}','${r.date}','${r.height||''}','${r.weight||''}')">차트에 반영</button>`}${delBtn(r.id)}</div>
         </div>`;
       }
