@@ -126,6 +126,7 @@
   .fr-care span{ font-size:13px; line-height:1.65; white-space:pre-wrap; display:block; }
   .fr-test{ display:inline-block; font-size:12px; background:var(--light); border:1px solid var(--border); border-radius:14px; padding:3px 10px; margin:2px 4px 2px 0; }
 .mfb .mfb-val{font-size:13px;color:var(--secondary)}.mfb .mfb-big{font-size:26px;font-weight:800;color:var(--primary);margin-top:6px;line-height:1.2}.mfb .mfb-big.up{color:var(--ok)}.mfb .mfb-sub{font-size:13px;margin-top:4px;line-height:1.5}.mfb .mfb-tip{font-size:12px;color:var(--secondary);background:rgba(0,0,0,.04);border-radius:8px;padding:8px 10px;margin-top:8px;line-height:1.5}.mfb-ack{margin-top:10px;font-size:13px;font-weight:700;color:var(--ok);line-height:1.5}.past-item .mfb-ack{margin-top:4px;font-size:12px}.mfb-wait{margin-top:10px;font-size:12px;color:var(--secondary);line-height:1.5}.mfb-new{font-size:11px;background:var(--ok);color:#fff;border-radius:10px;padding:2px 8px;vertical-align:middle;font-weight:700}.mfb-flash{animation:mfbf 1.4s ease}@keyframes mfbf{0%{box-shadow:0 0 0 0 rgba(46,139,87,.55)}100%{box-shadow:0 0 0 16px rgba(46,139,87,0)}}
+.mday-banner{background:var(--ok);color:#fff;border-radius:14px;padding:14px 16px;margin-bottom:12px;font-weight:700;line-height:1.5;font-size:14px}.mday-banner button{display:block;margin-top:10px;background:#fff;color:var(--ok);border:0;border-radius:10px;padding:9px 16px;font-weight:800;font-size:14px}.mday .mday-big{font-size:19px;font-weight:800;color:var(--primary);margin-top:4px}.mday .mday-small{font-size:12px;color:var(--secondary);margin-top:2px}.mday-dots{display:flex;gap:6px;margin:12px 0 2px}.mday-dot{flex:1;text-align:center;font-size:11px;color:var(--secondary)}.mday-dot i{display:block;height:10px;border-radius:5px;background:rgba(0,0,0,.08);margin-bottom:3px}.mday-dot.on i{background:var(--ok)}.mday-dot.now{font-weight:800;color:var(--primary)}.mday-st{font-size:13px;margin-top:10px;line-height:1.5}.mday-st.due{color:var(--accent);font-weight:700}.mday-st.done{color:var(--ok);font-weight:700}.mday-row{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px}.mday-row span{flex:0 0 auto;color:var(--secondary)}.mday-row select{flex:1;min-width:0;padding:8px;border-radius:8px;border:1px solid var(--border);font-size:14px;background:#fff}
 </style>
 </head>
 <body>
@@ -274,6 +275,7 @@
   </div>
 
   <div class="view active" id="v-measure">
+    <div class="mday-banner" id="mdayBanner" style="display:none;"></div>
     <div class="card" id="vg_card" style="display:none;"></div>
     <div class="card" id="chartCard" style="display:none;">
       <h2 data-i18n="chartTitle">성장 그래프</h2>
@@ -310,6 +312,7 @@
       <div class="msg" id="m_msg"></div>
     </div>
     <div class="card mfb" id="mfbCard" style="display:none;"></div>
+    <div class="card mday" id="mdayCard" style="display:none;"></div>
     <div class="card" id="recVideoCard" style="display:none;">
       <h2 data-i18n="recVideoTitle">담당 의료진 추천 영상</h2>
       <p class="notice" data-i18n="recVideoNotice">우리 아이에게 도움이 될 만한 교육 영상이에요.</p>
@@ -1081,7 +1084,82 @@ function mfbPct(h, date){
   const p = lmsPercentile(lms.L, lms.M, lms.S, parseFloat(h));
   return isFinite(p) ? Math.max(1, Math.min(99, Math.round(p))) : null;
 }
+/* ---------------- 측정의 날 + 연속 기록 ----------------
+ * 매달 정한 날(첫째 토·일, 1일, 15일)에 재도록: 그날이 오면 맨 위에 안내가 뜨고, 휴대폰 캘린더에 매달 알림(.ics)을 넣을 수 있습니다.
+ * 알림 시간은 아침 8시 「지금 있는 곳 시간」(시간대를 적지 않음) — 해외 어디서든 그 나라 아침 8시에 울립니다.
+ * 연속 기록 = 보호자가 집에서 입력한 기록이 있는 달이 몇 달째 이어지는지. 이번 달에 아직 안 했으면 지난달까지 센 수를 보여 줍니다. */
+Object.entries({"ko": {"md_title": "📏 측정의 날", "md_sel": "매달 키·몸무게 재는 날", "md_opt_sat1": "첫째 토요일", "md_opt_sun1": "첫째 일요일", "md_opt_d1": "매달 1일", "md_opt_d15": "매달 15일", "md_next": "다음 측정의 날: {date} (D-{n})", "md_today": "오늘이 측정의 날이에요!", "md_due": "이번 달 측정의 날({date})이 지났어요. 아직 이번 달 기록이 없어요.", "md_done": "이번 달 기록 완료 ✓", "md_ics": "📲 휴대폰 캘린더에 매달 알림 넣기", "md_ics_note": "아침 8시에 알림이 울려요 (지금 계신 곳 시간 기준)", "md_banner": "📏 오늘은 측정의 날이에요 — 아침에 맨발로 벽에 붙어 재고 입력해 주세요", "md_bannerBtn": "지금 입력하기", "md_streak": "{e} {n}개월 연속 기록 중", "md_streak0": "이번 달부터 매달 한 번씩 기록해 보세요 🌱", "md_streakNext": "이번 달에 기록하면 {n}개월 연속이 돼요", "md_ics_title": "자라다 · 측정의 날", "md_ics_desc": "아침에 맨발로 벽에 붙어 키와 몸무게를 재고 자라다케어에 입력해 주세요"}, "en": {"md_title": "📏 Measuring Day", "md_sel": "Day each month to measure height and weight", "md_opt_sat1": "First Saturday", "md_opt_sun1": "First Sunday", "md_opt_d1": "1st of each month", "md_opt_d15": "15th of each month", "md_next": "Next Measuring Day: {date} (D-{n})", "md_today": "Today is Measuring Day!", "md_due": "This month's Measuring Day ({date}) has passed. No record yet this month.", "md_done": "This month's record done ✓", "md_ics": "📲 Add a monthly reminder to my phone calendar", "md_ics_note": "The reminder rings at 8 a.m. (your local time)", "md_banner": "📏 Today is Measuring Day — measure in the morning, barefoot against a wall, and enter it", "md_bannerBtn": "Enter now", "md_streak": "{e} {n} months in a row", "md_streak0": "Try recording once every month, starting this month 🌱", "md_streakNext": "Record this month to make it {n} months in a row", "md_ics_title": "Jarada · Measuring Day", "md_ics_desc": "Measure height and weight in the morning, barefoot against a wall, and enter them in Jarada Care"}, "zh": {"md_title": "📏 测量日", "md_sel": "每月测量身高体重的日子", "md_opt_sat1": "第一个星期六", "md_opt_sun1": "第一个星期日", "md_opt_d1": "每月1日", "md_opt_d15": "每月15日", "md_next": "下一个测量日：{date}（D-{n}）", "md_today": "今天是测量日！", "md_due": "本月测量日（{date}）已过，本月还没有记录。", "md_done": "本月记录完成 ✓", "md_ics": "📲 在手机日历中添加每月提醒", "md_ics_note": "早上8点提醒（按您所在地时间）", "md_banner": "📏 今天是测量日——请早上赤脚贴墙测量并录入", "md_bannerBtn": "现在录入", "md_streak": "{e} 已连续记录{n}个月", "md_streak0": "从本月开始，每月记录一次吧 🌱", "md_streakNext": "本月记录后就连续{n}个月了", "md_ics_title": "Jarada · 测量日", "md_ics_desc": "请早上赤脚贴墙测量身高和体重，并录入Jarada Care"}, "zt": {"md_title": "📏 測量日", "md_sel": "每月測量身高體重的日子", "md_opt_sat1": "第一個星期六", "md_opt_sun1": "第一個星期日", "md_opt_d1": "每月1日", "md_opt_d15": "每月15日", "md_next": "下一個測量日：{date}（D-{n}）", "md_today": "今天是測量日！", "md_due": "本月測量日（{date}）已過，本月還沒有紀錄。", "md_done": "本月紀錄完成 ✓", "md_ics": "📲 在手機行事曆加入每月提醒", "md_ics_note": "早上8點提醒（依您所在地時間）", "md_banner": "📏 今天是測量日——請早上赤腳貼牆測量並輸入", "md_bannerBtn": "現在輸入", "md_streak": "{e} 已連續紀錄{n}個月", "md_streak0": "從本月開始，每月紀錄一次吧 🌱", "md_streakNext": "本月紀錄後就連續{n}個月了", "md_ics_title": "Jarada · 測量日", "md_ics_desc": "請早上赤腳貼牆測量身高和體重，並輸入Jarada Care"}, "vi": {"md_title": "📏 Ngày đo", "md_sel": "Ngày đo chiều cao, cân nặng mỗi tháng", "md_opt_sat1": "Thứ Bảy đầu tiên", "md_opt_sun1": "Chủ Nhật đầu tiên", "md_opt_d1": "Ngày 1 hằng tháng", "md_opt_d15": "Ngày 15 hằng tháng", "md_next": "Ngày đo tiếp theo: {date} (D-{n})", "md_today": "Hôm nay là Ngày đo!", "md_due": "Ngày đo tháng này ({date}) đã qua. Tháng này chưa có số đo.", "md_done": "Đã ghi tháng này ✓", "md_ics": "📲 Thêm nhắc nhở hằng tháng vào lịch điện thoại", "md_ics_note": "Nhắc lúc 8 giờ sáng (theo giờ nơi bạn ở)", "md_banner": "📏 Hôm nay là Ngày đo — hãy đo buổi sáng, chân trần, sát tường rồi nhập vào", "md_bannerBtn": "Nhập ngay", "md_streak": "{e} Ghi liên tục {n} tháng", "md_streak0": "Hãy ghi mỗi tháng một lần, bắt đầu từ tháng này 🌱", "md_streakNext": "Ghi trong tháng này để đạt {n} tháng liên tục", "md_ics_title": "Jarada · Ngày đo", "md_ics_desc": "Đo chiều cao và cân nặng vào buổi sáng, chân trần, sát tường rồi nhập vào Jarada Care"}, "ja": {"md_title": "📏 測定の日", "md_sel": "毎月身長・体重を測る日", "md_opt_sat1": "第1土曜日", "md_opt_sun1": "第1日曜日", "md_opt_d1": "毎月1日", "md_opt_d15": "毎月15日", "md_next": "次の測定の日：{date}（D-{n}）", "md_today": "今日は測定の日です！", "md_due": "今月の測定の日（{date}）が過ぎました。今月の記録がまだありません。", "md_done": "今月の記録完了 ✓", "md_ics": "📲 スマホのカレンダーに毎月の通知を追加", "md_ics_note": "朝8時に通知が鳴ります（いまいる場所の時間）", "md_banner": "📏 今日は測定の日です — 朝、はだしで壁に背をつけて測り、入力してください", "md_bannerBtn": "いま入力する", "md_streak": "{e} {n}か月連続で記録中", "md_streak0": "今月から毎月1回記録してみましょう 🌱", "md_streakNext": "今月記録すると{n}か月連続になります", "md_ics_title": "Jarada · 測定の日", "md_ics_desc": "朝、はだしで壁に背をつけて身長と体重を測り、Jarada Careに入力してください"}, "es": {"md_title": "📏 Día de medir", "md_sel": "Día de cada mes para medir talla y peso", "md_opt_sat1": "Primer sábado", "md_opt_sun1": "Primer domingo", "md_opt_d1": "Día 1 de cada mes", "md_opt_d15": "Día 15 de cada mes", "md_next": "Próximo día de medir: {date} (D-{n})", "md_today": "¡Hoy es el día de medir!", "md_due": "Ya pasó el día de medir de este mes ({date}). Aún no hay registro este mes.", "md_done": "Registro de este mes hecho ✓", "md_ics": "📲 Añadir un recordatorio mensual al calendario del móvil", "md_ics_note": "Suena a las 8 de la mañana (hora local)", "md_banner": "📏 Hoy es el día de medir — mida por la mañana, descalzo contra la pared, y anótelo", "md_bannerBtn": "Anotar ahora", "md_streak": "{e} {n} meses seguidos", "md_streak0": "Intente registrar una vez al mes, empezando este mes 🌱", "md_streakNext": "Registre este mes para llegar a {n} meses seguidos", "md_ics_title": "Jarada · Día de medir", "md_ics_desc": "Mida talla y peso por la mañana, descalzo contra la pared, y anótelos en Jarada Care"}, "th": {"md_title": "📏 วันวัดตัว", "md_sel": "วันวัดส่วนสูงและน้ำหนักทุกเดือน", "md_opt_sat1": "วันเสาร์แรก", "md_opt_sun1": "วันอาทิตย์แรก", "md_opt_d1": "วันที่ 1 ของทุกเดือน", "md_opt_d15": "วันที่ 15 ของทุกเดือน", "md_next": "วันวัดตัวครั้งถัดไป: {date} (D-{n})", "md_today": "วันนี้คือวันวัดตัว!", "md_due": "วันวัดตัวของเดือนนี้ ({date}) ผ่านไปแล้ว ยังไม่มีบันทึกในเดือนนี้", "md_done": "บันทึกเดือนนี้แล้ว ✓", "md_ics": "📲 เพิ่มการแจ้งเตือนรายเดือนในปฏิทินโทรศัพท์", "md_ics_note": "แจ้งเตือนเวลา 8 โมงเช้า (ตามเวลาที่คุณอยู่)", "md_banner": "📏 วันนี้คือวันวัดตัว — วัดตอนเช้า เท้าเปล่า ยืนชิดผนัง แล้วบันทึก", "md_bannerBtn": "บันทึกตอนนี้", "md_streak": "{e} บันทึกต่อเนื่อง {n} เดือน", "md_streak0": "ลองบันทึกเดือนละครั้ง เริ่มตั้งแต่เดือนนี้ 🌱", "md_streakNext": "บันทึกเดือนนี้เพื่อให้ต่อเนื่องครบ {n} เดือน", "md_ics_title": "Jarada · วันวัดตัว", "md_ics_desc": "วัดส่วนสูงและน้ำหนักตอนเช้า เท้าเปล่า ยืนชิดผนัง แล้วบันทึกใน Jarada Care"}, "id": {"md_title": "📏 Hari Mengukur", "md_sel": "Hari mengukur tinggi dan berat setiap bulan", "md_opt_sat1": "Sabtu pertama", "md_opt_sun1": "Minggu pertama", "md_opt_d1": "Tanggal 1 setiap bulan", "md_opt_d15": "Tanggal 15 setiap bulan", "md_next": "Hari mengukur berikutnya: {date} (D-{n})", "md_today": "Hari ini Hari Mengukur!", "md_due": "Hari mengukur bulan ini ({date}) sudah lewat. Belum ada catatan bulan ini.", "md_done": "Catatan bulan ini selesai ✓", "md_ics": "📲 Tambahkan pengingat bulanan ke kalender ponsel", "md_ics_note": "Pengingat berbunyi pukul 8 pagi (waktu setempat)", "md_banner": "📏 Hari ini Hari Mengukur — ukur di pagi hari, tanpa alas kaki menempel ke dinding, lalu masukkan", "md_bannerBtn": "Masukkan sekarang", "md_streak": "{e} {n} bulan berturut-turut", "md_streak0": "Coba catat sebulan sekali, mulai bulan ini 🌱", "md_streakNext": "Catat bulan ini agar menjadi {n} bulan berturut-turut", "md_ics_title": "Jarada · Hari Mengukur", "md_ics_desc": "Ukur tinggi dan berat di pagi hari, tanpa alas kaki menempel ke dinding, lalu masukkan ke Jarada Care"}, "ar": {"md_title": "📏 يوم القياس", "md_sel": "يوم قياس الطول والوزن كل شهر", "md_opt_sat1": "أول سبت", "md_opt_sun1": "أول أحد", "md_opt_d1": "اليوم 1 من كل شهر", "md_opt_d15": "اليوم 15 من كل شهر", "md_next": "يوم القياس القادم: {date} (D-{n})", "md_today": "اليوم هو يوم القياس!", "md_due": "مرّ يوم القياس لهذا الشهر ({date}). لا يوجد تسجيل هذا الشهر بعد.", "md_done": "تم تسجيل هذا الشهر ✓", "md_ics": "📲 أضف تذكيرًا شهريًا إلى تقويم الهاتف", "md_ics_note": "يرنّ التذكير الساعة 8 صباحًا (بتوقيتك المحلي)", "md_banner": "📏 اليوم هو يوم القياس — قِس صباحًا حافي القدمين مع الاستناد إلى الحائط ثم سجّل", "md_bannerBtn": "سجّل الآن", "md_streak": "{e} {n} أشهر متتالية", "md_streak0": "جرّب التسجيل مرة كل شهر بدءًا من هذا الشهر 🌱", "md_streakNext": "سجّل هذا الشهر لتصل إلى {n} أشهر متتالية", "md_ics_title": "Jarada · يوم القياس", "md_ics_desc": "قِس الطول والوزن صباحًا حافي القدمين مع الاستناد إلى الحائط، ثم سجّلهما في Jarada Care"}, "mn": {"md_title": "📏 Хэмжих өдөр", "md_sel": "Сар бүр өндөр, жин хэмжих өдөр", "md_opt_sat1": "Эхний бямба", "md_opt_sun1": "Эхний ням", "md_opt_d1": "Сар бүрийн 1", "md_opt_d15": "Сар бүрийн 15", "md_next": "Дараагийн хэмжих өдөр: {date} (D-{n})", "md_today": "Өнөөдөр хэмжих өдөр!", "md_due": "Энэ сарын хэмжих өдөр ({date}) өнгөрлөө. Энэ сард бүртгэл алга.", "md_done": "Энэ сарын бүртгэл хийгдсэн ✓", "md_ics": "📲 Утасны календарьт сар бүрийн сануулга нэмэх", "md_ics_note": "Өглөө 8 цагт сануулна (таны байгаа газрын цагаар)", "md_banner": "📏 Өнөөдөр хэмжих өдөр — өглөө хөл нүцгэн хананд наалдаж хэмжээд оруулна уу", "md_bannerBtn": "Одоо оруулах", "md_streak": "{e} {n} сар дараалан бүртгэж байна", "md_streak0": "Энэ сараас эхлэн сард нэг удаа бүртгээрэй 🌱", "md_streakNext": "Энэ сард бүртгэвэл {n} сар дараалан болно", "md_ics_title": "Jarada · Хэмжих өдөр", "md_ics_desc": "Өглөө хөл нүцгэн хананд наалдаж өндөр, жингээ хэмжээд Jarada Care-д оруулна уу"}}).forEach(([l,o])=>{ if(I18N[l]) Object.assign(I18N[l], o); });
+Object.entries({"ko": {"md_bannerLate": "📏 이번 달 측정을 아직 안 했어요 — 오늘 아침이나 내일 아침에 맨발로 벽에 붙어 재고 입력해 주세요"}, "en": {"md_bannerLate": "📏 This month's measurement isn't done yet — please measure this morning or tomorrow morning, barefoot against a wall, and enter it"}, "zh": {"md_bannerLate": "📏 本月还没有测量——请在今天或明天早上赤脚贴墙测量并录入"}, "zt": {"md_bannerLate": "📏 本月還沒有測量——請在今天或明天早上赤腳貼牆測量並輸入"}, "vi": {"md_bannerLate": "📏 Tháng này chưa đo — hãy đo vào sáng nay hoặc sáng mai, chân trần, sát tường rồi nhập vào"}, "ja": {"md_bannerLate": "📏 今月の測定がまだです — 今朝か明日の朝、はだしで壁に背をつけて測り、入力してください"}, "es": {"md_bannerLate": "📏 Aún no ha medido este mes — mida esta mañana o mañana, descalzo contra la pared, y anótelo"}, "th": {"md_bannerLate": "📏 เดือนนี้ยังไม่ได้วัด — กรุณาวัดเช้านี้หรือเช้าพรุ่งนี้ เท้าเปล่า ยืนชิดผนัง แล้วบันทึก"}, "id": {"md_bannerLate": "📏 Bulan ini belum mengukur — ukur pagi ini atau besok pagi, tanpa alas kaki menempel ke dinding, lalu masukkan"}, "ar": {"md_bannerLate": "📏 لم يتم القياس هذا الشهر بعد — قِس صباح اليوم أو صباح الغد حافي القدمين مع الاستناد إلى الحائط ثم سجّل"}, "mn": {"md_bannerLate": "📏 Энэ сард хэмжээгүй байна — өнөө өглөө эсвэл маргааш өглөө хөл нүцгэн хананд наалдаж хэмжээд оруулна уу"}}).forEach(([l,o])=>{ if(I18N[l]) Object.assign(I18N[l], o); });
+const MDAY_RULES = ['sat1','sun1','d1','d15'];
+function mdayRule(){ let v = ''; try{ v = localStorage.getItem('jrd_mday_' + PID) || ''; }catch(e){} return MDAY_RULES.includes(v) ? v : 'sat1'; }
+function mdaySet(v){ if(!MDAY_RULES.includes(v)) return; try{ localStorage.setItem('jrd_mday_' + PID, v); }catch(e){} mdayRender(); }
+function mdayOf(y, m, rule){   // m: 0~11 (넘치면 다음 해로)
+  if(rule === 'd1') return new Date(y, m, 1);
+  if(rule === 'd15') return new Date(y, m, 15);
+  const want = rule === 'sun1' ? 0 : 6, d = new Date(y, m, 1);
+  while(d.getDay() !== want) d.setDate(d.getDate() + 1);
+  return d;
+}
+function mdayYmd(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function mdayState(){
+  const today = todayStr(), now = new Date(today + 'T00:00:00'), y = now.getFullYear(), m = now.getMonth(), rule = mdayRule();
+  const months = new Set((lastMeasureRows||[]).filter(r=>r.date && (r.height || r.weight)).map(r=>String(r.date).slice(0,7)));
+  const mk = (yy, mm)=>{ const d = new Date(yy, mm, 1); return mdayYmd(d).slice(0,7); };
+  const thisDone = months.has(mk(y, m));
+  let n = 0, k = thisDone ? 0 : -1;
+  while(months.has(mk(y, m + k))){ n++; k--; }
+  const day = mdayYmd(mdayOf(y, m, rule));
+  const next = (thisDone || today > day) ? mdayYmd(mdayOf(y, m + 1, rule)) : day;
+  const dots = []; for(let i = 5; i >= 0; i--){ const d = new Date(y, m - i, 1); dots.push({ mon: d.getMonth() + 1, on: months.has(mdayYmd(d).slice(0,7)), now: i === 0 }); }
+  return { today, rule, thisDone, n, day, next, dots, due: !thisDone && today >= day };
+}
+function mdayRender(){
+  const card = document.getElementById('mdayCard'), ban = document.getElementById('mdayBanner');
+  if(!card || !PID || !API) return;
+  const st = mdayState();
+  const e = st.n >= 12 ? '🌳' : st.n >= 6 ? '🌿' : '🌱';
+  const streak = st.n ? `<div class="mday-big">${t('md_streak', { e, n: st.n })}</div>${st.thisDone ? '' : `<div class="mday-small">${t('md_streakNext', { n: st.n + 1 })}</div>`}`
+    : `<div class="mday-big" style="font-size:15px;">${t('md_streak0')}</div>`;
+  const dots = `<div class="mday-dots">${st.dots.map(d=>`<div class="mday-dot${d.on ? ' on' : ''}${d.now ? ' now' : ''}"><i></i>${d.mon}</div>`).join('')}</div>`;
+  let status;
+  if(st.thisDone) status = `<div class="mday-st done">${t('md_done')} · ${t('md_next', { date: fmtDate(st.next), n: mdayDays(st.today, st.next) })}</div>`;
+  else if(st.today === st.day) status = `<div class="mday-st due">${t('md_today')}</div>`;
+  else if(st.due) status = `<div class="mday-st due">${t('md_due', { date: fmtDate(st.day) })}</div>`;
+  else status = `<div class="mday-st">${t('md_next', { date: fmtDate(st.next), n: mdayDays(st.today, st.next) })}</div>`;
+  const opts = MDAY_RULES.map(r=>`<option value="${r}"${r === st.rule ? ' selected' : ''}>${t('md_opt_' + r)}</option>`).join('');
+  card.innerHTML = `<h2>${t('md_title')}</h2>${streak}${dots}${status}
+    <div class="mday-row"><span>${t('md_sel')}</span><select onchange="mdaySet(this.value)">${opts}</select></div>
+    <button class="btn btn-outline" style="margin-top:10px;" onclick="mdayIcs()">${t('md_ics')}</button>
+    <p class="notice" style="font-size:11px;margin-top:6px;">${t('md_ics_note')}</p>`;
+  card.style.display = '';
+  if(ban){
+    if(st.due){ ban.innerHTML = `${t(st.today === st.day ? 'md_banner' : 'md_bannerLate')}<button onclick="mdayGo()">${t('md_bannerBtn')}</button>`; ban.style.display = ''; }
+    else { ban.style.display = 'none'; ban.innerHTML = ''; }
+  }
+}
+function mdayDays(a, b){ return Math.max(0, Math.round((new Date(b + 'T00:00:00') - new Date(a + 'T00:00:00')) / 86400000)); }
+function mdayGo(){ const h = document.getElementById('m_height'); if(!h) return; h.scrollIntoView({ behavior:'smooth', block:'center' }); setTimeout(()=>{ try{ h.focus(); }catch(e){} }, 350); }
+function mdayIcsText(){
+  const st = mdayState(), rule = st.rule;
+  const first = (st.today <= st.day) ? st.day : st.next, ds = first.replace(/-/g, '');
+  const rr = rule === 'd1' ? 'BYMONTHDAY=1' : rule === 'd15' ? 'BYMONTHDAY=15' : rule === 'sun1' ? 'BYDAY=1SU' : 'BYDAY=1SA';
+  const esc = x=>String(x).replace(/[\\;,]/g, ' ').replace(/[\r\n]+/g, ' ');
+  // 링크(아이 접속 코드)는 캘린더에 넣지 않습니다 — 캘린더는 가족·회사 계정과 공유되는 일이 많아서.
+  return ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Jarada//MeasureDay//KO','CALSCALE:GREGORIAN','BEGIN:VEVENT',
+    'UID:jrd-mday-' + PID.slice(0, 6) + '-' + rule + '@jaradacare.com',
+    'DTSTAMP:' + new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z',
+    'DTSTART:' + ds + 'T080000', 'DTEND:' + ds + 'T081500', 'RRULE:FREQ=MONTHLY;' + rr + ';COUNT=24',
+    'SUMMARY:' + esc(t('md_ics_title')), 'DESCRIPTION:' + esc(t('md_ics_desc')),
+    'BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:' + esc(t('md_ics_title')),'TRIGGER:PT0M','END:VALARM','END:VEVENT','END:VCALENDAR'].join('\r\n');
+}
+function mdayIcs(){
+  const a = document.createElement('a');
+  a.href = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(mdayIcsText());
+  a.download = 'jarada-measure-day.ics';
+  document.body.appendChild(a); a.click(); a.remove();
+}
 function mfbRender(){
+  try{ mdayRender(); }catch(e){ console.error(e); }
   const card = document.getElementById('mfbCard'); if(!card) return;
   const rows = (lastMeasureRows||[]).filter(r=>r.date && (r.height || r.weight)).slice()
     .sort((a,b)=> a.date !== b.date ? (a.date < b.date ? 1 : -1) : (String(a.timestamp||'') < String(b.timestamp||'') ? 1 : -1));
