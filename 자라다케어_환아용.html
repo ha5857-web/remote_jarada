@@ -313,6 +313,7 @@
     </div>
     <div class="card mfb" id="mfbCard" style="display:none;"></div>
     <div class="card mday" id="mdayCard" style="display:none;"></div>
+    <div class="card" id="gcCard" style="display:none;"></div>
     <div class="card" id="recVideoCard" style="display:none;">
       <h2 data-i18n="recVideoTitle">담당 의료진 추천 영상</h2>
       <p class="notice" data-i18n="recVideoNotice">우리 아이에게 도움이 될 만한 교육 영상이에요.</p>
@@ -1158,8 +1159,103 @@ function mdayIcs(){
   a.download = 'jarada-measure-day.ics';
   document.body.appendChild(a); a.click(); a.remove();
 }
+/* ---------------- 성장 카드 (보호자가 직접 공유) ----------------
+ * 이름·생일·키 숫자·백분위는 넣지 않고, 최근 6개월/1년 동안 「몇 cm 자랐는지」와 점 그래프(눈금 없음), 연속 기록만 담은 이미지.
+ * 병원 이름·치료 이야기도 넣지 않습니다(보호자가 스스로 나누는 기록 — 의료광고·후기로 보이지 않게). 아래에 jaradacare.com만 작게. */
+Object.entries({"ko": {"gc_title": "🎉 성장 카드", "gc_desc": "이름·생일 없이 키가 자란 만큼만 담은 이미지예요. 가족이나 친구에게 보내 보세요.", "gc_need": "키 기록이 두 달 넘는 간격으로 2번 이상 쌓이면 만들 수 있어요.", "gc_btn6": "최근 6개월 카드", "gc_btn12": "최근 1년 카드", "gc_head": "🌱 우리 아이 성장 기록", "gc_grew": "{m}개월 동안 이만큼 자랐어요", "gc_count": "키를 {n}번 기록했어요", "gc_share": "공유하기", "gc_save": "이미지 저장", "gc_close": "닫기", "gc_hint": "공유가 안 되면 이미지를 길게 눌러 저장하세요", "gc_shareText": "우리 아이 성장 기록 🌱"}, "en": {"gc_title": "🎉 Growth card", "gc_desc": "An image showing only how much your child has grown — no name or birthday. Send it to family or friends.", "gc_need": "You can make one once there are 2 or more height records more than two months apart.", "gc_btn6": "Last 6 months", "gc_btn12": "Last 12 months", "gc_head": "🌱 My child's growth", "gc_grew": "Grew this much in {m} months", "gc_count": "Height recorded {n} times", "gc_share": "Share", "gc_save": "Save image", "gc_close": "Close", "gc_hint": "If sharing doesn't work, press and hold the image to save it", "gc_shareText": "My child's growth record 🌱"}, "zh": {"gc_title": "🎉 成长卡片", "gc_desc": "只显示孩子长高了多少的图片，不含姓名和生日。可以发给家人或朋友。", "gc_need": "身高记录间隔两个月以上且有2次以上时即可制作。", "gc_btn6": "最近6个月", "gc_btn12": "最近1年", "gc_head": "🌱 我家孩子的成长记录", "gc_grew": "{m}个月里长高了这么多", "gc_count": "已记录身高{n}次", "gc_share": "分享", "gc_save": "保存图片", "gc_close": "关闭", "gc_hint": "无法分享时，请长按图片保存", "gc_shareText": "我家孩子的成长记录 🌱"}, "zt": {"gc_title": "🎉 成長卡片", "gc_desc": "只顯示孩子長高多少的圖片，不含姓名和生日。可以傳給家人或朋友。", "gc_need": "身高紀錄間隔兩個月以上且有2次以上時即可製作。", "gc_btn6": "最近6個月", "gc_btn12": "最近1年", "gc_head": "🌱 我家孩子的成長紀錄", "gc_grew": "{m}個月裡長高了這麼多", "gc_count": "已紀錄身高{n}次", "gc_share": "分享", "gc_save": "儲存圖片", "gc_close": "關閉", "gc_hint": "無法分享時，請長按圖片儲存", "gc_shareText": "我家孩子的成長紀錄 🌱"}, "vi": {"gc_title": "🎉 Thẻ tăng trưởng", "gc_desc": "Hình ảnh chỉ cho thấy bé đã cao thêm bao nhiêu — không có tên hay ngày sinh. Hãy gửi cho gia đình hoặc bạn bè.", "gc_need": "Có thể tạo khi có từ 2 lần ghi chiều cao cách nhau hơn hai tháng.", "gc_btn6": "6 tháng gần đây", "gc_btn12": "1 năm gần đây", "gc_head": "🌱 Hành trình lớn lên của bé", "gc_grew": "Đã cao thêm chừng này trong {m} tháng", "gc_count": "Đã ghi chiều cao {n} lần", "gc_share": "Chia sẻ", "gc_save": "Lưu ảnh", "gc_close": "Đóng", "gc_hint": "Nếu không chia sẻ được, hãy nhấn giữ ảnh để lưu", "gc_shareText": "Hành trình lớn lên của bé 🌱"}, "ja": {"gc_title": "🎉 成長カード", "gc_desc": "名前や誕生日は入らず、伸びた分だけを載せた画像です。ご家族やお友だちに送ってみてください。", "gc_need": "2か月以上あけた身長の記録が2回以上たまると作れます。", "gc_btn6": "最近6か月", "gc_btn12": "最近1年", "gc_head": "🌱 わが子の成長記録", "gc_grew": "{m}か月でこれだけ伸びました", "gc_count": "身長を{n}回記録しました", "gc_share": "共有する", "gc_save": "画像を保存", "gc_close": "閉じる", "gc_hint": "共有できないときは画像を長押しして保存してください", "gc_shareText": "わが子の成長記録 🌱"}, "es": {"gc_title": "🎉 Tarjeta de crecimiento", "gc_desc": "Una imagen que muestra solo cuánto ha crecido su hijo, sin nombre ni fecha de nacimiento. Envíela a familiares o amigos.", "gc_need": "Podrá crearla cuando haya 2 o más registros de talla separados por más de dos meses.", "gc_btn6": "Últimos 6 meses", "gc_btn12": "Último año", "gc_head": "🌱 El crecimiento de mi hijo", "gc_grew": "Creció esto en {m} meses", "gc_count": "Talla registrada {n} veces", "gc_share": "Compartir", "gc_save": "Guardar imagen", "gc_close": "Cerrar", "gc_hint": "Si no se puede compartir, mantenga pulsada la imagen para guardarla", "gc_shareText": "El crecimiento de mi hijo 🌱"}, "th": {"gc_title": "🎉 การ์ดการเติบโต", "gc_desc": "ภาพที่แสดงเฉพาะว่าลูกสูงขึ้นเท่าไร ไม่มีชื่อหรือวันเกิด ส่งให้ครอบครัวหรือเพื่อนได้", "gc_need": "สร้างได้เมื่อมีบันทึกส่วนสูงตั้งแต่ 2 ครั้งขึ้นไปที่ห่างกันเกินสองเดือน", "gc_btn6": "6 เดือนล่าสุด", "gc_btn12": "1 ปีล่าสุด", "gc_head": "🌱 บันทึกการเติบโตของลูก", "gc_grew": "ใน {m} เดือนสูงขึ้นเท่านี้", "gc_count": "บันทึกส่วนสูงแล้ว {n} ครั้ง", "gc_share": "แชร์", "gc_save": "บันทึกรูป", "gc_close": "ปิด", "gc_hint": "ถ้าแชร์ไม่ได้ ให้กดค้างที่รูปเพื่อบันทึก", "gc_shareText": "บันทึกการเติบโตของลูก 🌱"}, "id": {"gc_title": "🎉 Kartu pertumbuhan", "gc_desc": "Gambar yang hanya menunjukkan seberapa banyak anak bertambah tinggi — tanpa nama atau tanggal lahir. Kirimkan ke keluarga atau teman.", "gc_need": "Bisa dibuat setelah ada 2 catatan tinggi atau lebih yang berjarak lebih dari dua bulan.", "gc_btn6": "6 bulan terakhir", "gc_btn12": "1 tahun terakhir", "gc_head": "🌱 Catatan tumbuh anak kami", "gc_grew": "Bertambah sebanyak ini dalam {m} bulan", "gc_count": "Tinggi dicatat {n} kali", "gc_share": "Bagikan", "gc_save": "Simpan gambar", "gc_close": "Tutup", "gc_hint": "Jika tidak bisa dibagikan, tekan lama gambar untuk menyimpannya", "gc_shareText": "Catatan tumbuh anak kami 🌱"}, "ar": {"gc_title": "🎉 بطاقة النمو", "gc_desc": "صورة تُظهر فقط مقدار ما ازداد طول طفلك — بدون اسم أو تاريخ ميلاد. أرسلها للعائلة أو الأصدقاء.", "gc_need": "يمكنك إنشاؤها عند وجود تسجيلين أو أكثر للطول بفارق يزيد على شهرين.", "gc_btn6": "آخر 6 أشهر", "gc_btn12": "آخر سنة", "gc_head": "🌱 سجل نمو طفلي", "gc_grew": "ازداد طوله هذا القدر خلال {m} أشهر", "gc_count": "تم تسجيل الطول {n} مرات", "gc_share": "مشاركة", "gc_save": "حفظ الصورة", "gc_close": "إغلاق", "gc_hint": "إذا لم تنجح المشاركة، اضغط مطولاً على الصورة لحفظها", "gc_shareText": "سجل نمو طفلي 🌱"}, "mn": {"gc_title": "🎉 Өсөлтийн карт", "gc_desc": "Нэр, төрсөн өдөргүйгээр зөвхөн хэр өндөр болсныг харуулсан зураг. Гэр бүл, найзууддаа илгээгээрэй.", "gc_need": "Хоёр сараас дээш зайтай 2 ба түүнээс дээш өндрийн бүртгэл байвал хийж болно.", "gc_btn6": "Сүүлийн 6 сар", "gc_btn12": "Сүүлийн 1 жил", "gc_head": "🌱 Манай хүүхдийн өсөлт", "gc_grew": "{m} сарын дотор ингэж өсчээ", "gc_count": "Өндрийг {n} удаа бүртгэсэн", "gc_share": "Хуваалцах", "gc_save": "Зураг хадгалах", "gc_close": "Хаах", "gc_hint": "Хуваалцаж болохгүй бол зургийг удаан дарж хадгална уу", "gc_shareText": "Манай хүүхдийн өсөлт 🌱"}}).forEach(([l,o])=>{ if(I18N[l]) Object.assign(I18N[l], o); });
+function gcPoints(){
+  const by = {};
+  (lastMeasureRows||[]).concat(doctorPointsCache||[]).forEach(r=>{
+    const h = parseFloat(r && r.height); if(!r || !r.date || !isFinite(h) || h <= 0) return;
+    by[String(r.date).slice(0,10)] = { date: String(r.date).slice(0,10), h };
+  });
+  return Object.values(by).sort((a,b)=> a.date < b.date ? -1 : 1);
+}
+function gcWindow(months){
+  const pts = gcPoints(); if(pts.length < 2) return null;
+  const last = pts[pts.length - 1];
+  const d = new Date(last.date + 'T00:00:00'); d.setMonth(d.getMonth() - months); d.setDate(d.getDate() - 45);
+  const from = mdayYmd(d), win = pts.filter(p=>p.date >= from);
+  if(win.length < 2) return null;
+  const days = mdayDays(win[0].date, last.date);
+  if(days < 60) return null;
+  return { months, pts: win, first: win[0], last, days, m: Math.max(2, Math.round(days / 30.44)), gain: Math.round((last.h - win[0].h) * 10) / 10 };
+}
+function gcRender(){
+  const card = document.getElementById('gcCard'); if(!card || !PID || !API) return;
+  const w6 = gcWindow(6), w12 = gcWindow(12);
+  const btns = [];
+  if(w6) btns.push(`<button class="btn" style="margin-top:0;" onclick="gcMake(6)">${t('gc_btn6')}</button>`);
+  if(w12 && (!w6 || w12.first.date !== w6.first.date)) btns.push(`<button class="btn btn-outline" style="margin-top:0;" onclick="gcMake(12)">${t('gc_btn12')}</button>`);
+  card.innerHTML = `<h2>${t('gc_title')}</h2><p class="notice" style="margin-top:4px;">${t(btns.length ? 'gc_desc' : 'gc_need')}</p>` +
+    (btns.length ? `<div style="display:flex;gap:8px;margin-top:10px;">${btns.join('')}</div>` : '');
+  card.style.display = '';
+}
+function gcDraw(w){
+  const W = 1080, H = 1350, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const c = cv.getContext('2d'), F = '"Apple SD Gothic Neo","Noto Sans KR","Noto Sans","Segoe UI",system-ui,sans-serif';
+  const font = (wt, px)=>{ c.font = `${wt} ${px}px ${F}`; };
+  try{ c.direction = currentLang() === 'ar' ? 'rtl' : 'ltr'; }catch(e){}
+  const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#E4F3EA'); g.addColorStop(1, '#FFF6E2');
+  c.fillStyle = g; c.fillRect(0, 0, W, H);
+  const rr = (x, y, ww, hh, r)=>{ c.beginPath(); c.moveTo(x+r, y); c.arcTo(x+ww, y, x+ww, y+hh, r); c.arcTo(x+ww, y+hh, x, y+hh, r); c.arcTo(x, y+hh, x, y, r); c.arcTo(x, y, x+ww, y, r); c.closePath(); };
+  c.fillStyle = 'rgba(255,255,255,.88)'; rr(60, 60, W-120, H-120, 48); c.fill();
+  c.textAlign = 'center'; c.textBaseline = 'alphabetic';
+  const fit = (txt, wt, px, maxW)=>{ font(wt, px); while(c.measureText(txt).width > maxW && px > 18){ px -= 2; font(wt, px); } };
+  const ym = d=>d.slice(0,7).replace('-', '.');
+  c.fillStyle = '#1D3A4A'; fit(t('gc_head'), 800, 58, W-200); c.fillText(t('gc_head'), W/2, 190);
+  const ltr = fn=>{ let d0 = 'ltr'; try{ d0 = c.direction; c.direction = 'ltr'; }catch(e){} fn(); try{ c.direction = d0; }catch(e){} };   // 숫자·날짜는 아랍어에서도 왼→오
+  c.fillStyle = '#7A8790'; font(500, 36); ltr(()=>c.fillText(`${ym(w.first.date)}  →  ${ym(w.last.date)}`, W/2, 255));
+  if(w.gain > 0){
+    c.fillStyle = '#2E8B57'; font(900, 210); ltr(()=>c.fillText(`+${w.gain}cm`, W/2, 500));
+    c.fillStyle = '#1D3A4A'; fit(t('gc_grew', { m: w.m }), 700, 44, W-200); c.fillText(t('gc_grew', { m: w.m }), W/2, 580);
+  } else {
+    c.fillStyle = '#2E8B57'; fit(t('gc_count', { n: w.pts.length }), 800, 70, W-200); c.fillText(t('gc_count', { n: w.pts.length }), W/2, 470);
+  }
+  // 점 그래프 (눈금·키 숫자 없이 모양만)
+  const X0 = 150, X1 = W-150, Y0 = 660, Y1 = 1050;
+  const t0 = new Date(w.first.date+'T00:00:00').getTime(), t1 = new Date(w.last.date+'T00:00:00').getTime();
+  let lo = Math.min(...w.pts.map(p=>p.h)), hi = Math.max(...w.pts.map(p=>p.h)); const pad = Math.max(1, (hi-lo)*0.25); lo -= pad; hi += pad;
+  const px = p=> X0 + (X1-X0) * ((new Date(p.date+'T00:00:00').getTime() - t0) / Math.max(1, t1 - t0));
+  const py = p=> Y1 - (Y1-Y0) * ((p.h - lo) / (hi - lo));
+  c.strokeStyle = 'rgba(29,58,74,.08)'; c.lineWidth = 3;
+  for(let i = 0; i < 4; i++){ const y = Y0 + (Y1-Y0) * i / 3; c.beginPath(); c.moveTo(X0-30, y); c.lineTo(X1+30, y); c.stroke(); }
+  c.strokeStyle = '#7FC29B'; c.lineWidth = 10; c.lineJoin = 'round'; c.lineCap = 'round';
+  c.beginPath(); w.pts.forEach((p,i)=>{ const x = px(p), y = py(p); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke();
+  w.pts.forEach((p,i)=>{
+    const last = i === w.pts.length - 1;
+    c.beginPath(); c.arc(px(p), py(p), last ? 26 : 15, 0, Math.PI*2); c.fillStyle = last ? '#2E8B57' : '#fff'; c.fill();
+    c.lineWidth = 7; c.strokeStyle = '#2E8B57'; c.stroke();
+  });
+  let st = null; try{ st = mdayState(); }catch(e){}
+  if(st && st.n >= 2){ const e = st.n >= 12 ? '🌳' : st.n >= 6 ? '🌿' : '🌱'; c.fillStyle = '#1D3A4A'; fit(t('md_streak', { e, n: st.n }), 700, 44, W-200); c.fillText(t('md_streak', { e, n: st.n }), W/2, 1160); }
+  c.fillStyle = '#9AA5AC'; font(600, 30); ltr(()=>c.fillText('Jarada Care · jaradacare.com', W/2, 1240));
+  return cv;
+}
+function gcMake(months){
+  const w = gcWindow(months); if(!w) return;
+  const cv = gcDraw(w), url = cv.toDataURL('image/png');
+  let ov = document.getElementById('gcOv');
+  if(!ov){ ov = document.createElement('div'); ov.id = 'gcOv'; document.body.appendChild(ov); }
+  ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.78);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;gap:12px;';
+  ov.onclick = e=>{ if(e.target === ov) ov.remove(); };
+  ov.innerHTML = `<img id="gcImg" src="${url}" alt="" style="max-width:100%;max-height:66vh;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.4);">
+    <div style="display:flex;gap:8px;width:100%;max-width:420px;">
+      <button class="btn" id="gcShareBtn" style="margin-top:0;">${t('gc_share')}</button>
+      <a class="btn btn-outline" style="margin-top:0;text-decoration:none;" download="jarada-growth.png" href="${url}">${t('gc_save')}</a>
+      <button class="btn btn-outline" style="margin-top:0;" onclick="document.getElementById('gcOv').remove()">${t('gc_close')}</button>
+    </div>
+    <div style="color:#fff;font-size:12px;text-align:center;">${t('gc_hint')}</div>`;
+  const sb = document.getElementById('gcShareBtn');
+  cv.toBlob(blob=>{
+    let file = null; try{ file = new File([blob], 'jarada-growth.png', { type:'image/png' }); }catch(e){}
+    if(!file || !(navigator.canShare && navigator.canShare({ files:[file] }))){ sb.style.display = 'none'; return; }
+    sb.onclick = async ()=>{ try{ await navigator.share({ files:[file], text: t('gc_shareText') + ' jaradacare.com' }); }catch(e){} };
+  }, 'image/png');
+}
 function mfbRender(){
   try{ mdayRender(); }catch(e){ console.error(e); }
+  try{ gcRender(); }catch(e){ console.error(e); }
   const card = document.getElementById('mfbCard'); if(!card) return;
   const rows = (lastMeasureRows||[]).filter(r=>r.date && (r.height || r.weight)).slice()
     .sort((a,b)=> a.date !== b.date ? (a.date < b.date ? 1 : -1) : (String(a.timestamp||'') < String(b.timestamp||'') ? 1 : -1));
