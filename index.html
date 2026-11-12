@@ -465,6 +465,12 @@
   </div>
   <div id="pendingMeasureList" class="collapsible-body" style="display:none;margin-bottom:16px;"></div>
 
+  <div class="section-title collapsible" onclick="toggleDashSection('mrest')">
+    <h2>📅 측정 쉬는 해외 아이 (45일 넘음)</h2>
+    <span><span class="count-badge" id="mrestCount" style="display:none;"></span><span class="chevron" id="mrestChevron">▸</span></span>
+  </div>
+  <div id="mrestList" class="collapsible-body" style="display:none;margin-bottom:16px;"></div>
+
   <div class="section-title collapsible" onclick="toggleDashSection('pendingQ')">
     <h2>❓ 답변 대기 질문</h2>
     <span><span class="count-badge" id="pendingQCount" style="display:none;"></span><span class="chevron" id="pendingQChevron">▸</span></span>
@@ -571,7 +577,7 @@
       <h3 style="font-size:16px;font-weight:800;">어떻게 보낼까요?</h3>
       <button onclick="closeSendChoiceModal()" style="background:none;border:none;font-size:18px;color:var(--secondary);">✕</button>
     </div>
-    <button class="btn btn-primary btn-block" style="margin-bottom:8px;text-align:left;" onclick="sendViaAlimtalk()">💛 카카오 알림톡 자동 발송 (실패 시 문자로 대체)</button>
+    <button class="btn btn-primary btn-block" id="sendChoiceAlimBtn" style="margin-bottom:8px;text-align:left;" onclick="sendViaAlimtalk()">💛 카카오 알림톡 자동 발송 (실패 시 문자로 대체)</button>
     <button class="btn btn-outline btn-block" style="margin-bottom:8px;text-align:left;" onclick="sendViaWhatsApp()">💬 왓츠앱으로 보내기</button>
     <button class="btn btn-outline btn-block" style="margin-bottom:8px;text-align:left;" onclick="sendViaSMS()">📱 문자(SMS)로 보내기</button>
     <button class="btn btn-outline btn-block" style="margin-bottom:8px;text-align:left;" onclick="sendViaTelegram()">✈️ 텔레그램으로 보내기</button>
@@ -2530,6 +2536,58 @@ function goToQuestionReply(patientId, questionId){
 }
 
 // 대시보드 "키/몸무게 확인 대기" — 아직 차트에 반영되지 않은 측정값 제출을 환아 이름과 함께 모아 보여줍니다.
+/* ---------------- 측정 쉬는 해외 아이 → 측정 안내 ----------------
+ * 해외 아이 중 마지막 키 기록(집에서 입력 + 차트)이 45일 넘은 아이를 모읍니다. 링크를 받은 적 있는 아이(접속 코드 있음)만, 치료 종료는 뺍니다.
+ * 「안내 보내기」 → 보호자 언어로 된 측정 안내 + 아이 링크를 왓츠앱·문자·텔레그램·복사 중 골라 보냄(알림톡은 정해진 문구라 숨김).
+ * 보낸 날은 아이 기록(p.mremindAt)에 남아 다른 기기에도 동기화되고, 14일 동안은 목록 아래쪽에 흐리게 보입니다. */
+const MREST_DAYS = 45, MREST_QUIET_DAYS = 14;
+const MREST_MSG = {"ko": "[삼성자라다소아청소년과] {name} 보호자님, 이번 달 키·몸무게를 잴 때가 되었어요 📏 아침에 맨발로 벽에 붙어 재신 뒤 아래 링크에 입력해 주시면 원장이 확인하고 한마디 남겨 드릴게요.\n{link}", "en": "[Jarada Care] Dear guardian of {name}, it's time for this month's height and weight check 📏 Please measure in the morning, barefoot against a wall, and enter it at the link below. The doctor will check it and leave you a note.\n{link}", "zh": "[Jarada Care] {name}的家长您好，本月该测量身高体重了 📏 请早上赤脚贴墙测量后，在下方链接录入，医生会确认并给您留言。\n{link}", "zt": "[Jarada Care] {name}的家長您好，本月該測量身高體重了 📏 請早上赤腳貼牆測量後，在下方連結輸入，醫師會確認並給您留言。\n{link}", "vi": "[Jarada Care] Kính gửi phụ huynh của {name}, đã đến lúc đo chiều cao và cân nặng tháng này 📏 Hãy đo vào buổi sáng, chân trần, sát tường rồi nhập vào liên kết bên dưới. Bác sĩ sẽ xem và để lại lời nhắn.\n{link}", "ja": "[Jarada Care] {name}様の保護者様、今月の身長・体重を測る時期になりました 📏 朝、はだしで壁に背をつけて測り、下のリンクから入力してください。院長が確認してひとことお返しします。\n{link}", "es": "[Jarada Care] Estimado tutor de {name}: es momento de medir la talla y el peso de este mes 📏 Mida por la mañana, descalzo contra la pared, y anótelo en el enlace de abajo. El médico lo revisará y le dejará un comentario.\n{link}", "th": "[Jarada Care] เรียนผู้ปกครองของ {name} ถึงเวลาวัดส่วนสูงและน้ำหนักประจำเดือนนี้แล้ว 📏 กรุณาวัดตอนเช้า เท้าเปล่า ยืนชิดผนัง แล้วบันทึกที่ลิงก์ด้านล่าง แพทย์จะตรวจดูและฝากข้อความถึงคุณ\n{link}", "id": "[Jarada Care] Kepada wali {name}, sudah waktunya mengukur tinggi dan berat bulan ini 📏 Ukur di pagi hari, tanpa alas kaki menempel ke dinding, lalu masukkan di tautan di bawah. Dokter akan mengecek dan meninggalkan pesan.\n{link}", "ar": "[Jarada Care] إلى ولي أمر {name}، حان وقت قياس الطول والوزن لهذا الشهر 📏 يُرجى القياس صباحًا حافي القدمين مع الاستناد إلى الحائط ثم التسجيل عبر الرابط أدناه، وسيراجعه الطبيب ويترك لكم كلمة.\n{link}", "mn": "[Jarada Care] {name}-ийн асран хамгаалагч танд, энэ сарын өндөр, жингээ хэмжих цаг боллоо 📏 Өглөө хөл нүцгэн хананд наалдаж хэмжээд доорх линкээр оруулна уу. Эмч шалгаад товч үг үлдээнэ.\n{link}"};
+function mrestDaysSince(d){ return Math.round((new Date(todayStr()+'T00:00:00') - new Date(d+'T00:00:00')) / 86400000); }
+function renderMeasureRest(rows){
+  const list = document.getElementById('mrestList'), countEl = document.getElementById('mrestCount');
+  if(!list) return;
+  const lastHome = {};
+  (rows||[]).forEach(r=>{ if(r.type==='measurement' && r.pid && r.date && (r.height || r.weight) && (!lastHome[r.pid] || r.date > lastHome[r.pid])) lastHome[r.pid] = r.date; });
+  const items = patients.filter(p=> p.accessCode && getPatientCategory(p)==='overseas' && p.careCategory!=='ended').map(p=>{
+    let last = lastHome[p.accessCode] || '';
+    (p.records||[]).forEach(r=>{ if(r.date && r.height && r.date > last && r.date <= todayStr()) last = r.date; });
+    const days = last ? mrestDaysSince(last) : null;
+    const remDays = p.mremindAt ? mrestDaysSince(String(p.mremindAt).slice(0,10)) : null;
+    return { p, last, days, home: !!lastHome[p.accessCode], quiet: remDays != null && remDays < MREST_QUIET_DAYS, remDays };
+  }).filter(x=> x.days == null || x.days > MREST_DAYS)
+    .sort((a,b)=> (a.quiet - b.quiet) || ((b.days == null ? 9999 : b.days) - (a.days == null ? 9999 : a.days)));
+  setCountBadge(countEl, items.filter(x=>!x.quiet).length);
+  if(!items.length){ list.innerHTML = `<div class="empty-note">${MREST_DAYS}일 넘게 키 기록이 없는 해외 아이가 없습니다.</div>`; return; }
+  list.innerHTML = items.map(x=>{
+    const p = x.p;
+    const when = x.last ? `마지막 키 기록 ${x.days}일 전 (${fmtDate(x.last)})${x.home ? '' : ' · 집에서 입력한 기록 없음'}` : '키 기록 없음';
+    const sent = p.mremindAt ? `<div class="mack-done" style="color:var(--secondary);">🔔 안내 보냄 ${x.remDays === 0 ? '오늘' : x.remDays + '일 전'}${p.mremindVia ? ' · ' + escapeHtml(p.mremindVia) : ''}</div>` : '';
+    return `<div class="patient-card" style="${x.quiet ? 'opacity:.55;' : ''}" onclick="openDetail('${p.id}')">
+      <div style="flex:1;min-width:0;">
+        <div class="name-row"><span class="name">${escapeHtml(p.name)}</span><span style="font-size:10px;color:var(--secondary);margin-left:6px;">${escapeHtml(calcAge(p.dob)||'')}</span></div>
+        <div class="sub">${escapeHtml(when)}</div>${sent}
+        <div class="mack-row" onclick="event.stopPropagation()"><button class="mack-chip" onclick="mrestSend('${p.id}')">🔔 ${p.mremindAt ? '다시 안내' : '측정 안내 보내기'}</button></div>
+      </div>
+      <div class="arrow">›</div>
+    </div>`;
+  }).join('');
+}
+function mrestSend(id){
+  const p = getPatient(id); if(!p) return;
+  if(!getSiteUrl()){ alert('⚙️ 연동 설정에 "사이트 주소"를 먼저 입력해주세요.'); return; }
+  const { link } = buildPatientLinkAndMsg(p);
+  const lang = p.lang || 'ko';
+  const msg = (MREST_MSG[lang] || MREST_MSG.ko).replace('{name}', p.name).replace('{link}', link);
+  openSendChoiceModal(p, link, msg);
+  pendingSend.remind = true;
+  const ab = document.getElementById('sendChoiceAlimBtn'); if(ab) ab.style.display = 'none';
+}
+function mrestMark(p, method){
+  p.mremindAt = new Date().toISOString(); p.mremindVia = method;
+  p.updatedAt = new Date().toISOString();
+  savePatients();
+  renderPendingMeasurements();
+}
 async function renderPendingMeasurements(){
   const list = document.getElementById('pendingMeasureList');
   const countEl = document.getElementById('pendingMeasureCount');
@@ -2538,6 +2596,7 @@ async function renderPendingMeasurements(){
   try{
     const res = await fetch(api);
     const rows = await res.json();
+    try{ renderMeasureRest(rows); }catch(e){ console.error(e); }
     const acked = new Set(rows.filter(r=>r.type==='answer' && r.refId).map(r=>r.refId));
     const pending = rows.filter(r=>{
       if(r.type!=='measurement') return false;
@@ -7325,6 +7384,7 @@ async function migrateLinkSentRecords(){
 }
 async function markLinkSent(p, method){
   if(!p) return;
+  if(pendingSend && pendingSend.remind && pendingSend.p === p){ mrestMark(p, method); return; }
   const api = getApiUrl();
   if(!p.accessCode){ p.accessCode = genAccessCode(); savePatients(); }
   const timestamp = new Date().toISOString();
@@ -7335,6 +7395,7 @@ async function markLinkSent(p, method){
 }
 function closeSendChoiceModal(){
   document.getElementById('sendChoiceOv').classList.remove('open');
+  { const ab = document.getElementById('sendChoiceAlimBtn'); if(ab) ab.style.display = ''; }
   pendingSend = null;
 }
 let pendingSend = null;
