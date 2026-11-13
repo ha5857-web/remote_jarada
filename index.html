@@ -6935,6 +6935,7 @@ async function apiAllRows(){
   const tryOne = async (u)=>{ try{ const r = await fetch(u); const t = await r.text(); let j = null; try{ j = JSON.parse(t); }catch(e){ return { err: '서버 응답을 읽지 못했어요 (' + (t||'').slice(0,80) + ')' }; } if(Array.isArray(j)) return { rows: j };
     if(j && typeof j === 'object'){ const arr = ['rows','data','items','list','result'].map(k=>j[k]).find(Array.isArray); if(arr) return { rows: arr }; }
     const keys = (j && typeof j === 'object') ? Object.keys(j).slice(0,6).join(',') : typeof j;
+    if(j && j.reason && 'ok' in j && !j.code){ const tail = (getApiUrl().match(/\/s\/([^/]+)\//)||[])[1]||''; return { err: '원장 앱 서버가 아니라 「친구에게 보내기」 서버가 답했어요 (연동 주소 …' + tail.slice(-6) + '). 연동 주소 또는 Apps Script 설정을 확인해야 해요.' }; }
     return { err: (j && (j.message || j.error || j.code)) || ('목록이 아닌 응답 [' + keys + '] ' + t.slice(0,60)), code: j && j.code }; }catch(e){ return { err: '연결 실패 — ' + (e.message||e) }; } };
   const pu = getProtectedApiUrl();
   let a = await tryOne(pu);
