@@ -471,6 +471,12 @@
   </div>
   <div id="mrestList" class="collapsible-body" style="display:none;margin-bottom:16px;"></div>
 
+  <div class="section-title collapsible" onclick="toggleDashSection('vreq')">
+    <h2>✈️ 방학 귀국 진료 신청</h2>
+    <span><span class="count-badge" id="vreqCount" style="display:none;"></span><span class="chevron" id="vreqChevron">▸</span></span>
+  </div>
+  <div id="vreqList" class="collapsible-body" style="display:none;margin-bottom:16px;"></div>
+
   <div class="section-title collapsible" onclick="toggleDashSection('pendingQ')">
     <h2>❓ 답변 대기 질문</h2>
     <span><span class="count-badge" id="pendingQCount" style="display:none;"></span><span class="chevron" id="pendingQChevron">▸</span></span>
@@ -2588,6 +2594,46 @@ function mrestMark(p, method){
   savePatients();
   renderPendingMeasurements();
 }
+/* ---------------- 방학 귀국 진료 신청 모아 보기 ----------------
+ * 해외 보호자가 앱에서 보낸 「✈️ 귀국 진료 신청」(질문 칸)을 도착일 순으로 모읍니다. 아이마다 가장 최근 신청 하나, 출국일이 지난 건 뺍니다.
+ * 답은 기존처럼 환자 상세 → 제출함에서 질문에 답하면 보호자 앱의 신청 카드와 「질문하기」에 함께 보입니다. */
+function vreqParse(text){
+  const s = String(text||''); if(s.indexOf('✈️ 귀국 진료 신청') !== 0) return null;
+  const m = s.match(/한국 체류: (\d{4}-\d\d-\d\d) ~ (\d{4}-\d\d-\d\d)/); if(!m) return null;
+  const line = k=>{ const x = s.match(new RegExp('^' + k + ': (.*)$', 'm')); return x ? x[1].trim() : ''; };
+  return { from: m[1], to: m[2], when: line('편한 시간'), want: line('원하는 것'), memo: line('메모') };
+}
+function renderVisitReq(rows){
+  const list = document.getElementById('vreqList'), countEl = document.getElementById('vreqCount');
+  if(!list) return;
+  const today = todayStr(), answers = {};
+  (rows||[]).forEach(r=>{ if(r.type==='answer' && r.refId) answers[r.refId] = r.answer; });
+  const latest = {};
+  (rows||[]).forEach(r=>{
+    if(r.type!=='question' || !r.pid) return;
+    const v = vreqParse(r.question); if(!v) return;
+    const k = String(r.timestamp||r.date||'');
+    if(!latest[r.pid] || k > latest[r.pid].k) latest[r.pid] = { r, v, k };
+  });
+  const items = Object.values(latest).filter(x=> x.v.to >= today).map(x=>({ ...x, p: patients.find(p=>p.accessCode===x.r.pid) })).filter(x=>x.p)
+    .sort((a,b)=> a.v.from < b.v.from ? -1 : 1);
+  setCountBadge(countEl, items.filter(x=>answers[x.r.id]==null).length);
+  if(!items.length){ list.innerHTML = '<div class="empty-note">들어온 귀국 진료 신청이 없습니다.</div>'; return; }
+  list.innerHTML = items.map(x=>{
+    const { p, v, r } = x, ans = answers[r.id];
+    const dIn = mrestDaysSince(v.from), dOut = mrestDaysSince(v.to);
+    const when = dIn < 0 ? `도착 D-${-dIn}` : `지금 한국에 있음 · 출국 ${dOut === 0 ? '오늘' : 'D-' + (-dOut)}`;
+    return `<div class="patient-card" onclick="openDetail('${p.id}')">
+      <div style="flex:1;min-width:0;">
+        <div class="name-row"><span class="name">${escapeHtml(p.name)}</span><span style="font-size:10px;color:var(--secondary);margin-left:6px;">${escapeHtml(calcAge(p.dob)||'')}</span></div>
+        <div class="sub"><b>${fmtDate(v.from)} ~ ${fmtDate(v.to)}</b> · ${when}</div>
+        <div class="mack-ctx">편한 시간: ${escapeHtml(v.when||'-')} · 원하는 것: ${escapeHtml(v.want||'-')}${v.memo ? `<br>메모: ${escapeHtml(v.memo)}` : ''}</div>
+        ${ans != null ? `<div class="mack-done">✓ 답변함 · ${escapeHtml(String(ans).slice(0, 60))}</div>` : `<div class="mack-done" style="color:var(--accent);">답변 대기 — 눌러서 날짜를 답해 주세요</div>`}
+      </div>
+      <div class="arrow">›</div>
+    </div>`;
+  }).join('');
+}
 async function renderPendingMeasurements(){
   const list = document.getElementById('pendingMeasureList');
   const countEl = document.getElementById('pendingMeasureCount');
@@ -2597,6 +2643,7 @@ async function renderPendingMeasurements(){
     const res = await fetch(api);
     const rows = await res.json();
     try{ renderMeasureRest(rows); }catch(e){ console.error(e); }
+    try{ renderVisitReq(rows); }catch(e){ console.error(e); }
     const acked = new Set(rows.filter(r=>r.type==='answer' && r.refId).map(r=>r.refId));
     const pending = rows.filter(r=>{
       if(r.type!=='measurement') return false;
