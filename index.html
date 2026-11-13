@@ -2558,7 +2558,7 @@ function renderMeasureRest(rows){
     let last = lastHome[p.accessCode] || '';
     (p.records||[]).forEach(r=>{ if(r.date && r.height && r.date > last && r.date <= todayStr()) last = r.date; });
     const days = last ? mrestDaysSince(last) : null;
-    const remDays = p.mremindAt ? mrestDaysSince(String(p.mremindAt).slice(0,10)) : null;
+    const remDays = p.mremindAt ? Math.max(0, mrestDaysSince(p.mremindDay || String(p.mremindAt).slice(0,10))) : null;   // 보낸 날은 이 기기 날짜(한국 아침 9시 전 UTC 날짜 어긋남 방지)
     return { p, last, days, home: !!lastHome[p.accessCode], quiet: remDays != null && remDays < MREST_QUIET_DAYS, remDays };
   }).filter(x=> x.days == null || x.days > MREST_DAYS)
     .sort((a,b)=> (a.quiet - b.quiet) || ((b.days == null ? 9999 : b.days) - (a.days == null ? 9999 : a.days)));
@@ -2589,7 +2589,7 @@ function mrestSend(id){
   const ab = document.getElementById('sendChoiceAlimBtn'); if(ab) ab.style.display = 'none';
 }
 function mrestMark(p, method){
-  p.mremindAt = new Date().toISOString(); p.mremindVia = method;
+  p.mremindAt = new Date().toISOString(); p.mremindDay = todayStr(); p.mremindVia = method;
   p.updatedAt = new Date().toISOString();
   savePatients();
   renderPendingMeasurements();
