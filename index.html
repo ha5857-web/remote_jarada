@@ -2760,9 +2760,10 @@ async function renderPendingReminders(){
   const api = getApiUrl();
   if(!api){ list.innerHTML=''; setCountBadge(countEl, 0); return; }
   try{
-    const res = await fetch(getProtectedApiUrl());
-    const rows = await res.json();
-    const pending = rows.filter(r=>r.type==='visitReminderPending').sort((a,b)=> a.timestamp < b.timestamp ? -1 : 1);
+    const got = await apiAllRows();
+    if(!got.rows){ list.innerHTML = `<div class="empty-note">불러오지 못했습니다. <span style="color:var(--danger);">${escapeHtml(got.err||'')}</span></div>`; return; }
+    const rows = got.rows;
+    const pending = rows.filter(r=>r && r.type==='visitReminderPending').sort((a,b)=> a.timestamp < b.timestamp ? -1 : 1);
     setCountBadge(countEl, pending.length);
     if(!pending.length){ list.innerHTML = `<div class="empty-note">승인 대기 중인 리마인더가 없습니다.</div>`; return; }
     list.innerHTML = pending.map(r=>{
@@ -5876,6 +5877,20 @@ function handleLabBatchDrop(e){
   const files = e.dataTransfer && e.dataTransfer.files;
   if(files && files.length) handleLabBatchFiles(files);
 }
+/* 서버가 오래 답이 없으면(AI 문자 만들기가 멈춘 경우 등) 기다리지 않고 그 파일만 실패로 넘깁니다. 기다리는 동안 초를 보여 줍니다. */
+async function labFetchJson(url, opt, ms, status, label){
+  const ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  const t0 = Date.now();
+  const tick = setInterval(()=>{ if(status) status.textContent = label + ' ' + Math.round((Date.now()-t0)/1000) + '초'; }, 1000);
+  const kill = setTimeout(()=>{ try{ ctl && ctl.abort(); }catch(e){} }, ms);
+  try{
+    const r = await fetch(url, Object.assign({}, opt, ctl ? { signal: ctl.signal } : {}));
+    const t = await r.text();
+    try{ return JSON.parse(t); }catch(e){ return { status:'error', message:'서버 응답을 읽지 못했어요 (' + t.slice(0,60) + ')' }; }
+  }catch(e){
+    return { status:'error', message: (e && e.name === 'AbortError') ? Math.round(ms/1000) + '초 넘게 답이 없어 건너뜀' : '연결 실패 — ' + (e && e.message || e) };
+  }finally{ clearInterval(tick); clearTimeout(kill); }
+}
 async function handleLabBatchFiles(fileList){
   const files = Array.from(fileList);
   const status = document.getElementById('labBatchStatus');
@@ -5908,7 +5923,7 @@ async function handleLabBatchFiles(fileList){
       // 생년월일·연락처·성별이 비어 있으면 구글 초진기록지(이름 일치, 가장 최근)에서 먼저 채웁니다.
       if(!p.dob || !p.phone){
         try{
-          if(!window._labIntakes){ const d0 = await bqPost({ action:'listintakes' }); window._labIntakes = (d0 && d0.status==='ok') ? (d0.items||[]) : []; }
+          if(!window._labIntakes){ const d0 = await Promise.race([bqPost({ action:'listintakes' }), new Promise(r=>setTimeout(()=>r(null), 30000))]); window._labIntakes = (d0 && d0.status==='ok') ? (d0.items||[]) : []; }
           const nm0 = v => String(v||'').replace(/[\s()\[\]]/g,'');
           const hits = window._labIntakes.map(x=>({x, o:parseFirstIntake(x.raw)})).filter(h=>nm0(h.o.name)===nm0(p.name));
           if(hits.length){
@@ -5935,31 +5950,30 @@ async function handleLabBatchFiles(fileList){
       const gender = p.sex==='M' ? '남' : '여';
       const isFirst = p.records.length <= 1;
 
-      const genRes = await fetch(api, { method:'POST', body: JSON.stringify({
+      const step = `처리 중… (${i+1}/${files.length}) ${file.name} — AI 안내 문자 만드는 중`;
+      const genData = await labFetchJson(api, { method:'POST', body: JSON.stringify({
         action: 'generatetotalcare',
         clinic: '삼성자라다소아청소년과',
         name: p.name, gender, ageText,
         checks: [isFirst ? '초진' : '재진', '혈액검사'],
         chart, feedback: '',
         chatbotUrl: getChatbotUrl()
-      })});
-      const genData = await genRes.json();
+      })}, 120000, status, step);
       if(genData.status!=='ok' || !genData.message){ failed.push(`${p.name}: 안내 문자 생성 실패 (${genData.message||'알 수 없는 오류'})`); continue; }
 
       // EMR 기록용 텍스트: 병원 EMR에 그대로 붙여넣는 용도 (환아 앱으로는 안 나감)
       const emrText = `[${rec.date}] ${isFirst ? '초진' : '재진'}, 혈액검사\n${chart}`;
 
-      const createRes = await fetch(api, { method:'POST', body: JSON.stringify({
+      const createData = await labFetchJson(api, { method:'POST', body: JSON.stringify({
         action: 'createlabpending',
         name: p.name, phone: p.phone, chartNo: p.chartNo, dob: p.dob,
         patientId: p.id, recordId: rec.id,
         examDate: rec.date, message: genData.message, emrText
-      })});
-      const createData = await createRes.json();
+      })}, 60000, status, `처리 중… (${i+1}/${files.length}) ${file.name} — 승인 대기에 올리는 중`);
       if(createData.status!=='ok'){ failed.push(`${p.name}: 승인 대기 등록 실패 (${createData.message||'알 수 없는 오류'})`); continue; }
       ok++;
     }catch(err){
-      failed.push(`${file.name}: 처리 중 오류가 발생했습니다`);
+      failed.push(`${file.name}: 처리 중 오류가 발생했습니다 (${err && err.message || err})`);
     }
   }
   savePatients();
@@ -5970,9 +5984,7 @@ async function handleLabBatchFiles(fileList){
   if(failed.length) summary += `\n\n❌ 실패 (${failed.length}건)\n` + failed.join('\n');
   status.textContent = summary;
   status.style.color = (unmatched.length || failed.length) ? 'var(--danger)' : 'var(--ok)';
-  document.getElementById('labBatchFiles').value = '';
-  document.getElementById('labBatchNewDob').value = '';
-  document.getElementById('labBatchNewPhone').value = '';
+  ['labBatchFiles','labBatchNewDob','labBatchNewPhone'].forEach(id=>{ const el = document.getElementById(id); if(el) el.value = ''; });   // 없는 칸이 있어도 멈추지 않게
   renderLabPending();
 }
 // 대시보드 "혈액검사 결과 승인 대기" — 일괄 처리로 만들어진 안내 문자를 환자별로 미리보고, 하나씩 또는 한번에 승인/거절합니다.
@@ -6054,16 +6066,18 @@ async function renderLabPending(){
   if(!list) return;
   if(!api){ list.innerHTML=''; setCountBadge(countEl, 0); return; }
   try{
-    const res = await fetch(getProtectedApiUrl());
-    const rows = await res.json();
-    const pending = rows.filter(r=>r.type==='labResultPending').sort((a,b)=> a.timestamp < b.timestamp ? -1 : 1);
+    const got = await apiAllRows();
+    if(!got.rows){ list.innerHTML = `<div class="empty-note">불러오지 못했습니다. <span style="color:var(--danger);">${escapeHtml(got.err||'')}</span> <button class="btn btn-outline" style="padding:4px 10px;font-size:11px;margin-left:6px;" onclick="renderLabPending()">다시 불러오기</button></div>`; return; }
+    const rows = got.rows;
+    const pending = rows.filter(r=>r && r.type==='labResultPending').sort((a,b)=> a.timestamp < b.timestamp ? -1 : 1);
     setCountBadge(countEl, pending.length);
     if(!pending.length){ list.innerHTML = `<div class="empty-note">승인 대기 중인 검사결과 안내가 없습니다.</div>`; return; }
     labPendingEmrMap = {};
     labPendingPatientMap = {};
-    const cards = pending.map(r=>{
+    const cards = pending.map(r=>{ try{
       let d = {};
       try{ d = JSON.parse(r.question||'{}'); }catch(e){}
+      if(!d || typeof d !== 'object') d = {};
       labPendingEmrMap[r.id] = d.emrText || '';
       labPendingPatientMap[r.id] = d.patientId || '';
       labPendingRecMap[r.id] = { recordId: d.recordId || '', examDate: d.examDate || '', message: d.message || '' };
@@ -6097,9 +6111,9 @@ async function renderLabPending(){
           </div>
         </div>
       </div>`;
-    }).join('');
+    }catch(e){ console.error('[혈액검사 승인 대기] 카드 하나를 그리지 못함', r && r.id, e); return `<div class="patient-card" style="color:var(--danger);font-size:12px;">⚠️ 이 결과 하나를 표시하지 못했어요 (${escapeHtml(String(r && r.id || ''))}) <button class="btn btn-outline" style="padding:4px 10px;font-size:11px;margin-left:6px;" onclick="dismissLabPending('${escapeHtml(String(r && r.id || ''))}')">지우기</button></div>`; } }).join('');
     list.innerHTML = `<button class="btn btn-outline btn-block" style="margin-bottom:10px;" onclick="approveAllLabPending()">✅ 전체 승인 (${pending.length}건)</button>` + cards;
-  }catch(err){ list.innerHTML = `<div class="empty-note">불러오지 못했습니다.</div>`; }
+  }catch(err){ console.error('[혈액검사 승인 대기]', err); list.innerHTML = `<div class="empty-note">불러오지 못했습니다. <span style="color:var(--danger);">${escapeHtml(String(err && err.message || err))}</span></div>`; }
 }
 async function regenLabPending(id, btnEl){
   const api = getApiUrl(); if(!api) return;
@@ -6914,6 +6928,18 @@ async function verifyAuthOnStart(){
 if(isDoctorAppUnlocked() && getApiUrl()) verifyAuthOnStart();
 // 진료 리마인더/혈액검사 승인대기/다음내원일 발송내역처럼 원장님 전용 민감정보가 담긴 목록을 부를 때 씁니다.
 // 동기화 키가 없으면 서버가 그 항목들을 아예 빼고 응답하니, 빈 목록으로 보일 뿐 오류는 안 납니다.
+/* 전체 행 불러오기: 동기화 키를 붙인 주소가 거절되면(키가 바뀌었거나 서버가 키를 안 받는 경우) 키 없이 한 번 더 받습니다.
+   그래도 목록이 아니면 서버가 한 말을 그대로 돌려줘서 화면에 보여 줍니다. 로그인이 풀린 경우엔 로그인 창을 띄웁니다. */
+async function apiAllRows(){
+  const api = getApiUrl(); if(!api) return { rows: [], err: '연동 URL이 없습니다' };
+  const tryOne = async (u)=>{ try{ const r = await fetch(u); const t = await r.text(); let j = null; try{ j = JSON.parse(t); }catch(e){ return { err: '서버 응답을 읽지 못했어요 (' + (t||'').slice(0,80) + ')' }; } return Array.isArray(j) ? { rows: j } : { err: (j && (j.message || j.error || j.code)) || '목록이 아닌 응답', code: j && j.code }; }catch(e){ return { err: '연결 실패 — ' + (e.message||e) }; } };
+  const pu = getProtectedApiUrl();
+  let a = await tryOne(pu);
+  if(!a.rows && pu !== api){ const b = await tryOne(api); if(b.rows) a = b; }
+  if(a.rows) return { rows: jrdCleanRows(a.rows) };
+  if(a.code === 'AUTH_REQUIRED'){ try{ handleAuthFailure(); }catch(e){} return { rows: null, err: '로그인이 풀렸어요. 다시 로그인해 주세요.' }; }
+  return { rows: null, err: a.err };
+}
 function getProtectedApiUrl(){
   const api = getApiUrl();
   if(!api) return '';
