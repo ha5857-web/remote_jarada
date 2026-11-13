@@ -2305,7 +2305,7 @@ async function pmEnableAlarm(){
 }
 /* 🎁 네이버 영수증 리뷰 이벤트 — 자라다케어_환아용.html 과 같은 시스템(구글폼 → Airtable → 문자 코드 → 보호자 안내서)에 연결만 합니다 */
 const PM_RECEIPT={
-  reviewUrl:'https://m.place.naver.com/my/checkin',
+  reviewUrl:'https://jaradacare.com/review.html',
   formUrl:'https://docs.google.com/forms/d/e/1FAIpQLSdX_z4WtcV9PupktZoldy5LCrkMAH4O-RnFAcJUflKsJvkaug/viewform',
   guideUrl:'https://jaradacare.com/#reader'
 };
@@ -3194,7 +3194,7 @@ function drawChart(cv,m){
 }
 
 /* ---- 리포트 HTML ---- */
-var EV_REVIEW='https://m.place.naver.com/my/checkin';
+var EV_REVIEW='https://jaradacare.com/review.html';
 function qrSvg(url,px){
   try{var q=qrcode(0,'M');q.addData(url);q.make();var n=q.getModuleCount(),cs=Math.max(2,Math.floor(px*3/n));
     return q.createSvgTag(cs,0).replace('<svg','<svg style="width:'+px+'px;height:'+px+'px;display:block"')}catch(e){return''}
