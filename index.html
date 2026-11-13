@@ -11603,6 +11603,7 @@ function nuSentLoad(){ try{ return JSON.parse(localStorage.getItem(nuSentKey())|
 function nuSentMark(k){ try{ const m = nuSentLoad(); m[k] = Date.now(); localStorage.setItem(nuSentKey(), JSON.stringify(m)); Object.keys(localStorage).forEach(x=>{ if(x.indexOf('nu_sent_')===0 && x!==nuSentKey()) localStorage.removeItem(x); }); }catch(e){} }
 function nuHideLoad(){ try{ return JSON.parse(localStorage.getItem('nu_hide')||'{}') || {}; }catch(e){ return {}; } }
 function nuHideAdd(r){ try{ const m = nuHideLoad(), lim = Date.now() - 30*86400000; Object.keys(m).forEach(k=>{ if(m[k] < lim) delete m[k]; }); m[r.k + '|' + r.date] = Date.now(); localStorage.setItem('nu_hide', JSON.stringify(m)); }catch(e){} }
+function nuHideDel(hk){ try{ const m = nuHideLoad(); if(hk === '*') Object.keys(m).forEach(k=>delete m[k]); else delete m[hk]; localStorage.setItem('nu_hide', JSON.stringify(m)); }catch(e){} }   // 직접 지운 아이를 다시 목록에 넣기
 function nuKey(phone, name){ const d = ucDg(phone); return d.length>=9 ? 'p'+d : 'n'+ucNm(name); }
 async function nuBuild(){
   const today = bqYmd(new Date()), sentToday = nuSentLoad();
@@ -11633,7 +11634,7 @@ async function nuBuild(){
     addRow({ k, name:r.name, guardian:'', phone:r.phone||'', last4:'', date:r.date, time:r.time||'', chart:r.chart||'', src:['EMR'], bqId:'', guided:g });
   });
   const hid = nuHideLoad();
-  for(let i = list.length - 1; i >= 0; i--){ if(hid[list[i].k + '|' + list[i].date]){ NU.excl.push({ name:list[i].name, guardian:list[i].guardian, date:list[i].date, time:list[i].time, why:'목록에서 직접 지움' }); list.splice(i, 1); } }
+  for(let i = list.length - 1; i >= 0; i--){ if(hid[list[i].k + '|' + list[i].date]){ NU.excl.push({ name:list[i].name, guardian:list[i].guardian, date:list[i].date, time:list[i].time, why:'목록에서 직접 지움', hk:list[i].k + '|' + list[i].date }); list.splice(i, 1); } }
   list.sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')));
   const old = {}; (NU.rows||[]).forEach(r=>{ old[r.k] = r.pick; });
   list.forEach(r=>{ r.pick = (r.k in old) ? old[r.k] : (!r.guided && !!ucDg(r.phone)); });
@@ -11658,7 +11659,7 @@ function nuRender(){
       <label style="font-size:12px;display:flex;gap:5px;align-items:center;"><input type="checkbox" data-nu="auto" ${nuAutoOn()?'checked':''}> 앱이 열려 있을 때 자동 발송 <span style="color:var(--secondary);">(기본 꺼짐)</span></label>
       <span style="font-size:11px;color:var(--secondary);">${NU.at ? '마지막 점검 ' + new Date(NU.at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}) : ''}</span></div>`;
   const ex = (NU.excl||[]).slice().sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
-  const exH = ex.length ? `<details style="margin:6px 0;font-size:12px;"><summary style="cursor:pointer;color:var(--secondary);">제외된 예약 ${ex.length}명 — 왜 빠졌는지 보기</summary>${ex.map(x=>`<div style="padding:3px 0;border-bottom:1px solid #eee;">${e(x.date.slice(5).replace('-','/'))} ${e(x.time)} <b>${e(x.name||'')}</b>${x.guardian && x.guardian!==x.name ? ' <span style="color:var(--secondary);">보호자 '+e(x.guardian)+'</span>' : ''} → <span style="color:#8A5A00;">${e(x.why)}</span></div>`).join('')}</details>` : '';
+  const exH = ex.length ? `<details style="margin:6px 0;font-size:12px;"><summary style="cursor:pointer;color:var(--secondary);">제외된 예약 ${ex.length}명 — 왜 빠졌는지 보기</summary>${ex.some(x=>x.hk) ? `<button type="button" class="uc-act o" data-nu="undelall" style="margin:6px 0;font-size:12px;">↩ 직접 지운 ${ex.filter(x=>x.hk).length}명 모두 다시 넣기</button>` : ''}${ex.map(x=>`<div style="padding:3px 0;border-bottom:1px solid #eee;">${e(x.date.slice(5).replace('-','/'))} ${e(x.time)} <b>${e(x.name||'')}</b>${x.guardian && x.guardian!==x.name ? ' <span style="color:var(--secondary);">보호자 '+e(x.guardian)+'</span>' : ''} → <span style="color:#8A5A00;">${e(x.why)}</span>${x.hk ? ` <button type="button" data-nu="undel" data-hk="${e(x.hk)}" style="border:1px solid var(--ok);background:#fff;color:var(--ok);border-radius:12px;padding:1px 9px;font-size:11.5px;font-weight:700;cursor:pointer;">↩ 다시 넣기</button>` : ''}</div>`).join('')}</details>` : '';
   if(!NU.rows.length){ box.innerHTML = `<div style="margin-bottom:14px;padding-bottom:12px;border-bottom:2px dashed #E3C98E;">${head}${exH}<div style="color:var(--ok);font-size:13px;padding:4px 0;">${NU.at ? '✅ 기록지를 안 쓴 예약 환자가 없어요.' : '아직 점검 전이에요. 「지금 다시 점검」을 눌러 주세요.'}</div></div>`; return; }
   const sendBar = `<div class="uc-bar" style="position:static;box-shadow:none;margin:6px 0;"><label style="font-size:12px;"><input type="checkbox" data-nu="all"${n&&n===NU.rows.filter(r=>ucDg(r.phone)).length?' checked':''}> 전체</label><span style="font-size:12px;color:var(--secondary);">${n}명 선택</span>
     <button type="button" class="uc-act" style="--c:#C2751A;flex:1;padding:11px;" data-nu="send"${(NU.busy||!n)?' disabled':''}>${NU.busy?'📤 보내는 중…':'📨 선택한 '+n+'명에게 기록지 작성 안내 문자 한 번에 보내기'}</button></div>`;
@@ -11731,6 +11732,10 @@ document.addEventListener('click', ev=>{
     NU.rows = NU.rows.filter(x=>x!==r); nuRender();
     ids.forEach(id=>{ bqPost({ action:'deletebooking', id:id }).catch(()=>{}); });
     if(ids.length) setTimeout(()=>{ try{ bqLoad(true); }catch(e){} }, 800);
+  }
+  else if(k==='undel' || k==='undelall'){
+    nuHideDel(k==='undelall' ? '*' : t.dataset.hk);
+    nuCheck(true);   // 다시 모아서 목록에 넣음
   }
   else if(k==='auto'){
     if(t.checked && !confirm('자동 발송을 켤까요?\n· 이 앱(원장·원무과 화면)이 열려 있는 동안, 기록지를 안 쓴 예약 환자에게 안내 문자를 자동으로 보냅니다.\n· 아이마다 하루에 한 번, 한 번에 최대 10명까지예요.\n· 앱을 닫으면 보내지 않아요.')){ t.checked = false; return; }
