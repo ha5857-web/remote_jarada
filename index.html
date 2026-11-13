@@ -6932,7 +6932,10 @@ if(isDoctorAppUnlocked() && getApiUrl()) verifyAuthOnStart();
    그래도 목록이 아니면 서버가 한 말을 그대로 돌려줘서 화면에 보여 줍니다. 로그인이 풀린 경우엔 로그인 창을 띄웁니다. */
 async function apiAllRows(){
   const api = getApiUrl(); if(!api) return { rows: [], err: '연동 URL이 없습니다' };
-  const tryOne = async (u)=>{ try{ const r = await fetch(u); const t = await r.text(); let j = null; try{ j = JSON.parse(t); }catch(e){ return { err: '서버 응답을 읽지 못했어요 (' + (t||'').slice(0,80) + ')' }; } return Array.isArray(j) ? { rows: j } : { err: (j && (j.message || j.error || j.code)) || '목록이 아닌 응답', code: j && j.code }; }catch(e){ return { err: '연결 실패 — ' + (e.message||e) }; } };
+  const tryOne = async (u)=>{ try{ const r = await fetch(u); const t = await r.text(); let j = null; try{ j = JSON.parse(t); }catch(e){ return { err: '서버 응답을 읽지 못했어요 (' + (t||'').slice(0,80) + ')' }; } if(Array.isArray(j)) return { rows: j };
+    if(j && typeof j === 'object'){ const arr = ['rows','data','items','list','result'].map(k=>j[k]).find(Array.isArray); if(arr) return { rows: arr }; }
+    const keys = (j && typeof j === 'object') ? Object.keys(j).slice(0,6).join(',') : typeof j;
+    return { err: (j && (j.message || j.error || j.code)) || ('목록이 아닌 응답 [' + keys + '] ' + t.slice(0,60)), code: j && j.code }; }catch(e){ return { err: '연결 실패 — ' + (e.message||e) }; } };
   const pu = getProtectedApiUrl();
   let a = await tryOne(pu);
   if(!a.rows && pu !== api){ const b = await tryOne(api); if(b.rows) a = b; }
