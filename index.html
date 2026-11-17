@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest-doctor.json">
 <meta name="theme-color" content="#1B3A4B">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   :root{
@@ -179,11 +179,6 @@
   .chart-legend span{ display:inline-flex; align-items:center; gap:5px; }
   .chart-legend i{ width:9px; height:9px; border-radius:50%; display:inline-block; }
 
-  .mack-ctx{ font-size:12px; color:var(--secondary); margin-top:4px; line-height:1.5; }
-  .mack-row{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
-  .mack-chip{ border:1px solid var(--ok); background:#fff; color:var(--ok); border-radius:16px; padding:7px 11px; font-size:12px; font-weight:700; cursor:pointer; }
-  .mack-chip:active{ background:var(--ok); color:#fff; }
-  .mack-done{ font-size:12px; color:var(--ok); font-weight:700; margin-top:6px; }
   .record-item{
     background:#fff; border:1px solid var(--border); border-radius:var(--radius);
     padding:13px 14px; margin-bottom:9px;
@@ -199,48 +194,6 @@
   .record-item .rec-actions{ display:flex; gap:6px; margin-top:9px; }
   .record-item .rec-actions button{ font-size:11px; padding:6px 10px; }
 
-  .ge-head{ display:block !important; }
-  .ge-row{ display:flex; align-items:center; gap:8px; }
-  .emr{ margin-top:8px; }
-  .emr:empty{ display:none; }
-  .emr-tog{ display:flex; width:100%; align-items:center; justify-content:space-between; gap:8px; padding:9px 12px; border:1px solid #E6D7AE; border-radius:10px; background:#FFF8E6; font:inherit; font-size:13.5px; font-weight:700; color:#6B5310; cursor:pointer; text-align:left; }
-  .emr-tog span{ font-weight:600; font-size:12.5px; white-space:nowrap; }
-  .emr-body{ margin-top:6px; border:1px solid #E6D7AE; border-radius:10px; background:#FFFDF6; max-height:34vh; overflow:auto; -webkit-overflow-scrolling:touch; }
-  .emr-opts{ position:sticky; top:0; display:flex; gap:6px; padding:6px; background:#FFFDF6; border-bottom:1px solid #F0E6C8; }
-  .emr-opts button{ flex:1; height:32px; border:1px solid #E6D7AE; border-radius:8px; background:#fff; font:inherit; font-size:13px; font-weight:700; color:#6B5310; cursor:pointer; }
-  .emr-opts button.on{ background:#6B5310; color:#fff; border-color:#6B5310; }
-  .emr-txt{ padding:6px 10px 8px; font-size:13px; line-height:1.55; color:#2A2A2A; white-space:pre-wrap; word-break:break-all; -webkit-user-select:text; user-select:text; }
-  .emr-l.nw{ background:#FFF0B3; margin:0 -4px; padding:0 4px; border-radius:3px; }
-  .emr-none{ padding:8px 12px; border:1px dashed #E6D7AE; border-radius:10px; font-size:12.5px; color:#8A7A50; }
-  @media (max-width:760px){ .emr-tog{ font-size:14.5px; padding:11px 12px; } .emr-txt{ font-size:14.5px; } .emr-body{ max-height:36vh; } }
-  /* 진료 후 안내 초안: 아래 넘기기 단추 · 휴대폰 전체 화면 */
-  .ge-head{ position:sticky; top:-18px; z-index:2; background:var(--light); margin:-18px -18px 12px; padding:14px 18px 10px; border-bottom:1px solid var(--border); gap:8px; }
-  .ge-head h3{ flex:1; min-width:0; }
-  .ge-pos{ font-size:13px; font-weight:700; color:var(--secondary); white-space:nowrap; }
-  .ge-bar{ position:sticky; bottom:-24px; display:flex; gap:8px; margin:14px -18px -24px; padding:10px 18px calc(12px + env(safe-area-inset-bottom)); background:var(--light); border-top:1px solid var(--border); }
-  .ge-bar .ge-ok{ flex:1; height:48px; font-size:16px; font-weight:800; }
-  .ge-bar .ge-nav{ flex:none; width:52px; height:48px; font-size:24px; padding:0; }
-  .ge-bar .ge-nav:disabled{ opacity:.35; }
-  .ge-saved{ position:fixed; right:16px; top:calc(10px + env(safe-area-inset-top)); z-index:3; font-size:12px; color:#2B7A4B; font-weight:700; pointer-events:none; }
-  .gq-start{ display:block; width:100%; margin:8px 0 2px; padding:10px; border-radius:10px; border:1px solid #BFE0C8; background:#fff; font:inherit; font-size:14px; font-weight:700; color:#1E6B3A; cursor:pointer; }
-  @media (max-width:760px){
-    #guideEditOv.ge-mob{ align-items:stretch; }
-    #guideEditOv.ge-mob .modal{ max-width:none; max-height:none; height:100vh; height:100dvh; border-radius:0; padding:18px 14px 24px; }
-    #guideEditOv.ge-mob .ge-head{ margin:-18px -14px 12px; padding:calc(12px + env(safe-area-inset-top)) 14px 10px; }
-    #guideEditOv.ge-mob .ge-head h3{ font-size:17px; line-height:1.35; }
-    #guideEditOv.ge-mob .modal-close{ width:44px; height:44px; font-size:22px; }
-    #guideEditOv.ge-mob .ge-bar{ margin:14px -14px -24px; padding:10px 12px calc(12px + env(safe-area-inset-bottom)); }
-    #guideEditOv.ge-mob .ge-bar .ge-ok{ height:54px; font-size:17px; }
-    #guideEditOv.ge-mob .ge-bar .ge-nav{ width:54px; height:54px; }
-    #guideEditOv.ge-mob .field label{ font-size:13.5px; }
-    #guideEditOv.ge-mob .field textarea, #guideEditOv.ge-mob .field input{ font-size:16.5px; line-height:1.6; padding:11px 12px; border-radius:12px; }
-    #guideEditOv.ge-mob .field textarea{ min-height:48px; resize:none; overflow:hidden; }
-    #guideEditOv.ge-mob .field textarea::placeholder{ color:#A9B6BD; font-size:15px; }
-    #guideEditOv.ge-mob #ge_info{ font-size:13px !important; }
-    .gq-chip{ font-size:14.5px !important; padding:6px 4px 6px 10px !important; margin:3px 5px 3px 0 !important; border-radius:16px !important; }
-    .gq-chip .gq-x{ padding:4px 9px !important; font-size:16px; }
-    .gq-start{ padding:13px; font-size:15.5px; }
-  }
   /* --- Modal --- */
   .modal-ov{
     display:none; position:fixed; inset:0; background:rgba(27,58,75,.5);
@@ -411,6 +364,12 @@
 .gr-wrap{width:min(794px,100%);overflow:hidden;background:#e9eef1}
 .gr-inner{width:794px;display:flex;flex-direction:column;gap:14px;transform-origin:0 0}
 .gr-inner .rp{box-shadow:0 1px 6px rgba(0,0,0,.15)}
+
+/* 해외 환자 새 제출(질문·키 등록) 눈에 띄게 */
+.patient-card.new-item{border-left:4px solid var(--danger);background:#FFF3F0}
+.patient-card.recent-item{border-left:4px solid #F5A623;background:#FFF9EE}
+.new-tag{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;background:var(--danger);color:#fff;font-size:10px;font-weight:800;vertical-align:middle;letter-spacing:.3px}
+.new-tag.recent-tag{background:#F5A623}
 </style>
 </head>
 <body>
@@ -464,18 +423,6 @@
     <span><span class="count-badge" id="pendingMeasureCount" style="display:none;"></span><span class="chevron" id="pendingMeasureChevron">▸</span></span>
   </div>
   <div id="pendingMeasureList" class="collapsible-body" style="display:none;margin-bottom:16px;"></div>
-
-  <div class="section-title collapsible" onclick="toggleDashSection('mrest')">
-    <h2>📅 측정 쉬는 해외 아이 (45일 넘음)</h2>
-    <span><span class="count-badge" id="mrestCount" style="display:none;"></span><span class="chevron" id="mrestChevron">▸</span></span>
-  </div>
-  <div id="mrestList" class="collapsible-body" style="display:none;margin-bottom:16px;"></div>
-
-  <div class="section-title collapsible" onclick="toggleDashSection('vreq')">
-    <h2>✈️ 방학 귀국 진료 신청</h2>
-    <span><span class="count-badge" id="vreqCount" style="display:none;"></span><span class="chevron" id="vreqChevron">▸</span></span>
-  </div>
-  <div id="vreqList" class="collapsible-body" style="display:none;margin-bottom:16px;"></div>
 
   <div class="section-title collapsible" onclick="toggleDashSection('pendingQ')">
     <h2>❓ 답변 대기 질문</h2>
@@ -583,7 +530,7 @@
       <h3 style="font-size:16px;font-weight:800;">어떻게 보낼까요?</h3>
       <button onclick="closeSendChoiceModal()" style="background:none;border:none;font-size:18px;color:var(--secondary);">✕</button>
     </div>
-    <button class="btn btn-primary btn-block" id="sendChoiceAlimBtn" style="margin-bottom:8px;text-align:left;" onclick="sendViaAlimtalk()">💛 카카오 알림톡 자동 발송 (실패 시 문자로 대체)</button>
+    <button class="btn btn-primary btn-block" style="margin-bottom:8px;text-align:left;" onclick="sendViaAlimtalk()">💛 카카오 알림톡 자동 발송 (실패 시 문자로 대체)</button>
     <button class="btn btn-outline btn-block" style="margin-bottom:8px;text-align:left;" onclick="sendViaWhatsApp()">💬 왓츠앱으로 보내기</button>
     <button class="btn btn-outline btn-block" style="margin-bottom:8px;text-align:left;" onclick="sendViaSMS()">📱 문자(SMS)로 보내기</button>
     <button class="btn btn-outline btn-block" style="margin-bottom:8px;text-align:left;" onclick="sendViaTelegram()">✈️ 텔레그램으로 보내기</button>
@@ -616,7 +563,7 @@
 
 <div class="modal-ov" id="guideEditOv">
   <div class="modal">
-    <div class="modal-head ge-head"><div class="ge-row"><h3 id="ge_title">📋 진료 후 안내 초안</h3><span id="ge_pos" class="ge-pos"></span><button class="modal-close" onclick="guideEditSave()" aria-label="닫기">✕</button></div><div id="ge_emr" class="emr"></div></div>
+    <div class="modal-head"><h3 id="ge_title">📋 진료 후 안내 초안</h3><button class="modal-close" onclick="closeModal('guideEditOv')">✕</button></div>
     <div id="ge_info" style="font-size:11.5px;color:var(--secondary);margin-bottom:10px;line-height:1.6;"></div>
     <div class="field"><label>오늘 진료 요약 (지난번과 달라진 점)</label><textarea id="ge_summary" rows="4"></textarea></div>
     <div class="field"><label>혈액검사 결과 설명</label><textarea id="ge_labs" rows="3"></textarea></div>
@@ -626,12 +573,7 @@
     <div class="field"><label>🏃 운동</label><textarea id="ge_exercise" rows="3"></textarea></div>
     <div class="field"><label>🥗 영양</label><textarea id="ge_nutrition" rows="3"></textarea></div>
     <div class="field"><label>😴 수면</label><textarea id="ge_sleep" rows="3"></textarea></div>
-    <div class="ge-bar">
-      <button type="button" class="btn ge-nav" id="ge_prev" onclick="guideEditGo(-1)" aria-label="이전 아이">‹</button>
-      <button type="button" class="btn btn-primary ge-ok" id="ge_next" onclick="guideEditGo(1, true)">✓ 확인하고 다음</button>
-      <button type="button" class="btn ge-nav" id="ge_skip" onclick="guideEditGo(1)" aria-label="다음 아이">›</button>
-    </div>
-    <div id="ge_saved" class="ge-saved"></div>
+    <button class="btn btn-primary btn-block" onclick="guideEditSave()">저장</button>
   </div>
 </div>
 
@@ -1650,8 +1592,6 @@
   </div>
 </div>
 
-<script src="shared/fv-common.js?v=20261111a"></script>
-<script src="shared/chart-common.js?v=20261111a"></script>
 <script>
 
 /* ---------------- 성장 백분위 엔진 (2017 질병관리청 소아청소년 성장도표 LMS 계수) ---------------- */
@@ -1807,7 +1747,8 @@ function autoSyncToCloud(){
       // 덮어써서 지워버릴 수 있었습니다. 이 기기의 변경은 그대로 남아 있고, 다음에 연결이 되면 그때 같이 올라갑니다.
       let rows;
       try{
-        rows = await cloudDoctorRows(api, key);
+        const res = await fetch(api + '?key=' + encodeURIComponent(key) + '&only=doctordata');
+        rows = await res.json();
       }catch(e){ throw new Error('클라우드 읽기 실패'); }
       if(!Array.isArray(rows)) throw new Error('서버 응답 이상: ' + describeServerReply(rows));
       const combined = reassembleDoctorData(rows, key);
@@ -1819,7 +1760,6 @@ function autoSyncToCloud(){
       await fetch(api, { method:'POST', body: JSON.stringify({ action:'savedoctordata', key, data: JSON.stringify(withTombs(merged)) }) });
       patients = merged;
       savePatientsLocalOnly();
-      cloudDeltaCommit();
       if(typeof renderPatientList==='function') renderPatientList();
       if(typeof renderDashboard==='function') renderDashboard();
       const s=document.getElementById('syncStatus'); if(s){ s.textContent = `자동 동기화됨 (${new Date().toLocaleTimeString('ko-KR')})`; s.style.color='var(--ok)'; }
@@ -1846,7 +1786,6 @@ function genAccessCode(){
   }
   return uid()+uid();
 }
-function jsUrl(u){ u = String(u||'').trim(); return /^https?:\/\/[^\s'"<>\\`]+$/i.test(u) ? u.replace(/&/g,'&amp;') : ''; }   // onclick 안 따옴표 문자열에 넣을 주소
 function escapeHtml(s){ return (s||'').toString().replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function fmtDate(d){ if(!d) return ''; const dt=new Date(d+'T00:00:00'); if(isNaN(dt)) return '날짜 미상'; return `${dt.getFullYear()}.${String(dt.getMonth()+1).padStart(2,'0')}.${String(dt.getDate()).padStart(2,'0')}`; }
 function timeAgo(isoStr){
@@ -2490,7 +2429,17 @@ function setCountBadge(el, n){
 }
 // 대시보드의 "진료 리마인더 승인 대기 / 키·몸무게 확인 대기 / 답변 대기 질문" 3개 섹션을
 // 평소엔 접어두고, 제목을 누르면 펼쳤다 접었다 할 수 있게 합니다.
+var dashTouched = new Set(); // 직접 접거나 펼친 섹션은 자동으로 다시 펼치지 않음
+function freshness(ts){ const t = new Date(ts).getTime(); if(isNaN(t)) return ''; const h = (Date.now()-t)/36e5; return h<24 ? 'new' : h<72 ? 'recent' : ''; }
+function freshTag(f){ return f==='new' ? '<span class="new-tag">NEW</span>' : f==='recent' ? '<span class="new-tag recent-tag">최근</span>' : ''; }
+function autoOpenDash(key, n){
+  if(!(n>0) || dashTouched.has(key)) return;
+  const body = document.getElementById(key+'List'), chevron = document.getElementById(key+'Chevron');
+  if(body) body.style.display = 'block';
+  if(chevron) chevron.textContent = '▾';
+}
 function toggleDashSection(key){
+  dashTouched.add(key);
   const body = document.getElementById(key+'List');
   const chevron = document.getElementById(key+'Chevron');
   if(!body) return;
@@ -2515,14 +2464,16 @@ async function renderPendingQuestions(){
       if(!p) return false;
       const dismissed = new Set(p.dismissedInboxIds||[]);
       return !dismissed.has(r.id);
-    }).sort((a,b)=> a.timestamp < b.timestamp ? -1 : 1); // 오래된 질문이 위로
+    }).sort((a,b)=> a.timestamp < b.timestamp ? 1 : -1); // 최근 질문이 위로
     setCountBadge(countEl, visible.length);
+    autoOpenDash('pendingQ', visible.length);
     if(!visible.length){ list.innerHTML = `<div class="empty-note">답변 대기 중인 질문이 없습니다.</div>`; return; }
     list.innerHTML = visible.map(r=>{
       const p = patients.find(pp=>pp.accessCode===r.pid);
-      return `<div class="patient-card" onclick="goToQuestionReply('${p.id}','${r.id}')">
+      const fr = freshness(r.timestamp);
+      return `<div class="patient-card${fr?' '+fr+'-item':''}" onclick="goToQuestionReply('${p.id}','${r.id}')">
         <div>
-          <div class="name-row"><span class="name">${escapeHtml(p.name)}</span><span style="font-size:10px;color:var(--danger);font-weight:700;margin-left:6px;">${timeAgo(r.timestamp)}</span></div>
+          <div class="name-row"><span class="name">${escapeHtml(p.name)}</span><span style="font-size:10px;color:var(--danger);font-weight:700;margin-left:6px;">${timeAgo(r.timestamp)}</span>${freshTag(fr)}</div>
           <div class="sub" style="white-space:pre-wrap;">${escapeHtml((r.question||'').slice(0,60))}${(r.question||'').length>60?'…':''}</div>
         </div>
         <div class="arrow">›</div>
@@ -2542,98 +2493,6 @@ function goToQuestionReply(patientId, questionId){
 }
 
 // 대시보드 "키/몸무게 확인 대기" — 아직 차트에 반영되지 않은 측정값 제출을 환아 이름과 함께 모아 보여줍니다.
-/* ---------------- 측정 쉬는 해외 아이 → 측정 안내 ----------------
- * 해외 아이 중 마지막 키 기록(집에서 입력 + 차트)이 45일 넘은 아이를 모읍니다. 링크를 받은 적 있는 아이(접속 코드 있음)만, 치료 종료는 뺍니다.
- * 「안내 보내기」 → 보호자 언어로 된 측정 안내 + 아이 링크를 왓츠앱·문자·텔레그램·복사 중 골라 보냄(알림톡은 정해진 문구라 숨김).
- * 보낸 날은 아이 기록(p.mremindAt)에 남아 다른 기기에도 동기화되고, 14일 동안은 목록 아래쪽에 흐리게 보입니다. */
-const MREST_DAYS = 45, MREST_QUIET_DAYS = 14;
-const MREST_MSG = {"ko": "[삼성자라다소아청소년과] {name} 보호자님, 이번 달 키·몸무게를 잴 때가 되었어요 📏 아침에 맨발로 벽에 붙어 재신 뒤 아래 링크에 입력해 주시면 원장이 확인하고 한마디 남겨 드릴게요.\n{link}", "en": "[Jarada Care] Dear guardian of {name}, it's time for this month's height and weight check 📏 Please measure in the morning, barefoot against a wall, and enter it at the link below. The doctor will check it and leave you a note.\n{link}", "zh": "[Jarada Care] {name}的家长您好，本月该测量身高体重了 📏 请早上赤脚贴墙测量后，在下方链接录入，医生会确认并给您留言。\n{link}", "zt": "[Jarada Care] {name}的家長您好，本月該測量身高體重了 📏 請早上赤腳貼牆測量後，在下方連結輸入，醫師會確認並給您留言。\n{link}", "vi": "[Jarada Care] Kính gửi phụ huynh của {name}, đã đến lúc đo chiều cao và cân nặng tháng này 📏 Hãy đo vào buổi sáng, chân trần, sát tường rồi nhập vào liên kết bên dưới. Bác sĩ sẽ xem và để lại lời nhắn.\n{link}", "ja": "[Jarada Care] {name}様の保護者様、今月の身長・体重を測る時期になりました 📏 朝、はだしで壁に背をつけて測り、下のリンクから入力してください。院長が確認してひとことお返しします。\n{link}", "es": "[Jarada Care] Estimado tutor de {name}: es momento de medir la talla y el peso de este mes 📏 Mida por la mañana, descalzo contra la pared, y anótelo en el enlace de abajo. El médico lo revisará y le dejará un comentario.\n{link}", "th": "[Jarada Care] เรียนผู้ปกครองของ {name} ถึงเวลาวัดส่วนสูงและน้ำหนักประจำเดือนนี้แล้ว 📏 กรุณาวัดตอนเช้า เท้าเปล่า ยืนชิดผนัง แล้วบันทึกที่ลิงก์ด้านล่าง แพทย์จะตรวจดูและฝากข้อความถึงคุณ\n{link}", "id": "[Jarada Care] Kepada wali {name}, sudah waktunya mengukur tinggi dan berat bulan ini 📏 Ukur di pagi hari, tanpa alas kaki menempel ke dinding, lalu masukkan di tautan di bawah. Dokter akan mengecek dan meninggalkan pesan.\n{link}", "ar": "[Jarada Care] إلى ولي أمر {name}، حان وقت قياس الطول والوزن لهذا الشهر 📏 يُرجى القياس صباحًا حافي القدمين مع الاستناد إلى الحائط ثم التسجيل عبر الرابط أدناه، وسيراجعه الطبيب ويترك لكم كلمة.\n{link}", "mn": "[Jarada Care] {name}-ийн асран хамгаалагч танд, энэ сарын өндөр, жингээ хэмжих цаг боллоо 📏 Өглөө хөл нүцгэн хананд наалдаж хэмжээд доорх линкээр оруулна уу. Эмч шалгаад товч үг үлдээнэ.\n{link}"};
-function mrestDaysSince(d){ return Math.round((new Date(todayStr()+'T00:00:00') - new Date(d+'T00:00:00')) / 86400000); }
-function renderMeasureRest(rows){
-  const list = document.getElementById('mrestList'), countEl = document.getElementById('mrestCount');
-  if(!list) return;
-  const lastHome = {};
-  (rows||[]).forEach(r=>{ if(r.type==='measurement' && r.pid && r.date && (r.height || r.weight) && (!lastHome[r.pid] || r.date > lastHome[r.pid])) lastHome[r.pid] = r.date; });
-  const items = patients.filter(p=> p.accessCode && getPatientCategory(p)==='overseas' && p.careCategory!=='ended').map(p=>{
-    let last = lastHome[p.accessCode] || '';
-    (p.records||[]).forEach(r=>{ if(r.date && r.height && r.date > last && r.date <= todayStr()) last = r.date; });
-    const days = last ? mrestDaysSince(last) : null;
-    const remDays = p.mremindAt ? Math.max(0, mrestDaysSince(p.mremindDay || String(p.mremindAt).slice(0,10))) : null;   // 보낸 날은 이 기기 날짜(한국 아침 9시 전 UTC 날짜 어긋남 방지)
-    return { p, last, days, home: !!lastHome[p.accessCode], quiet: remDays != null && remDays < MREST_QUIET_DAYS, remDays };
-  }).filter(x=> x.days == null || x.days > MREST_DAYS)
-    .sort((a,b)=> (a.quiet - b.quiet) || ((b.days == null ? 9999 : b.days) - (a.days == null ? 9999 : a.days)));
-  setCountBadge(countEl, items.filter(x=>!x.quiet).length);
-  if(!items.length){ list.innerHTML = `<div class="empty-note">${MREST_DAYS}일 넘게 키 기록이 없는 해외 아이가 없습니다.</div>`; return; }
-  list.innerHTML = items.map(x=>{
-    const p = x.p;
-    const when = x.last ? `마지막 키 기록 ${x.days}일 전 (${fmtDate(x.last)})${x.home ? '' : ' · 집에서 입력한 기록 없음'}` : '키 기록 없음';
-    const sent = p.mremindAt ? `<div class="mack-done" style="color:var(--secondary);">🔔 안내 보냄 ${x.remDays === 0 ? '오늘' : x.remDays + '일 전'}${p.mremindVia ? ' · ' + escapeHtml(p.mremindVia) : ''}</div>` : '';
-    return `<div class="patient-card" style="${x.quiet ? 'opacity:.55;' : ''}" onclick="openDetail('${p.id}')">
-      <div style="flex:1;min-width:0;">
-        <div class="name-row"><span class="name">${escapeHtml(p.name)}</span><span style="font-size:10px;color:var(--secondary);margin-left:6px;">${escapeHtml(calcAge(p.dob)||'')}</span></div>
-        <div class="sub">${escapeHtml(when)}</div>${sent}
-        <div class="mack-row" onclick="event.stopPropagation()"><button class="mack-chip" onclick="mrestSend('${p.id}')">🔔 ${p.mremindAt ? '다시 안내' : '측정 안내 보내기'}</button></div>
-      </div>
-      <div class="arrow">›</div>
-    </div>`;
-  }).join('');
-}
-function mrestSend(id){
-  const p = getPatient(id); if(!p) return;
-  if(!getSiteUrl()){ alert('⚙️ 연동 설정에 "사이트 주소"를 먼저 입력해주세요.'); return; }
-  const { link } = buildPatientLinkAndMsg(p);
-  const lang = p.lang || 'ko';
-  const msg = (MREST_MSG[lang] || MREST_MSG.ko).replace('{name}', p.name).replace('{link}', link);
-  openSendChoiceModal(p, link, msg);
-  pendingSend.remind = true;
-  const ab = document.getElementById('sendChoiceAlimBtn'); if(ab) ab.style.display = 'none';
-}
-function mrestMark(p, method){
-  p.mremindAt = new Date().toISOString(); p.mremindDay = todayStr(); p.mremindVia = method;
-  p.updatedAt = new Date().toISOString();
-  savePatients();
-  renderPendingMeasurements();
-}
-/* ---------------- 방학 귀국 진료 신청 모아 보기 ----------------
- * 해외 보호자가 앱에서 보낸 「✈️ 귀국 진료 신청」(질문 칸)을 도착일 순으로 모읍니다. 아이마다 가장 최근 신청 하나, 출국일이 지난 건 뺍니다.
- * 답은 기존처럼 환자 상세 → 제출함에서 질문에 답하면 보호자 앱의 신청 카드와 「질문하기」에 함께 보입니다. */
-function vreqParse(text){
-  const s = String(text||''); if(s.indexOf('✈️ 귀국 진료 신청') !== 0) return null;
-  const m = s.match(/한국 체류: (\d{4}-\d\d-\d\d) ~ (\d{4}-\d\d-\d\d)/); if(!m) return null;
-  const line = k=>{ const x = s.match(new RegExp('^' + k + ': (.*)$', 'm')); return x ? x[1].trim() : ''; };
-  return { from: m[1], to: m[2], when: line('편한 시간'), want: line('원하는 것'), memo: line('메모') };
-}
-function renderVisitReq(rows){
-  const list = document.getElementById('vreqList'), countEl = document.getElementById('vreqCount');
-  if(!list) return;
-  const today = todayStr(), answers = {};
-  (rows||[]).forEach(r=>{ if(r.type==='answer' && r.refId) answers[r.refId] = r.answer; });
-  const latest = {};
-  (rows||[]).forEach(r=>{
-    if(r.type!=='question' || !r.pid) return;
-    const v = vreqParse(r.question); if(!v) return;
-    const k = String(r.timestamp||r.date||'');
-    if(!latest[r.pid] || k > latest[r.pid].k) latest[r.pid] = { r, v, k };
-  });
-  const items = Object.values(latest).filter(x=> x.v.to >= today).map(x=>({ ...x, p: patients.find(p=>p.accessCode===x.r.pid) })).filter(x=>x.p)
-    .sort((a,b)=> a.v.from < b.v.from ? -1 : 1);
-  setCountBadge(countEl, items.filter(x=>answers[x.r.id]==null).length);
-  if(!items.length){ list.innerHTML = '<div class="empty-note">들어온 귀국 진료 신청이 없습니다.</div>'; return; }
-  list.innerHTML = items.map(x=>{
-    const { p, v, r } = x, ans = answers[r.id];
-    const dIn = mrestDaysSince(v.from), dOut = mrestDaysSince(v.to);
-    const when = dIn < 0 ? `도착 D-${-dIn}` : `지금 한국에 있음 · 출국 ${dOut === 0 ? '오늘' : 'D-' + (-dOut)}`;
-    return `<div class="patient-card" onclick="openDetail('${p.id}')">
-      <div style="flex:1;min-width:0;">
-        <div class="name-row"><span class="name">${escapeHtml(p.name)}</span><span style="font-size:10px;color:var(--secondary);margin-left:6px;">${escapeHtml(calcAge(p.dob)||'')}</span></div>
-        <div class="sub"><b>${fmtDate(v.from)} ~ ${fmtDate(v.to)}</b> · ${when}</div>
-        <div class="mack-ctx">편한 시간: ${escapeHtml(v.when||'-')} · 원하는 것: ${escapeHtml(v.want||'-')}${v.memo ? `<br>메모: ${escapeHtml(v.memo)}` : ''}</div>
-        ${ans != null ? `<div class="mack-done">✓ 답변함 · ${escapeHtml(String(ans).slice(0, 60))}</div>` : `<div class="mack-done" style="color:var(--accent);">답변 대기 — 눌러서 날짜를 답해 주세요</div>`}
-      </div>
-      <div class="arrow">›</div>
-    </div>`;
-  }).join('');
-}
 async function renderPendingMeasurements(){
   const list = document.getElementById('pendingMeasureList');
   const countEl = document.getElementById('pendingMeasureCount');
@@ -2642,104 +2501,31 @@ async function renderPendingMeasurements(){
   try{
     const res = await fetch(api);
     const rows = await res.json();
-    try{ renderMeasureRest(rows); }catch(e){ console.error(e); }
-    try{ renderVisitReq(rows); }catch(e){ console.error(e); }
-    const acked = new Set(rows.filter(r=>r.type==='answer' && r.refId).map(r=>r.refId));
     const pending = rows.filter(r=>{
       if(r.type!=='measurement') return false;
-      if(acked.has(r.id)) return false;
       const p = patients.find(pp=>pp.accessCode===r.pid);
       if(!p) return false;
       if(getPatientCategory(p)!=='overseas') return false; // 국내 환자는 정기 대면진료로 확인하니 이 목록에서 제외 — 해외 환자만 남겨둠
       const dismissed = new Set(p.dismissedInboxIds||[]);
       if(dismissed.has(r.id)) return false;
       return !(p.appliedInboxIds||[]).includes(r.id);
-    }).sort((a,b)=> a.timestamp < b.timestamp ? -1 : 1);
+    }).sort((a,b)=> a.timestamp < b.timestamp ? 1 : -1); // 최근 제출이 위로
     setCountBadge(countEl, pending.length);
+    autoOpenDash('pendingMeasure', pending.length);
     if(!pending.length){ list.innerHTML = `<div class="empty-note">확인 대기 중인 키/몸무게 기록이 없습니다. (해외 환자만 표시됩니다)</div>`; return; }
     list.innerHTML = pending.map(r=>{
       const p = patients.find(pp=>pp.accessCode===r.pid);
       const vals = [r.height?`키 ${r.height}cm`:'', r.weight?`몸무게 ${r.weight}kg`:''].filter(Boolean).join(' · ');
-      return `<div class="patient-card" onclick="goToInboxMeasurement('${p.id}','${r.id}')">
+      const fr = freshness(r.timestamp);
+      return `<div class="patient-card${fr?' '+fr+'-item':''}" onclick="goToInboxMeasurement('${p.id}','${r.id}')">
         <div>
-          <div class="name-row"><span class="name">${escapeHtml(p.name)}</span><span style="font-size:10px;color:var(--secondary);font-weight:700;margin-left:6px;">${timeAgo(r.timestamp)}</span></div>
+          <div class="name-row"><span class="name">${escapeHtml(p.name)}</span><span style="font-size:10px;color:var(--secondary);font-weight:700;margin-left:6px;">${timeAgo(r.timestamp)}</span>${freshTag(fr)}</div>
           <div class="sub">${escapeHtml(vals)} · ${fmtDate(r.date)}</div>
-          ${r.height ? `<div class="mack-ctx">${escapeHtml(mackContext(p, r))}</div>` : ''}
-          ${mackChips(p.id, r)}
         </div>
         <div class="arrow">›</div>
       </div>`;
     }).join('');
   }catch(err){ list.innerHTML = `<div class="empty-note">불러오지 못했습니다.</div>`; }
-}
-
-/* ---------------- 키 입력에 「확인 ✓ + 한마디」 ----------------
- * 해외 환자가 올린 키·몸무게에 버튼 한 번으로: ① 보호자 앱에 「✓ 원장 확인 · 한마디」 ② 차트에 반영.
- * 저장은 질문 답변과 같은 칸(type:'answer', refId:측정 id)이라 서버를 바꾸지 않아도 됩니다.
- * 정해진 한마디는 [[ack:코드]]로 보내고, 환아 앱이 보호자 언어(11개)로 바꿔 보여 줍니다. 직접 쓴 글은 자동 번역됩니다. */
-const MACK = [['good','잘 크고 있어요 👍'],['thanks','꾸준히 재 주셔서 고마워요'],['next','다음 진료 때 같이 볼게요'],['check','재는 방법 확인 부탁'],['ok','확인만']];
-function mackLabel(a){ const m = String(a||'').match(/^\[\[ack:([a-z]+)\]\]$/); if(!m) return String(a||''); const f = MACK.find(x=>x[0]===m[1]); return f ? f[1] : '확인'; }
-function mackPct(p, h, date){
-  if(!p || !p.dob || !h || !date) return null;
-  const am = ageInMonths(p.dob, date); if(am == null || am < 0) return null;
-  const lms = getLMS('height', sexCode(p.sex), am); if(!lms) return null;
-  const v = lmsPercentile(lms.L, lms.M, lms.S, parseFloat(h));
-  return isFinite(v) ? Math.max(1, Math.min(99, Math.round(v))) : null;
-}
-// 원장이 한마디를 고를 수 있게: 지난 기록보다 몇 cm, 연 속도, 백분위
-function mackContext(p, r){
-  if(!r.height) return '';
-  const prev = (p.records||[]).filter(x=>x.date && x.height && x.date < r.date && isFinite(parseFloat(x.height))).sort((a,b)=> a.date < b.date ? 1 : -1)[0];
-  const bits = [];
-  if(prev){
-    const dv = Math.round((parseFloat(r.height) - parseFloat(prev.height)) * 10) / 10;
-    const days = Math.round((new Date(r.date+'T00:00:00') - new Date(prev.date+'T00:00:00')) / 86400000);
-    bits.push(`지난 기록(${fmtDate(prev.date)}, ${days}일 전)보다 ${dv > 0 ? '+' : ''}${dv}cm`);
-    if(days >= 90 && dv > 0) bits.push(`연 ${Math.round(dv / days * 365 * 10) / 10}cm 속도`);
-    if(dv <= 0) bits.push('⚠️ 줄었거나 그대로 — 측정 오차 확인');
-  } else bits.push('차트에 앞선 키 기록 없음');
-  const pc = mackPct(p, r.height, r.date);
-  if(pc != null){ const pp = prev ? mackPct(p, prev.height, prev.date) : null; bits.push(`백분위 ${pc}${pp != null ? ` (지난번 ${pp})` : ''}`); }
-  return bits.join(' · ');
-}
-function mackChips(patientId, r){
-  const a = `'${patientId}','${r.id}','${r.date||''}','${r.height||''}','${r.weight||''}'`;
-  return `<div class="mack-row" onclick="event.stopPropagation()">` + MACK.map(([c,l])=>`<button class="mack-chip" onclick="measAck(${a},'${c}')">${l}</button>`).join('') + `</div>`;
-}
-function measApply(p, id, date, height, weight){
-  if((p.appliedInboxIds||[]).includes(id)) return;
-  if(!date || isNaN(new Date(date+'T00:00:00'))) date = todayStr();
-  if(!p.records) p.records = [];
-  const ex = p.records.find(r=>r.date===date);
-  if(ex){ if(height) ex.height = height; if(weight) ex.weight = weight; }
-  else p.records.push({ id: uid(), date, height, weight, callDone:false });
-  if(!p.appliedInboxIds) p.appliedInboxIds = [];
-  p.appliedInboxIds.push(id);
-  p.updatedAt = new Date().toISOString();
-  savePatients();
-}
-let mackBusy = false;
-async function measAck(patientId, measId, date, height, weight, code, text){
-  const p = getPatient(patientId), api = getApiUrl();
-  if(!p || !api || !p.accessCode || mackBusy) return;
-  const answer = text != null ? String(text).trim() : `[[ack:${code}]]`;
-  if(!answer) return;
-  mackBusy = true;
-  try{
-    const res = await fetch(api, { method:'POST', body: JSON.stringify({ id: uid(), pid: p.accessCode, type:'answer', refId: measId, answer }) });
-    let j = null; try{ j = await res.json(); }catch(e){}
-    if(j && j.status && j.status !== 'ok') throw new Error(j.message || j.code || '');
-  }catch(e){ mackBusy = false; alert('확인 보내기에 실패했습니다.' + (e && e.message ? '\n' + e.message : '')); return; }
-  mackBusy = false;
-  measApply(p, measId, date, height, weight);
-  if(currentPatientId === patientId){ try{ renderDetail(); }catch(e){} }
-  renderPendingMeasurements();
-}
-function measAckTyped(patientId, measId, date, height, weight){
-  const el = document.getElementById('mackt_' + measId);
-  const v = el ? el.value.trim() : '';
-  if(!v){ if(el) el.focus(); return; }
-  measAck(patientId, measId, date, height, weight, '', v);
 }
 function goToInboxMeasurement(patientId, measureId){
   openDetail(patientId);
@@ -2760,10 +2546,9 @@ async function renderPendingReminders(){
   const api = getApiUrl();
   if(!api){ list.innerHTML=''; setCountBadge(countEl, 0); return; }
   try{
-    const got = await apiAllRows();
-    if(!got.rows){ list.innerHTML = `<div class="empty-note">불러오지 못했습니다. <span style="color:var(--danger);">${escapeHtml(got.err||'')}</span></div>`; return; }
-    const rows = got.rows;
-    const pending = rows.filter(r=>r && r.type==='visitReminderPending').sort((a,b)=> a.timestamp < b.timestamp ? -1 : 1);
+    const res = await fetch(getProtectedApiUrl());
+    const rows = await res.json();
+    const pending = rows.filter(r=>r.type==='visitReminderPending').sort((a,b)=> a.timestamp < b.timestamp ? -1 : 1);
     setCountBadge(countEl, pending.length);
     if(!pending.length){ list.innerHTML = `<div class="empty-note">승인 대기 중인 리마인더가 없습니다.</div>`; return; }
     list.innerHTML = pending.map(r=>{
@@ -3102,7 +2887,7 @@ function previewPhoneOnlyUpdate(rows2D){
     <table style="width:100%;font-size:11.5px;border-collapse:collapse;">
       <tr style="text-align:left;color:var(--secondary);"><th>이름</th><th>챠트번호</th><th>기존 전화</th><th>새 전화</th><th>기존 주소</th><th>새 주소</th></tr>
       ${phoneOnlyParsedRows.map(r=>`<tr>
-        <td>${escapeHtml(r.name||'')}</td><td>${escapeHtml(r.chartNo||'')}</td>
+        <td>${escapeHtml(r.name||'')}</td><td>${r.chartNo}</td>
         <td>${escapeHtml(r.oldPhone||'(없음)')}</td>
         <td>${cell(r.phoneChanged, r.newPhone, !r.newPhone)}</td>
         <td style="max-width:160px;">${escapeHtml(r.oldAddress||'(없음)')}</td>
@@ -3629,14 +3414,12 @@ async function fvGuideBuild(p, chartText, baseline){
   const rec = {}; try{ extractFromChartNote(text, rec); }catch(e){}
   const shim = Object.assign({}, p, { firstVisit: p.firstVisit || { visitDate: todayStr() } });
   const draft = fvLocalDraft(text, add, rec, shim);
-  const lm = labMsgOf(p, todayStr()), lmCore = lm ? labCore(lm.labMsg.t) : '';   // 🩸 오늘 검사의 승인된 혈액검사 결과 문자
-  const labsIn = [add.labs, lmCore ? '[원장이 확인해 보호자에게 이미 보낸 혈액검사 결과 안내 — 이 내용과 어긋나지 않게 정리]\n' + lmCore : ''].filter(Boolean).join('\n\n');
   let ai = null, warn = '';
   if(getApiUrl()){
     try{
       const res = await fetch(getApiUrl(), { method:'POST', body: JSON.stringify({
         action:'generatefirstvisitchart', kind, compare: fvGuideCompare(p), name:p.name, gender: p.sex==='M'?'남':'여', ageText: calcAge(p.dob),
-        chart: add.parts.chart, plan: add.plan, labs: labsIn, extra: add.extra, added: add.text, intake: kind==='first' ? String(baseline||p.notes||'').slice(0,3000) : ''
+        chart: add.parts.chart, plan: add.plan, labs: add.labs, extra: add.extra, added: add.text, intake: kind==='first' ? String(baseline||p.notes||'').slice(0,3000) : ''
       })});
       const data = await res.json();
       if(data && data.via === 'jarada-codegs' && data.status === 'ok' && data.data) ai = data.data;
@@ -3645,7 +3428,7 @@ async function fvGuideBuild(p, chartText, baseline){
   } else warn = '연동 설정의 백엔드 URL이 없어 AI 없이 정리했어요';
   const pick = (k, fb)=> (ai && ai[k] && String(ai[k]).trim()) ? String(ai[k]).trim() : (fb||'');
   const post = {
-    summary: pick('summary', draft.summary), labs: pick('labs', draft.labs || lmCore), xray: pick('xray', draft.xray), direction: pick('direction', draft.direction),
+    summary: pick('summary', draft.summary), labs: pick('labs', draft.labs), xray: pick('xray', draft.xray), direction: pick('direction', draft.direction),
     nextDate: draft.nextDate || '', tests: draft.tests || [],
     exercise: pick('exercise', fvLifestyleDraft('exercise', shim)), nutrition: pick('nutrition', fvLifestyleDraft('nutrition', shim)), sleep: pick('sleep', fvLifestyleDraft('sleep', shim)),
     videos: []
@@ -3763,98 +3546,23 @@ async function runBatchGuideSend(){
 }
 /* ---- 초안 확인·수정 창 ---- */
 let guideEditId = null;
-/* 진료 후 안내 초안 고치기 — 휴대폰에서도 쉽게:
-   · 고치는 대로 0.6초 뒤 자동 저장(창을 닫아도, 다음 아이로 넘어가도 그대로)
-   · 아래 「‹  ✓ 확인하고 다음  ›」로 대기 순서대로 넘기며 확인, 확인한 아이는 칩에 ✓ 표시
-   · 휴대폰(가로 760px 이하)에서는 전체 화면 + 큰 글씨(입력할 때 화면이 확대되지 않게 16px 이상) */
-/* 📋 EMR 차트 보면서 고치기: 이 아이의 오늘 차트(의사 앱에 올린 EMR)를 편집 창 위쪽에 붙여 둡니다.
-   처음엔 지난 차트와 비교해 「오늘 새로 쓴 줄」만, 「전체」를 누르면 차트 전체(새 줄은 노란색). 펼쳐 두면 위에 고정돼서 보면서 아래 칸을 고칠 수 있어요. */
-const GE_EMR = { open:false, all:false };
-function emrNorm(l){ return String(l||'').replace(/\s+/g,' ').trim(); }
-function emrHtml(chart, base, date, opt){
-  opt = opt || {};
-  if(!String(chart||'').trim()) return '<div class="emr-none">📋 이 아이의 오늘 EMR 차트가 아직 없어요. 진료실에서 EMR을 올리면 여기서 보여요.</div>';
-  const old = {}; String(base||'').split('\n').forEach(l=>{ const n = emrNorm(l); if(n) old[n] = 1; });
-  const hasBase = !!String(base||'').trim(); let nNew = 0;
-  const rows = String(chart).replace(/\r/g,'').split('\n').map(l=>{ const n = emrNorm(l), nw = !!n && (!hasBase || !old[n]); if(nw) nNew++; return { l, n, nw }; });
-  const show = opt.all || !hasBase ? rows.filter((r,i)=> r.n || (i>0 && rows[i-1].n)) : rows.filter(r=>r.nw);
-  const body = show.map(r=>`<div class="emr-l${r.nw && hasBase ? ' nw' : ''}">${escapeHtml(r.l) || '&nbsp;'}</div>`).join('') || '<div class="emr-l">(지난 차트와 달라진 줄이 없어요)</div>';
-  return `<button type="button" class="emr-tog" data-emr="tog">📋 EMR 차트 ${escapeHtml(String(date||'').replace(/-/g,'.'))} · ${hasBase ? '오늘 새로 쓴 ' + nNew + '줄' : '전체 ' + rows.filter(r=>r.n).length + '줄'} <span>${opt.open ? '접기 ▴' : '펼치기 ▾'}</span></button>` +
-    (opt.open ? `<div class="emr-body">${hasBase ? `<div class="emr-opts"><button type="button" data-emr="new" class="${opt.all?'':'on'}">새로 쓴 줄</button><button type="button" data-emr="all" class="${opt.all?'on':''}">전체 차트</button></div>` : ''}<div class="emr-txt">${body}</div></div>` : '');
-}
-function geEmrRender(){
-  const el = document.getElementById('ge_emr'), p = getPatient(guideEditId); if(!el) return;
-  if(!p){ el.innerHTML = ''; return; }
-  const recs = (p.records||[]).filter(r=>r && r.date && String(r.chartNoteRaw||'').trim()).sort((a,b)=> a.date < b.date ? -1 : 1);
-  const td = todayStr(), cur = recs.filter(r=>r.date===td).pop() || recs[recs.length-1] || null;
-  const prev = cur ? recs.filter(r=>r.date < cur.date).pop() : null;
-  const base = (p.guideBase && p.guideBase.date===td && p.guideBase.text) || (prev && prev.chartNoteRaw) || '';
-  el.innerHTML = emrHtml(cur ? cur.chartNoteRaw : '', base, cur ? cur.date : '', GE_EMR);
-}
-function guideQueueIds(){ return patients.filter(p=>p.pendingGuideSend && p.guideDraft && !p.guideDraft.sentAt).map(p=>p.id); }
-let guideEditTimer = null;
-function guideEditPersist(){
-  clearTimeout(guideEditTimer); guideEditTimer = null;
-  const p = getPatient(guideEditId); if(!p || !p.guideDraft) return false;
-  const g = k => (document.getElementById('ge_'+k)||{value:''}).value.trim();
-  const po = p.guideDraft.post || {}; let ch = false;
-  ['summary','labs','xray','direction','nextDate','exercise','nutrition','sleep'].forEach(k=>{ const v = g(k); if((po[k]||'') !== v){ po[k] = v; ch = true; } });
-  if(ch){ p.guideDraft.post = po; p.guideDraft.edited = true; p.updatedAt = new Date().toISOString(); savePatients(); geSaid('✓ 저장됨'); }
-  return ch;
-}
-function geSaid(t){ const e = document.getElementById('ge_saved'); if(!e) return; e.textContent = t; clearTimeout(e._t); e._t = setTimeout(()=>{ e.textContent = ''; }, 1600); }
-function geAutosize(e){ if(!e || e.tagName!=='TEXTAREA') return; e.style.height = 'auto'; e.style.height = (e.scrollHeight + 2) + 'px'; }
-function guideEditGo(d, ok){
-  const p = getPatient(guideEditId);
-  guideEditPersist();
-  if(ok && p && p.guideDraft){ p.guideDraft.okAt = Date.now(); p.updatedAt = new Date().toISOString(); savePatients(); }
-  const q = guideQueueIds(), i = q.indexOf(guideEditId);
-  let nx = null;
-  if(ok){ for(let k=1;k<=q.length;k++){ const x = q[(Math.max(i,-1)+k) % q.length]; const xp = getPatient(x); if(x!==guideEditId && xp && xp.guideDraft && !xp.guideDraft.okAt){ nx = x; break; } } }
-  else { const j = i + d; if(j>=0 && j<q.length) nx = q[j]; }
-  if(nx){ guideEdit(nx); const m = document.querySelector('#guideEditOv .modal'); if(m) m.scrollTop = 0; return; }
-  if(ok){ closeModal('guideEditOv'); guideEditId = null; renderBatchSendBar(); geToast('대기 중인 안내를 모두 확인했어요. 「진료 후 안내 일괄 발송」을 누르면 보내져요.'); const b = document.getElementById('batchGuideRow'); if(b) b.scrollIntoView({behavior:'smooth', block:'center'}); }
-}
-function geToast(t){
-  let e = document.getElementById('geToast');
-  if(!e){ e = document.createElement('div'); e.id = 'geToast'; e.style.cssText = 'position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:400;max-width:min(92vw,520px);background:#1B3A4B;color:#fff;padding:12px 16px;border-radius:12px;font-size:14px;line-height:1.5;box-shadow:0 6px 24px rgba(0,0,0,.25)'; document.body.appendChild(e); }
-  e.textContent = t; e.style.display = 'block'; clearTimeout(e._t); e._t = setTimeout(()=>{ e.style.display = 'none'; }, 4500);
-}
-(function geWire(){
-  const ov = document.getElementById('guideEditOv'); if(!ov || ov._wired) return; ov._wired = true;
-  ov.addEventListener('input', e=>{ geAutosize(e.target); clearTimeout(guideEditTimer); guideEditTimer = setTimeout(guideEditPersist, 600); });
-  ov.addEventListener('change', ()=>{ clearTimeout(guideEditTimer); guideEditTimer = setTimeout(guideEditPersist, 200); });
-  ov.addEventListener('click', e=>{
-    if(e.target === ov){ guideEditSave(); return; }
-    const b = e.target.closest && e.target.closest('[data-emr]'); if(!b) return;
-    const k = b.dataset.emr; if(k==='tog') GE_EMR.open = !GE_EMR.open; else if(k==='all') GE_EMR.all = true; else if(k==='new') GE_EMR.all = false;
-    geEmrRender();
-  });
-})();
 function guideEdit(id){
   const p = getPatient(id); if(!p || !p.guideDraft) return;
-  if(guideEditId && guideEditId !== id) guideEditPersist();
   guideEditId = id; const po = p.guideDraft.post || {};
   const set = (k, v)=>{ const e = document.getElementById('ge_'+k); if(e) e.value = v || ''; };
   ['summary','labs','xray','direction','nextDate','exercise','nutrition','sleep'].forEach(k=>set(k, po[k]));
-  const q = guideQueueIds(), i = q.indexOf(id);
-  const ps = document.getElementById('ge_pos'); if(ps) ps.textContent = i>=0 && q.length>1 ? (i+1)+' / '+q.length : '';
-  const pv = document.getElementById('ge_prev'); if(pv) pv.disabled = !(i>0);
-  const sk = document.getElementById('ge_skip'); if(sk) sk.disabled = !(i>=0 && i<q.length-1);
-  const left = q.filter(x=>{ const xp = getPatient(x); return x!==id && xp && xp.guideDraft && !xp.guideDraft.okAt; }).length;
-  const nb = document.getElementById('ge_next'); if(nb) nb.textContent = left ? '✓ 확인하고 다음' : '✓ 확인 완료';
-  const ov = document.getElementById('guideEditOv'), mob = !!(window.matchMedia && matchMedia('(max-width:760px)').matches); if(ov) ov.classList.toggle('ge-mob', mob);
-  document.querySelectorAll('#guideEditOv textarea').forEach(t=>{ if(!t.dataset.rows) t.dataset.rows = t.getAttribute('rows') || '3'; t.setAttribute('rows', mob ? '1' : t.dataset.rows); if(!mob) t.style.height = ''; t.placeholder = mob ? '(비어 있음 — 눌러서 쓰기)' : ''; });
-  geEmrRender();
-  setTimeout(()=>{ if(mob) document.querySelectorAll('#guideEditOv textarea').forEach(geAutosize); }, 30);
   document.getElementById('ge_title').textContent = `📋 ${p.name||''} · ${fvGuideIsFirst(p) ? '초진' : '재진'} 진료 후 안내 초안`;
   const g = p.guideDraft;
   document.getElementById('ge_info').textContent = (g.ai ? 'AI가 이전 차트와 비교해 정리한 초안이에요.' : 'AI 없이 차트 표기로 정리한 초안이에요.') + (g.count ? ` 새로 추가된 ${g.count}줄을 근거로 썼어요.` : '') + (g.warn ? ' ※ ' + g.warn : '') + ' 꼭 읽어보고 고친 뒤 보내세요.';
   openModal('guideEditOv');
 }
 function guideEditSave(){
-  if(guideEditId) guideEditPersist();
-  closeModal('guideEditOv'); guideEditId = null; renderBatchSendBar();
+  const p = getPatient(guideEditId); if(!p || !p.guideDraft) return;
+  const g = k => (document.getElementById('ge_'+k)||{value:''}).value.trim();
+  const po = p.guideDraft.post || {};
+  ['summary','labs','xray','direction','nextDate','exercise','nutrition','sleep'].forEach(k=>{ po[k] = g(k); });
+  p.guideDraft.post = po; p.guideDraft.edited = true; p.updatedAt = new Date().toISOString();
+  savePatients(); closeModal('guideEditOv'); renderBatchSendBar();
 }
 // 서버에 쌓인 과거 네이버 예약 + 클라우드 환자 목록에서 "이미 내원한 적 있는 아이(이름|전화 뒤4자리)"를 받아옵니다. 실패해도 업로드는 그대로 진행돼요.
 let fvPastKeys = null;
@@ -4380,25 +4088,6 @@ function txHistory(p){
   d.sort((a,b)=> a.d < b.d ? -1 : 1);
   return { p:per, d:d.slice(-8) };
 }
-/* 🩸 flow 방문(최근 45일)마다, 그날 검사의 승인된 혈액검사 문자(핵심만)를 붙여 줍니다 → 성장 리포트 「혈액검사 결과 설명」·AI 요약 */
-async function labSyncFlow(visits){
-  try{
-    if(!Array.isArray(visits) || typeof patients==='undefined') return;
-    const lim = new Date(Date.now()-45*864e5).toISOString().slice(0,10), dg = s => String(s||'').replace(/\D/g,'').replace(/^0+/,''), byChart = {}, byName = {};
-    patients.forEach(p=>{ if(!(p.records||[]).some(r=>r && r.labMsg)) return; const c = dg(p.chartNo); if(c) byChart[c] = p; if(p.name) (byName[p.name] = byName[p.name] || []).push(p); });
-    for(const v of visits){
-      if(!v || !v.id || v.id==='config:flow' || !v.name || v.hide || !v.date || v.date < lim) continue;
-      let p = dg(v.chartNo) ? byChart[dg(v.chartNo)] : null;
-      if(!p && !dg(v.chartNo)){ const b = byName[v.name]; if(b && b.length===1) p = b[0]; }
-      if(!p) continue;
-      const rec = labMsgOf(p, v.date); if(!rec) continue;
-      const labx = { t: labCore(rec.labMsg.t), at: rec.labMsg.at || 0, d: rec.labMsg.d || rec.date };
-      if(!labx.t || (v.labx && v.labx.at === labx.at && v.labx.t === labx.t)) continue;
-      const j = await bqPost({ action:'flowsave', id:v.id, patch:{ labx:labx, updatedAt:Date.now() } });
-      if(j && j.status==='ok') v.labx = labx;
-    }
-  }catch(e){}
-}
 /* 오늘 flow에 올라온 아이마다 위 치료 정보를 붙여 줍니다(등록번호로 찾고, 등록번호가 없으면 이름이 하나뿐일 때만). 바뀐 아이만 저장. */
 async function txSyncFlow(visits){
   try{
@@ -4714,11 +4403,11 @@ function renderDetail(){
     <div id="ghx_doc"></div>
     <div class="contact-row">
       ${p.phone ? `<a class="btn btn-outline" href="tel:${escapeHtml(p.phone)}">📞 전화</a>` : ''}
-      ${p.phone ? `<a class="btn btn-outline" href="https://wa.me/${escapeHtml(p.phone.replace(/[^0-9]/g,''))}" target="_blank" rel="noopener">💬 통화 연결</a>` : ''}
+      ${p.phone ? `<a class="btn btn-outline" href="https://wa.me/${escapeHtml(p.phone.replace(/[^0-9]/g,''))}" target="_blank">💬 통화 연결</a>` : ''}
       ${p.email ? `<a class="btn btn-outline" href="mailto:${escapeHtml(p.email)}">✉️ 이메일</a>` : ''}
     </div>
     <div class="contact-row">
-      ${/^https?:\/\//i.test(p.zoomLink||'') ? `<a class="btn btn-primary" href="${escapeHtml(p.zoomLink)}" target="_blank" rel="noopener">🎥 화상통화 시작</a>` : ''}
+      ${p.zoomLink ? `<a class="btn btn-primary" href="${escapeHtml(p.zoomLink)}" target="_blank">🎥 화상통화 시작</a>` : ''}
       <button class="btn btn-outline" onclick="sendPatientLink('${p.id}')">🔗 환아 링크 보내기</button>
       <button class="btn btn-outline" id="queueLinkBtn" onclick="toggleQueueLinkSend()">☐ 링크도 일괄 발송 대기</button>
       <button class="btn btn-outline" onclick="openChatbot()">💬 챗봇 열기</button>
@@ -5877,20 +5566,6 @@ function handleLabBatchDrop(e){
   const files = e.dataTransfer && e.dataTransfer.files;
   if(files && files.length) handleLabBatchFiles(files);
 }
-/* 서버가 오래 답이 없으면(AI 문자 만들기가 멈춘 경우 등) 기다리지 않고 그 파일만 실패로 넘깁니다. 기다리는 동안 초를 보여 줍니다. */
-async function labFetchJson(url, opt, ms, status, label){
-  const ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-  const t0 = Date.now();
-  const tick = setInterval(()=>{ if(status) status.textContent = label + ' ' + Math.round((Date.now()-t0)/1000) + '초'; }, 1000);
-  const kill = setTimeout(()=>{ try{ ctl && ctl.abort(); }catch(e){} }, ms);
-  try{
-    const r = await fetch(url, Object.assign({}, opt, ctl ? { signal: ctl.signal } : {}));
-    const t = await r.text();
-    try{ return JSON.parse(t); }catch(e){ return { status:'error', message:'서버 응답을 읽지 못했어요 (' + t.slice(0,60) + ')' }; }
-  }catch(e){
-    return { status:'error', message: (e && e.name === 'AbortError') ? Math.round(ms/1000) + '초 넘게 답이 없어 건너뜀' : '연결 실패 — ' + (e && e.message || e) };
-  }finally{ clearInterval(tick); clearTimeout(kill); }
-}
 async function handleLabBatchFiles(fileList){
   const files = Array.from(fileList);
   const status = document.getElementById('labBatchStatus');
@@ -5923,7 +5598,7 @@ async function handleLabBatchFiles(fileList){
       // 생년월일·연락처·성별이 비어 있으면 구글 초진기록지(이름 일치, 가장 최근)에서 먼저 채웁니다.
       if(!p.dob || !p.phone){
         try{
-          if(!window._labIntakes){ const d0 = await Promise.race([bqPost({ action:'listintakes' }), new Promise(r=>setTimeout(()=>r(null), 30000))]); window._labIntakes = (d0 && d0.status==='ok') ? (d0.items||[]) : []; }
+          if(!window._labIntakes){ const d0 = await bqPost({ action:'listintakes' }); window._labIntakes = (d0 && d0.status==='ok') ? (d0.items||[]) : []; }
           const nm0 = v => String(v||'').replace(/[\s()\[\]]/g,'');
           const hits = window._labIntakes.map(x=>({x, o:parseFirstIntake(x.raw)})).filter(h=>nm0(h.o.name)===nm0(p.name));
           if(hits.length){
@@ -5950,30 +5625,31 @@ async function handleLabBatchFiles(fileList){
       const gender = p.sex==='M' ? '남' : '여';
       const isFirst = p.records.length <= 1;
 
-      const step = `처리 중… (${i+1}/${files.length}) ${file.name} — AI 안내 문자 만드는 중`;
-      const genData = await labFetchJson(api, { method:'POST', body: JSON.stringify({
+      const genRes = await fetch(api, { method:'POST', body: JSON.stringify({
         action: 'generatetotalcare',
         clinic: '삼성자라다소아청소년과',
         name: p.name, gender, ageText,
         checks: [isFirst ? '초진' : '재진', '혈액검사'],
         chart, feedback: '',
         chatbotUrl: getChatbotUrl()
-      })}, 120000, status, step);
+      })});
+      const genData = await genRes.json();
       if(genData.status!=='ok' || !genData.message){ failed.push(`${p.name}: 안내 문자 생성 실패 (${genData.message||'알 수 없는 오류'})`); continue; }
 
       // EMR 기록용 텍스트: 병원 EMR에 그대로 붙여넣는 용도 (환아 앱으로는 안 나감)
       const emrText = `[${rec.date}] ${isFirst ? '초진' : '재진'}, 혈액검사\n${chart}`;
 
-      const createData = await labFetchJson(api, { method:'POST', body: JSON.stringify({
+      const createRes = await fetch(api, { method:'POST', body: JSON.stringify({
         action: 'createlabpending',
         name: p.name, phone: p.phone, chartNo: p.chartNo, dob: p.dob,
         patientId: p.id, recordId: rec.id,
         examDate: rec.date, message: genData.message, emrText
-      })}, 60000, status, `처리 중… (${i+1}/${files.length}) ${file.name} — 승인 대기에 올리는 중`);
+      })});
+      const createData = await createRes.json();
       if(createData.status!=='ok'){ failed.push(`${p.name}: 승인 대기 등록 실패 (${createData.message||'알 수 없는 오류'})`); continue; }
       ok++;
     }catch(err){
-      failed.push(`${file.name}: 처리 중 오류가 발생했습니다 (${err && err.message || err})`);
+      failed.push(`${file.name}: 처리 중 오류가 발생했습니다`);
     }
   }
   savePatients();
@@ -5984,7 +5660,9 @@ async function handleLabBatchFiles(fileList){
   if(failed.length) summary += `\n\n❌ 실패 (${failed.length}건)\n` + failed.join('\n');
   status.textContent = summary;
   status.style.color = (unmatched.length || failed.length) ? 'var(--danger)' : 'var(--ok)';
-  ['labBatchFiles','labBatchNewDob','labBatchNewPhone'].forEach(id=>{ const el = document.getElementById(id); if(el) el.value = ''; });   // 없는 칸이 있어도 멈추지 않게
+  document.getElementById('labBatchFiles').value = '';
+  document.getElementById('labBatchNewDob').value = '';
+  document.getElementById('labBatchNewPhone').value = '';
   renderLabPending();
 }
 // 대시보드 "혈액검사 결과 승인 대기" — 일괄 처리로 만들어진 안내 문자를 환자별로 미리보고, 하나씩 또는 한번에 승인/거절합니다.
@@ -6041,24 +5719,6 @@ function copyLabPendingEmr(id){
 }
 let labPendingEmrMap = {}; // r.id -> EMR 기록용 텍스트 (복사 버튼에서 사용, 이스케이프 문제 없이 조회)
 let labPendingPatientMap = {}; // r.id -> patientId (승인 시 생년월일·연락처를 그 환자 기록에도 반영하기 위해 사용)
-let labPendingRecMap = {};     // r.id -> { recordId, examDate, message } (승인한 문자를 그 검사 기록에 남겨 성장 리포트·AI 요약에 쓰기 위해)
-/* 🩸 원장이 승인해 보낸 혈액검사 결과 문자에서 「검사 결과 설명 + 관리 계획」만 추립니다(인사말·영상 링크·챗봇 안내는 뺌).
-   → 성장 리포트의 「혈액검사 결과 설명」, 진료 후 안내·리포트 AI 요약의 입력으로 씁니다. */
-function labCore(text){
-  let L = String(text||'').replace(/\r/g,'').split('\n');
-  const cut = L.findIndex(l=> /도움이\s*되는\s*영상|📺|▶|자라다\s*챗봇|https?:\/\//.test(l));
-  if(cut >= 0) L = L.slice(0, cut);
-  let st = L.findIndex(l=> /^\s*[·•▪◦\-*]\s*\S/.test(l) || /→|->/.test(l));
-  if(st > 0 && /결과|검사|📋|🩸|🔬/.test(L[st-1]) && !/안녕|안내드립|입니다\.?\s*$/.test(L[st-1])) st--;
-  if(st >= 0) L = L.slice(st);
-  L = L.filter(l=> !/https?:\/\//.test(l) && !/^\s*(감사합니다|궁금하신|문의|☎|📞)/.test(l));
-  while(L.length && /^\s*\S{0,3}\s*(혈액\s*)?검사\s*결과\s*:?\s*$/.test(L[0])) L.shift();   // 「🩸 검사 결과」 같은 제목 줄은 리포트 칸 이름과 겹쳐서 뺌
-  return L.join('\n').replace(/\n{3,}/g, '\n\n').trim().slice(0, 1500);
-}
-function labMsgOf(p, date){
-  const recs = (p && p.records || []).filter(r=> r && r.labMsg && r.labMsg.t);
-  return recs.find(r=> r.date === date || r.labMsg.d === date) || null;
-}
 async function renderLabPending(){
   const list = document.getElementById('labPendingItems');
   const countEl = document.getElementById('labPendingCount');
@@ -6066,21 +5726,18 @@ async function renderLabPending(){
   if(!list) return;
   if(!api){ list.innerHTML=''; setCountBadge(countEl, 0); return; }
   try{
-    const got = await apiAllRows();
-    if(!got.rows){ list.innerHTML = `<div class="empty-note">불러오지 못했습니다. <span style="color:var(--danger);">${escapeHtml(got.err||'')}</span> <button class="btn btn-outline" style="padding:4px 10px;font-size:11px;margin-left:6px;" onclick="renderLabPending()">다시 불러오기</button></div>`; return; }
-    const rows = got.rows;
-    const pending = rows.filter(r=>r && r.type==='labResultPending').sort((a,b)=> a.timestamp < b.timestamp ? -1 : 1);
+    const res = await fetch(getProtectedApiUrl());
+    const rows = await res.json();
+    const pending = rows.filter(r=>r.type==='labResultPending').sort((a,b)=> a.timestamp < b.timestamp ? -1 : 1);
     setCountBadge(countEl, pending.length);
     if(!pending.length){ list.innerHTML = `<div class="empty-note">승인 대기 중인 검사결과 안내가 없습니다.</div>`; return; }
     labPendingEmrMap = {};
     labPendingPatientMap = {};
-    const cards = pending.map(r=>{ try{
+    const cards = pending.map(r=>{
       let d = {};
       try{ d = JSON.parse(r.question||'{}'); }catch(e){}
-      if(!d || typeof d !== 'object') d = {};
       labPendingEmrMap[r.id] = d.emrText || '';
       labPendingPatientMap[r.id] = d.patientId || '';
-      labPendingRecMap[r.id] = { recordId: d.recordId || '', examDate: d.examDate || '', message: d.message || '' };
       // 챠트번호: 승인 대기에 저장된 값이 없으면 환아 정보에서 한 번 더 찾습니다.
       const chartNoShown = String(d.chartNo || ((d.patientId && getPatient(d.patientId)) ? getPatient(d.patientId).chartNo : '') || '').trim();
       const chartChip = chartNoShown
@@ -6096,7 +5753,7 @@ async function renderLabPending(){
           </span>
         </div>
         <div style="display:flex;gap:8px;" onclick="event.stopPropagation()">
-          <input type="date" id="labDob_${r.id}" value="${escapeHtml(d.dob||'')}" style="flex:1;font-size:11px;padding:6px;border:1px solid var(--border);border-radius:6px;">
+          <input type="date" id="labDob_${r.id}" value="${d.dob||''}" style="flex:1;font-size:11px;padding:6px;border:1px solid var(--border);border-radius:6px;">
           <input type="text" id="labPhone_${r.id}" value="${escapeHtml(d.phone||'')}" placeholder="연락처 (010-...)" style="flex:1;font-size:11px;padding:6px;border:1px solid var(--border);border-radius:6px;">
         </div>
         ${!d.dob ? `<div style="font-size:11px;color:var(--danger);">⚠️ 생년월일이 없어 나이가 빠진 문자입니다 — 생년월일 입력 후 아래 「문자 다시 만들기」를 눌러주세요.</div>` : ''}
@@ -6111,9 +5768,9 @@ async function renderLabPending(){
           </div>
         </div>
       </div>`;
-    }catch(e){ console.error('[혈액검사 승인 대기] 카드 하나를 그리지 못함', r && r.id, e); return `<div class="patient-card" style="color:var(--danger);font-size:12px;">⚠️ 이 결과 하나를 표시하지 못했어요 (${escapeHtml(String(r && r.id || ''))}) <button class="btn btn-outline" style="padding:4px 10px;font-size:11px;margin-left:6px;" onclick="dismissLabPending('${escapeHtml(String(r && r.id || ''))}')">지우기</button></div>`; } }).join('');
+    }).join('');
     list.innerHTML = `<button class="btn btn-outline btn-block" style="margin-bottom:10px;" onclick="approveAllLabPending()">✅ 전체 승인 (${pending.length}건)</button>` + cards;
-  }catch(err){ console.error('[혈액검사 승인 대기]', err); list.innerHTML = `<div class="empty-note">불러오지 못했습니다. <span style="color:var(--danger);">${escapeHtml(String(err && err.message || err))}</span></div>`; }
+  }catch(err){ list.innerHTML = `<div class="empty-note">불러오지 못했습니다.</div>`; }
 }
 async function regenLabPending(id, btnEl){
   const api = getApiUrl(); if(!api) return;
@@ -6139,20 +5796,6 @@ async function regenLabPending(id, btnEl){
     else alert('문자 생성 실패: ' + (d.message||'알 수 없는 오류'));
   }catch(e){ alert('문자 생성 중 오류가 발생했어요.'); }
   btnEl.disabled = false; btnEl.textContent = old;
-}
-/* 승인·발송한 혈액검사 문자를 그 검사 기록(rec.labMsg)에 남기고, 아직 안 보낸 진료 후 안내 초안의 「혈액검사 결과 설명」이 비어 있으면 채웁니다.
-   flow(성장 리포트)에는 다음 동기화 때(바로 한 번) 「혈액검사 결과 설명」으로 넘어갑니다. */
-function labMsgSave(pid, info, edited){
-  const p = pid ? getPatient(pid) : null; if(!p || !info) return;
-  const text = String(edited != null ? edited : info.message || '').trim(); if(!text) return;
-  p.records = p.records || [];
-  let rec = (info.recordId && p.records.find(r=>r.id===info.recordId)) || (info.examDate && p.records.find(r=>r.date===info.examDate)) || null;
-  if(!rec){ rec = { id: uid(), date: info.examDate || todayStr(), callDone:false }; p.records.push(rec); }
-  rec.labMsg = { t: text, at: Date.now(), d: info.examDate || rec.date };
-  const core = labCore(text);
-  if(core && p.guideDraft && !p.guideDraft.sentAt && p.guideDraft.post && !String(p.guideDraft.post.labs||'').trim()){ p.guideDraft.post.labs = core; p.guideDraft.labsFrom = 'msg'; }
-  p.updatedAt = new Date().toISOString(); savePatients();
-  clearTimeout(window._labFlowT); window._labFlowT = setTimeout(()=>{ try{ rvFlowPoll(); }catch(e){} }, 1200);
 }
 async function approveLabPending(id, btnEl){
   const api = getApiUrl();
@@ -6185,7 +5828,6 @@ async function approveLabPending(id, btnEl){
     const data = await res.json();
     if(data.status==='ok'){
       if(card) card.innerHTML = `<div style="color:var(--ok);font-size:12.5px;font-weight:700;padding:8px 0;">✅ 발송 완료</div>`;
-      try{ labMsgSave(pid, labPendingRecMap[id], editedText); }catch(e){}
       return true;
     } else {
       if(btnEl){ btnEl.disabled=false; btnEl.textContent='승인 · 발송'; }
@@ -6813,43 +6455,28 @@ function handleAuthFailure(){
 (function installAuthFetch(){
   const origFetch = window.fetch.bind(window);
   window.fetch = function(input, init){
-    let isApiGet = false;
     try{
       const api = localStorage.getItem('jrd_api_url') || '';
       let url = typeof input === 'string' ? input : ((input && input.url) || '');
       const token = getAuthToken();
-      isApiGet = !!api && url.indexOf(api) === 0 && ((init && init.method) || 'GET').toUpperCase() === 'GET';
       if(api && token && url.indexOf(api) === 0){
         const method = ((init && init.method) || 'GET').toUpperCase();
         if(method === 'POST'){
           let b = null; try{ b = JSON.parse(init.body); }catch(e){}
-          if(b && typeof b === 'object' && b.action !== 'login' && b.action !== 'caps'){ b.auth = token; init = Object.assign({}, init, { body: JSON.stringify(b) }); }
+          if(b && typeof b === 'object' && b.action !== 'login'){ b.auth = token; init = Object.assign({}, init, { body: JSON.stringify(b) }); }
         } else if(url.indexOf('auth=') === -1){
           input = url + (url.indexOf('?') === -1 ? '?' : '&') + 'auth=' + encodeURIComponent(token);
         }
       }
     }catch(e){}
-    const out = origFetch(input, init);
-    if(!isApiGet) return out;
-    /* 서버에서 받은 행의 id·pid·type·fileId는 화면의 버튼(onclick) 안에 그대로 들어갑니다.
-       환아 쪽에서 만든 행은 id를 직접 정할 수 있으므로, 따옴표·꺾쇠 같은 글자는 받자마자 지워 둡니다. */
-    return out.then(res=>{
-      try{ const oj = res.json.bind(res); res.json = ()=>oj().then(jrdCleanRows); }catch(e){}
-      return res;
-    });
+    return origFetch(input, init);
   };
 })();
-function jrdCleanRows(rows){
-  if(!Array.isArray(rows)) return rows;
-  const bad = /['"<>`\\&\s]/g, keys = ['id','pid','type','fileId','date'];
-  rows.forEach(r=>{ if(!r || typeof r !== 'object') return; keys.forEach(k=>{ const v = r[k]; if(v == null) return; if(typeof v !== 'string'){ if(typeof v === 'object') r[k] = ''; return; } if(bad.test(v)){ bad.lastIndex = 0; r[k] = v.replace(bad, ''); } bad.lastIndex = 0; }); });
-  return rows;
-}
 /* ---------------- 사진·PDF 불러오기 ----------------
  * 파일은 드라이브에 비공개로 보관되어 주소만으로는 열 수 없습니다. 서버가 권한을 확인한 뒤 대신 읽어 보내주므로,
  * 화면에는 jrd-file://파일ID?sz=w400 형태의 가짜 주소를 쓰고, 이 코드가 실제 이미지로 바꿔 끼웁니다. */
 const FILE_SCHEME = 'jrd-file://';
-function fileUrl(fileId, sz){ return FILE_SCHEME + String(fileId||'').replace(/[^A-Za-z0-9_-]/g,'') + '?sz=' + String(sz||'').replace(/[^A-Za-z0-9]/g,''); }
+function fileUrl(fileId, sz){ return FILE_SCHEME + fileId + '?sz=' + sz; }
 const _fileCache = {};
 async function resolveFileUrl(url){
   if(!url || url.indexOf(FILE_SCHEME) !== 0) return url;
@@ -6928,22 +6555,6 @@ async function verifyAuthOnStart(){
 if(isDoctorAppUnlocked() && getApiUrl()) verifyAuthOnStart();
 // 진료 리마인더/혈액검사 승인대기/다음내원일 발송내역처럼 원장님 전용 민감정보가 담긴 목록을 부를 때 씁니다.
 // 동기화 키가 없으면 서버가 그 항목들을 아예 빼고 응답하니, 빈 목록으로 보일 뿐 오류는 안 납니다.
-/* 전체 행 불러오기: 동기화 키를 붙인 주소가 거절되면(키가 바뀌었거나 서버가 키를 안 받는 경우) 키 없이 한 번 더 받습니다.
-   그래도 목록이 아니면 서버가 한 말을 그대로 돌려줘서 화면에 보여 줍니다. 로그인이 풀린 경우엔 로그인 창을 띄웁니다. */
-async function apiAllRows(){
-  const api = getApiUrl(); if(!api) return { rows: [], err: '연동 URL이 없습니다' };
-  const tryOne = async (u)=>{ try{ const r = await fetch(u); const t = await r.text(); let j = null; try{ j = JSON.parse(t); }catch(e){ return { err: '서버 응답을 읽지 못했어요 (' + (t||'').slice(0,80) + ')' }; } if(Array.isArray(j)) return { rows: j };
-    if(j && typeof j === 'object'){ const arr = ['rows','data','items','list','result'].map(k=>j[k]).find(Array.isArray); if(arr) return { rows: arr }; }
-    const keys = (j && typeof j === 'object') ? Object.keys(j).slice(0,6).join(',') : typeof j;
-    if(j && j.reason && 'ok' in j && !j.code){ const tail = (getApiUrl().match(/\/s\/([^/]+)\//)||[])[1]||''; return { err: '원장 앱 서버가 아니라 「친구에게 보내기」 서버가 답했어요 (연동 주소 …' + tail.slice(-6) + '). 연동 주소 또는 Apps Script 설정을 확인해야 해요.' }; }
-    return { err: (j && (j.message || j.error || j.code)) || ('목록이 아닌 응답 [' + keys + '] ' + t.slice(0,60)), code: j && j.code }; }catch(e){ return { err: '연결 실패 — ' + (e.message||e) }; } };
-  const pu = getProtectedApiUrl();
-  let a = await tryOne(pu);
-  if(!a.rows && pu !== api){ const b = await tryOne(api); if(b.rows) a = b; }
-  if(a.rows) return { rows: jrdCleanRows(a.rows) };
-  if(a.code === 'AUTH_REQUIRED'){ try{ handleAuthFailure(); }catch(e){} return { rows: null, err: '로그인이 풀렸어요. 다시 로그인해 주세요.' }; }
-  return { rows: null, err: a.err };
-}
 function getProtectedApiUrl(){
   const api = getApiUrl();
   if(!api) return '';
@@ -6995,70 +6606,6 @@ function groupDoctorDataSaves(rows, key){
     const complete = total > 0 && g.length === total && g.every((r,i)=> parseInt(r.refId||0) === i);
     return { ts:k, rows:g, total, complete };
   });
-}
-/* ───────── 바뀐 아이만 받기 (2026-11-11) ─────────
- * 예전: 2분마다·저장할 때마다 클라우드의 환아 전체를 통째로 내려받아 이 기기 것과 합쳤습니다.
- * 지금: 서버(Security.gs의 docpull)에 ① "마지막 저장이 내가 아는 것(stamp)과 같은지"만 먼저 묻고(몇 글자),
- *       ② 다르면 내가 가진 아이들의 "id|수정시각" 목록을 보내 수정시각이 다른 아이만 받습니다.
- * 받은 것은 예전과 똑같은 모양(조각 행)으로 돌려주므로, 합치는 규칙(mergePatientArrays)과 저장은 한 글자도 바뀌지 않았습니다.
- * 서버가 예전 것이거나(caps 없음) 조금이라도 이상하면 예전 방식(전체 받기)으로 받습니다.
- * stamp는 "그때 클라우드 내용이 이 기기에 다 들어 있다"는 뜻이라, 실제로 합친 뒤(cloudDeltaCommit)에만 기억하고,
- * 이 기기 목록이 그 뒤로 줄거나 옛것으로 바뀐 흔적이 있으면(백업 복원 등) 버리고 ②부터 다시 합니다. 새로고침하면 처음부터 다시 확인합니다. */
-const DELTA = { caps:null, capsAt:0, key:'', stamp:'', map:null, pending:null, stat:{ same:0, part:0, full:0 } };
-async function deltaCaps(api){
-  if(localStorage.getItem('jrd_delta_off') === '1') return false;
-  if(DELTA.caps === true) return true;
-  if(DELTA.caps === false && Date.now() - DELTA.capsAt < 600000) return false;
-  try{ const j = await (await fetch(api, { method:'POST', body: JSON.stringify({ action:'caps' }) })).json(); DELTA.capsAll = (j && j.status === 'ok' && j.caps) || {}; DELTA.caps = !!DELTA.capsAll.docpull; }
-  catch(e){ DELTA.caps = false; DELTA.capsAll = {}; }
-  DELTA.capsAt = Date.now();
-  return DELTA.caps;
-}
-function deltaStillCovers(key){
-  if(!DELTA.stamp || !DELTA.map || DELTA.key !== key) return false;
-  const cur = new Map(); patients.forEach(p=>{ if(p && p.id) cur.set(p.id, p.updatedAt || ''); });
-  let tomb = {}; try{ tomb = tombLoad() || {}; }catch(e){}
-  for(const [id, u] of DELTA.map){ if(tomb[id]) continue; const c = cur.get(id); if(c === undefined || c < u) return false; }
-  return true;
-}
-// 서버(Security.gs)가 할 줄 아는 새 기능 목록. 예전 서버면 빈 목록.
-async function serverCaps(){
-  const api = getApiUrl(); if(!api) return {};
-  if(!DELTA.capsAll || (DELTA.caps === false && Date.now() - DELTA.capsAt >= 600000)){
-    const off = localStorage.getItem('jrd_delta_off'); if(off === '1') localStorage.removeItem('jrd_delta_off');
-    DELTA.caps = null; try{ await deltaCaps(api); }finally{ if(off === '1') localStorage.setItem('jrd_delta_off', '1'); }
-  }
-  return DELTA.capsAll || {};
-}
-async function cloudDoctorRows(api, key){
-  DELTA.pending = null;
-  if(await deltaCaps(api)){
-    try{
-      const ask = async extra => (await fetch(api, { method:'POST', body: JSON.stringify(Object.assign({ action:'docpull', key }, extra)) })).json();
-      let j = null;
-      if(deltaStillCovers(key)) j = await ask({ stamp: DELTA.stamp });
-      if(!j || (j.status === 'ok' && !j.same && !j.none && !Array.isArray(j.patients)))
-        j = await ask({ have: patients.filter(p=>p && p.id).map(p=>p.id + '|' + (p.updatedAt || '')).join('\n') });
-      if(j && j.status === 'ok'){
-        if(j.none) return [];
-        const list = j.same ? [] : j.patients;
-        if(Array.isArray(list) && j.stamp){
-          DELTA.pending = { key, stamp: String(j.stamp) };
-          DELTA.stat[j.same ? 'same' : 'part']++;
-          return [{ type:'doctordata', pid:key, refId:'0', answer:'1', timestamp:String(j.stamp), question: JSON.stringify(list) }];
-        }
-      }
-    }catch(e){ /* 아래 예전 방식으로 */ }
-  }
-  DELTA.stat.full++;
-  const res = await fetch(api + '?key=' + encodeURIComponent(key) + '&only=doctordata');
-  return res.json();
-}
-// 받은 것을 patients 에 실제로 합친 뒤에 부릅니다 — 이때부터 "이 stamp 까지는 이 기기에 다 있다"고 기억합니다.
-function cloudDeltaCommit(){
-  const pd = DELTA.pending; DELTA.pending = null; if(!pd) return;
-  DELTA.key = pd.key; DELTA.stamp = pd.stamp;
-  DELTA.map = new Map(); patients.forEach(p=>{ if(p && p.id) DELTA.map.set(p.id, p.updatedAt || ''); });
 }
 function reassembleDoctorData(rows, key){
   const parts = rows.filter(r=>r.type==='doctordata' && r.pid===key);
@@ -7358,7 +6905,8 @@ async function pullFromCloudQuiet(force){
   if(ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) return;
   quietPulling = true; lastQuietPullAt = Date.now();
   try{
-    const rows = await cloudDoctorRows(api, key);
+    const res = await fetch(api + '?key=' + encodeURIComponent(key) + '&only=doctordata');
+    const rows = await res.json();
     if(!Array.isArray(rows)) return;
     const combined = reassembleDoctorData(rows, key);
     if(combined == null) return;
@@ -7366,11 +6914,10 @@ async function pullFromCloudQuiet(force){
     if(!Array.isArray(loaded)) return;
     const sig = list => JSON.stringify(list.map(p=>[p.id, p.updatedAt||'', !!p.pendingChartSend, !!p.pendingLinkSend, !!p.pendingFvLinkSend, !!p.pendingGuideSend, p.firstFlag ? (p.firstFlag.done ? 2 : 1) : 0]).sort());
     const merged = mergePatientArrays(patients, loaded);
-    if(sig(merged) === sig(patients)){ cloudDeltaCommit(); return; }   // 달라진 게 없으면 아무것도 안 함(여기까지 받았다는 것만 기억)
+    if(sig(merged) === sig(patients)) return;          // 달라진 게 없으면 아무것도 안 함
     if(batchSendRunning) return;                       // 기다리는 사이 발송이 시작됐으면 건너뜀
     patients = merged;
     savePatientsLocalOnly();                           // 이 기기에만 저장 (클라우드에는 쓰지 않음)
-    cloudDeltaCommit();
     renderPatientList();                               // 대기 바도 같이 다시 그립니다
   }catch(e){ /* 조용히 무시 — 다음 기회에 다시 시도 */ }
   finally{ quietPulling = false; }
@@ -7389,7 +6936,8 @@ async function syncPatientsNow(){
     // [안전장치] 클라우드의 기존 데이터를 못 읽으면 저장하지 않고 멈춥니다(다른 기기의 더 많은 데이터를 덮어써서 지우는 걸 막기 위해).
     let rows;
     try{
-      rows = await cloudDoctorRows(api, key);
+      const res = await fetch(api + '?key=' + encodeURIComponent(key) + '&only=doctordata');
+      rows = await res.json();
     }catch(e){ throw new Error('클라우드 읽기 실패'); }
     if(!Array.isArray(rows)) throw new Error('서버 응답 이상: ' + describeServerReply(rows));
     const combined = reassembleDoctorData(rows, key);
@@ -7401,7 +6949,6 @@ async function syncPatientsNow(){
     await fetch(api, { method:'POST', body: JSON.stringify({ action:'savedoctordata', key, data: JSON.stringify(withTombs(merged)) }) });
     patients = merged;
     savePatientsLocalOnly();
-    cloudDeltaCommit();
     const s=document.getElementById('syncStatus'); if(s){ s.textContent = `자동 동기화됨 (${new Date().toLocaleTimeString('ko-KR')})`; s.style.color='var(--ok)'; }
   }catch(err){
     const s=document.getElementById('syncStatus');
@@ -7461,7 +7008,6 @@ async function migrateLinkSentRecords(){
 }
 async function markLinkSent(p, method){
   if(!p) return;
-  if(pendingSend && pendingSend.remind && pendingSend.p === p){ mrestMark(p, method); return; }
   const api = getApiUrl();
   if(!p.accessCode){ p.accessCode = genAccessCode(); savePatients(); }
   const timestamp = new Date().toISOString();
@@ -7472,7 +7018,6 @@ async function markLinkSent(p, method){
 }
 function closeSendChoiceModal(){
   document.getElementById('sendChoiceOv').classList.remove('open');
-  { const ab = document.getElementById('sendChoiceAlimBtn'); if(ab) ab.style.display = ''; }
   pendingSend = null;
 }
 let pendingSend = null;
@@ -7502,7 +7047,44 @@ function extractLifestyleNote(){
 //  - plan : "# Plan" 줄부터 성장기록 표 앞까지 (그 아래 자유 메모 포함)
 //  - labs : "# Lab" 줄부터 CA/BA·Image·PAH·Plan 앞까지 (화살표 추이와 날짜별 검사 블록 포함)
 //  - extra: 보호자 초진 폼 줄·성장기록 표·구조화된 검사 소견 줄을 뺀 나머지 줄 (원장님이 따로 덧붙인 내용)
-/* splitChartForAI 은 shared/chart-common.js 로 옮겼습니다 (index.html · flow.html 공용) */
+function splitChartForAI(rawText){
+  let text = String(rawText||'').replace(/\r/g,'');
+  const marker = '— 원본 메모 —';
+  const mi = text.indexOf(marker);
+  if(mi >= 0) text = text.slice(mi + marker.length);
+  const lines = text.split('\n');
+  const isTableHeader = l => /^\s*등록일자(\s|$)/.test(l);  // 한글 뒤엔 \b(단어경계)가 안 먹어서 공백/줄끝으로 판단
+  const isTableRow = l => /^\s*\d{4}-\d{2}-\d{2}\t/.test(l);
+  const FORM = /^\s*[#＃]?\s*[＊*]?\s*(\(\s*\d+\s*(\+\s*\d+\s*)?\)\s*week|출생|과거\s*병력|투여\s*중인\s*약물|부\s*[:：(]|모\s*[:：(]|형제|2촌|최근\s*성장\s*기록|고민|희망\s*키|백분율|체질량지수|식이|운동|수면|미디어|생활\s*습관|걱정거리|사춘기\s*징후)/;
+  const STRUCT = /^\s*[#＃]\s*(SMR|CA\s*\/\s*BA|Image|Scoliosis|PAH)/i;
+  const planIdx = lines.findIndex(l => /^\s*[#＃]\s*Plan/i.test(l));
+  const labIdx = lines.findIndex(l => /^\s*[#＃]\s*Lab/i.test(l));
+  let tableStart = lines.findIndex(isTableHeader);
+  if(tableStart < 0) tableStart = lines.findIndex(isTableRow);
+  const end = tableStart >= 0 ? tableStart : lines.length;
+  const plan = [], labs = [], extra = [];
+  let labEnd = -1;
+  if(labIdx >= 0){
+    labEnd = lines.length;
+    for(let i = labIdx + 1; i < lines.length; i++){
+      if(/^\s*[#＃]\s*(CA\s*\/\s*BA|Image|Scoliosis|PAH|Plan)/i.test(lines[i])){ labEnd = i; break; }
+    }
+  }
+  lines.forEach((l, i) => {
+    if(!l.trim() || isTableHeader(l) || isTableRow(l)) return;
+    if(planIdx >= 0 && i >= planIdx && i < end){ plan.push(l.trim()); return; }
+    if(labIdx >= 0 && i >= labIdx && i < labEnd){ labs.push(l.trim()); return; }
+    if(FORM.test(l) || STRUCT.test(l)) return;
+    extra.push(l.trim());
+  });
+  // 표 뒤에 따로 적은 메모(예: "최근에 아파서 집에 있었다")는 plan 범위 밖이므로 extra로 들어갑니다.
+  return {
+    plan: plan.join('\n').slice(0, 1800),
+    labs: labs.join('\n').slice(-2200),     // 날짜순으로 쌓이는 블록이라 최근 것이 뒤쪽 → 뒤에서부터 자름
+    extra: extra.join('\n').slice(0, 1200),
+    chart: text.slice(0, 5000)
+  };
+}
 async function generateLifestyleNoteAI(){
   const p = getPatient(currentPatientId);
   if(!p) return;
@@ -7679,13 +7261,9 @@ async function renderInbox(p, forceFetch){
       }
       if(r.type==='measurement'){
         const applied = (p.appliedInboxIds||[]).includes(r.id);
-        const ack = answerText[r.id];
-        const ackBox = ack != null ? `<div class="mack-done">✓ 보호자에게 확인 보냄 · ${escapeHtml(mackLabel(ack))}</div>`
-          : `<div class="mack-ctx">${escapeHtml(mackContext(p, r))}</div>${mackChips(p.id, r)}
-             <div style="display:flex;gap:6px;margin-top:6px;"><input id="mackt_${r.id}" placeholder="직접 한마디 (보호자 언어로 자동 번역)" style="flex:1;min-width:0;font-size:12px;padding:7px 9px;border:1px solid var(--border);border-radius:8px;"><button class="btn btn-outline" style="font-size:12px;padding:6px 10px;" onclick="measAckTyped('${p.id}','${r.id}','${r.date||''}','${r.height||''}','${r.weight||''}')">✓ 보내기</button></div>`;
         return `<div class="record-item" id="meas_${r.id}">
           <div class="rec-top"><div class="rec-date">${fmtDate(r.date)||'날짜 미상'} · 환아 제출</div><span style="font-size:10px;color:${applied?'var(--secondary)':'var(--ok)'};font-weight:700;">${applied?'반영됨':'측정값'}</span></div>
-          <div class="rec-body"><div class="row"><b>성장</b>${r.height?`키 ${r.height}cm `:''}${r.weight?`몸무게 ${r.weight}kg`:''}</div>${ackBox}</div>
+          <div class="rec-body"><div class="row"><b>성장</b>${r.height?`키 ${r.height}cm `:''}${r.weight?`몸무게 ${r.weight}kg`:''}</div></div>
           <div class="rec-actions">${applied ? '' : `<button class="btn btn-primary" onclick="applyInboxMeasurement('${r.id}','${r.date}','${r.height||''}','${r.weight||''}')">차트에 반영</button>`}${delBtn(r.id)}</div>
         </div>`;
       }
@@ -7699,7 +7277,6 @@ async function renderInbox(p, forceFetch){
           ${thumbUrl ? `<img src="${thumbUrl}" alt="${label}" style="width:100%;border-radius:8px;margin-top:8px;cursor:pointer;border:1px solid var(--border);" onclick="openLightbox('${fullUrl}')">` : `<div class="rec-body">${escapeHtml(r.fileName||'파일')}</div>`}
           <div class="rec-actions">
             <button class="btn btn-outline" onclick="openLightbox('${fullUrl}')">크게 보기</button>
-            ${r.type==='growthsheet' && r.fileId ? `<button class="btn btn-outline" onclick="gsReadOpen('${r.id}','${r.fileId}')">🤖 사진에서 키·몸무게 읽기${p.gsDraft && p.gsDraft[r.id] ? ' (초안 있음)' : ''}</button>` : ''}
             <button class="btn btn-primary" onclick="openRecordFromInbox('${r.id}','${r.date||''}')">${r.type==='growthsheet' ? '차트에 키·몸무게 입력' : '판독 결과 기록하기'}</button>
             ${delBtn(r.id)}
           </div>
@@ -7822,9 +7399,8 @@ function renderBatchSendBar(){
   if(countEl) countEl.innerHTML = `<div>📋 그래프 일괄 발송 대기: ${chartQueued.length}명</div><div style="margin-top:3px;font-size:11.5px;line-height:1.9;">${chartQueued.map(p=>chip('chart',p)).join('')}</div>`;
   const guideCountEl = document.getElementById('batchGuideCount');
   if(guideCountEl){
-    const gchip = p => `<span class="gq-chip${p.guideDraft.okAt?' ok':''}" style="display:inline-flex;align-items:center;gap:4px;margin:2px 4px 2px 0;padding:2px 4px 2px 8px;background:${p.guideDraft.okAt?'#EAF7EE':'#fff'};border:1px solid #BFE0C8;border-radius:12px;font-weight:600;"><span role="button" class="gq-name" title="초안 확인·수정" onclick="guideEdit('${p.id}')" style="cursor:pointer;text-decoration:underline dotted;">${p.guideDraft.okAt?'✓ ':''}${escapeHtml(p.name||'')}</span>${cnum(p)}<span style="font-size:10px;color:${fvGuideIsFirst(p)?'#7B4FA3':'#C0392B'};font-weight:700;">${fvGuideReason(p)||'수동'}${p.guideDraft.edited?'·수정':''}</span><b role="button" class="gq-x" title="이 환아만 대기에서 빼기" onclick="removeFromQueue('guide','${p.id}')" style="cursor:pointer;padding:0 5px;color:#B2452F;">✕</b></span>`;
-    const gOk = guideQueued.filter(p=>p.guideDraft.okAt).length;
-    guideCountEl.innerHTML = `<div>📋 진료 후 안내 일괄 발송 대기: ${guideQueued.length}명${gOk?` <span style="color:#2B7A4B;">(✓ 확인 ${gOk})</span>`:''} <span style="font-weight:400;font-size:11px;">(이름을 누르면 초안을 보고 고칠 수 있어요 · 등록번호를 누르면 복사돼요)</span></div>${guideQueued.length?`<button type="button" class="gq-start" onclick="guideEdit('${(guideQueued.find(p=>!p.guideDraft.okAt)||guideQueued[0]).id}')">${gOk>=guideQueued.length?'✓ 모두 확인했어요 · 다시 보기':gOk?'✏️ 남은 '+(guideQueued.length-gOk)+'명 이어서 확인':'✏️ 첫 아이부터 차례로 확인하기'}</button>`:''}<div style="margin-top:3px;font-size:11.5px;line-height:1.9;">${guideQueued.map(gchip).join('')}</div>`;
+    const gchip = p => `<span style="display:inline-flex;align-items:center;gap:4px;margin:2px 4px 2px 0;padding:2px 4px 2px 8px;background:#fff;border:1px solid #BFE0C8;border-radius:12px;font-weight:600;"><span role="button" title="초안 확인·수정" onclick="guideEdit('${p.id}')" style="cursor:pointer;text-decoration:underline dotted;">${escapeHtml(p.name||'')}</span>${cnum(p)}<span style="font-size:10px;color:${fvGuideIsFirst(p)?'#7B4FA3':'#C0392B'};font-weight:700;">${fvGuideReason(p)||'수동'}${p.guideDraft.edited?'·수정':''}</span><b role="button" title="이 환아만 대기에서 빼기" onclick="removeFromQueue('guide','${p.id}')" style="cursor:pointer;padding:0 5px;color:#B2452F;">✕</b></span>`;
+    guideCountEl.innerHTML = `<div>📋 진료 후 안내 일괄 발송 대기: ${guideQueued.length}명 <span style="font-weight:400;font-size:11px;">(이름을 누르면 초안을 보고 고칠 수 있어요 · 등록번호를 누르면 복사돼요)</span></div><div style="margin-top:3px;font-size:11.5px;line-height:1.9;">${guideQueued.map(gchip).join('')}</div>`;
   }
   const fvCountEl = document.getElementById('batchFvCount');
   if(fvCountEl) fvCountEl.innerHTML = `<div>🌱 초진방 링크 일괄 발송 대기: ${fvQueued.length}명</div><div style="margin-top:3px;font-size:11.5px;line-height:1.9;">${fvQueued.map(p=>chip('fv',p)).join('')}</div>`;
@@ -8272,7 +7848,7 @@ function computeAndRenderVideoRecs(p){
     const thumb = youtubeThumbUrl(r.v['영상링크']);
     html += `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);border-left:3px solid ${tierColors[info.tier]};padding-left:8px;">
       <input type="checkbox" class="videoRecCheck" data-idx="${i}" ${i<3?'checked':''} onclick="event.stopPropagation()" style="flex-shrink:0;">
-      <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;cursor:pointer;" onclick="window.open('${jsUrl(r.v['영상링크'])}','_blank')">
+      <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;cursor:pointer;" onclick="window.open('${r.v['영상링크']}','_blank')">
         ${thumb ? `<img src="${thumb}" style="width:72px;height:54px;object-fit:cover;border-radius:6px;flex-shrink:0;background:#ddd;">` : `<div style="width:72px;height:54px;border-radius:6px;background:var(--border);flex-shrink:0;"></div>`}
         <div style="flex:1;min-width:0;">
           <div style="font-size:12.5px;font-weight:700;">${escapeHtml(r.v['영상명']||r.v['질문']||'')}</div>
@@ -8678,7 +8254,517 @@ renderPendingReminders();
 renderLabPending();
 renderPendingQuestions();
 
-/* 초진 공용 모듈(영상 선별 · 초진 기록지 읽기)은 shared/fv-common.js 로 옮겼습니다 — index.html · visit-notice.html 공용 */
+/* =====================================================================
+ * 초진 공용 모듈 (원무과용 visit-notice.html · 의사용 index.html 에서 똑같이 씁니다)
+ *  - 영상추천_수정본.html 의 "초진 기록지 → 7편 중 3편 선별" 로직을 그대로 옮긴 것입니다.
+ *  - 초진 기록지 한 줄(구글폼 응답)에서 이름·생년월일·성별·연락처·키/몸무게를 읽습니다.
+ * ===================================================================== */
+const FV_DEFAULT_PREP = [
+  '이전에 재어둔 키·몸무게 기록(학교 건강검진 결과, 소아과 기록 등)이 있으면 사진으로 올려주세요.',
+  '이전 검사 결과(혈액검사, 엑스레이 등)가 있으면 사진으로 올려주세요.',
+  '복용 중인 약과 영양제가 있다면 이름을 메모해 오세요.',
+  '진료 전 아래 영상을 시청하고 오시면 설명을 훨씬 쉽게 이해하실 수 있어요.'
+].join('\n');
+// 환아에게 나가는 초진 안내용 구글폼 (공개 응답 주소)
+// 맞춤 영상 화면(자라다케어 사이트) — 이 주소 뒤에 ?v=145 처럼 영상 번호를 붙이면 코드 입력 없이 바로 열립니다.
+const FV_VIDEO_SITE = 'https://jaradacare.com/';
+const FV_INTAKE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScQHJ4Agz36KqkruYzihV_Cj-98uaHg-lLDQdAmL_v6kdgqeg/viewform';
+
+const JRDV = (function(){
+  /* ---------- 보호자 안내 영상 7편 (영상추천_수정본.html 과 동일) ---------- */
+  const VIDEOS = [
+    {no:1,title:"우리 아이, 잘 크고 있나요",sub:"성장속도 · 키 순위보다 1년에 몇 cm",src:"https://youtu.be/ccxsr-6cdn4"},
+    {no:2,title:"키 크는 습관, 1순위는 잠입니다",sub:"생활습관 · 수면, 영양, 운동의 순서",src:"https://youtu.be/W80S1rwvM6Y"},
+    {no:3,title:"왜 이렇게 검사가 많을까요",sub:"성조숙증 검사 · 불필요한 치료를 막는 이유",src:"https://youtu.be/Nkz4dDbGNeY"},
+    {no:4,title:"이 주사, 어떻게 작용하나요",sub:"성조숙증 치료 · 층간소음으로 이해하는 억제",src:"https://youtu.be/ta7bS_O1rFs"},
+    {no:5,title:"몇 cm나 클까요",sub:"성장호르몬 효과 · 솔직하게 말씀드립니다",src:"https://youtu.be/ijNvlNmLn1M"},
+    {no:6,title:"우리 아이도 병행치료 해야 할까요",sub:"병행치료 · 가이드라인이 권하는 두 경우",src:"https://youtu.be/zC8_55pK0TQ"},
+    {no:7,title:"물만 먹어도 살찌는 아이",sub:"인슐린저항성 · 과장이 아닙니다",src:"https://youtu.be/DxoqacQTMYQ"}
+  ];
+  const KIOSK_BASE = "https://ha5857-web.github.io/jarada-kiosk/";
+  const V = no => VIDEOS.find(x=>x.no===no);
+  let sexOverride = null;
+
+  /* 날짜+시각이 붙은 칸(구글폼 제출 시각 "2026. 8. 22 오후 5:57:54")은 생년월일이 아닙니다. */
+  function findDobStr(raw){
+    const text = String(raw||'');
+    const re = /((?:19|20)\d{2})\s*[.\-\/년]\s*(\d{1,2})\s*[.\-\/월]\s*(\d{1,2})(?!\d)/g;
+    const cands = [];
+    const scan = (txt)=>{
+      let m; re.lastIndex = 0;
+      while((m = re.exec(txt))){
+        const after = txt.slice(m.index + m[0].length);
+        if(/^\s*(?:오전|오후)?\s*\d{1,2}\s*:\s*\d{2}/.test(after)) continue;      // 제출 시각
+        const y=+m[1], mo=+m[2], d=+m[3];
+        if(mo<1||mo>12||d<1||d>31) continue;
+        const age = (Date.now() - new Date(y,mo-1,d)) / 31557600000;
+        if(age<0 || age>25) continue;                                              // 아이 나이가 아님
+        cands.push(`${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`);
+      }
+    };
+    const cols = text.split('\t');
+    for(const c of cols.slice(0,5)){ scan(c); if(cands.length) return cands[0]; }
+    scan(text.replace(/\s+/g,' '));
+    return cands[0] || '';
+  }
+
+/* 2017 한국 소아청소년 성장도표 근사값 (만 3~17세, P50 / SD) — 선별용 */
+const HT={
+ M:{p50:[96.5,103.1,109.6,115.9,122.1,127.9,133.4,138.8,144.7,151.4,158.6,165.0,169.2,171.4,172.6],
+    sd :[4.2,4.5,4.7,5.0,5.3,5.6,5.9,6.3,6.8,7.3,7.5,7.0,6.3,5.9,5.8]},
+ F:{p50:[95.4,101.9,108.4,114.7,120.8,126.7,132.6,139.1,145.8,151.7,155.9,158.3,159.5,160.0,160.2],
+    sd :[4.2,4.4,4.6,4.9,5.2,5.5,6.0,6.4,6.6,6.3,5.8,5.6,5.5,5.4,5.4]}};
+/* BMI 85th / 95th 근사 (만 5~17세) */
+const BMI85={M:[17.0,17.3,17.9,18.6,19.4,20.2,21.0,21.8,22.5,23.2,23.8,24.3,24.8],
+             F:[16.9,17.2,17.8,18.5,19.4,20.3,21.2,22.0,22.7,23.3,23.7,24.0,24.3]};
+const BMI95={M:[18.3,18.9,19.8,20.8,21.9,22.9,23.9,24.8,25.6,26.3,26.9,27.4,27.9],
+             F:[18.1,18.8,19.7,20.7,21.8,22.9,23.9,24.8,25.5,26.1,26.5,26.8,27.1]};
+/* 연령별 정상 성장속도 하한 (cm/년) */
+function gvFloor(a){ return a<2?9 : a<4?6 : a<10?4.5 : 4; }
+
+function interp(arr,age,base){
+  const i=Math.max(0,Math.min(arr.length-2,Math.floor(age)-base));
+  const f=Math.max(0,Math.min(1,age-base-i));
+  return arr[i]+(arr[i+1]-arr[i])*f;
+}
+function zToP(z){ // 정규분포 근사
+  const t=1/(1+0.2316419*Math.abs(z));
+  const d=0.3989423*Math.exp(-z*z/2);
+  let p=d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));
+  p=z>0?1-p:p; return Math.round(p*1000)/10;
+}
+function htZ(sex,age,cm){
+  if(age<3||age>17||!cm) return null;
+  const T=HT[sex]; return (cm-interp(T.p50,age,3))/interp(T.sd,age,3);
+}
+function bmiBand(sex,age,bmi){
+  if(age<5||age>17||!bmi) return null;
+  if(bmi>=interp(BMI95[sex],age,5)) return 95;
+  if(bmi>=interp(BMI85[sex],age,5)) return 85;
+  return 0;
+}
+
+/* ---------- 기록지 파싱 ---------- */
+
+function num(re,t){ const m=t.match(re); return m?parseFloat(m[1]):null; }
+
+// 취침시각 추출 — "10시~11시이전 취침 7시반 기상"처럼 범위·수식어가 섞이거나
+// 취침·기상 시각이 한 문장에 같이 나오는 표현에서도 안정적으로 "취침" 쪽 숫자만 골라낸다.
+function extractBedHour(t){
+  const bedIdx = t.indexOf('취침');
+  if (bedIdx < 0) return null;
+  const wakeIdx = t.indexOf('기상');
+
+  // 1) '취침' 앞쪽 근처에서 가장 마지막 'N시'를 찾는다.
+  //    범위 표기("10시~11시이전 취침")면 뒤쪽(더 늦은) 숫자가 채택된다.
+  const before = t.slice(Math.max(0, bedIdx - 20), bedIdx);
+  const beforeNums = [...before.matchAll(/(\d{1,2})\s*시/g)];
+  if (beforeNums.length) return +beforeNums[beforeNums.length - 1][1];
+
+  // 2) 앞에 없으면 '취침' 뒤에서 찾되, 그 사이에 '기상'이 먼저 나오면
+  //    그 숫자는 기상시각이므로 채택하지 않는다.
+  let after = t.slice(bedIdx, Math.min(t.length, bedIdx + 15));
+  if (wakeIdx > bedIdx) {
+    const rel = wakeIdx - bedIdx;
+    if (rel < after.length) after = after.slice(0, rel);
+  }
+  const m = after.match(/(\d{1,2})\s*시/);
+  return m ? +m[1] : null;
+}
+
+function parseIntake(raw){
+  const t=raw.replace(/\s+/g," ");
+  const o={};
+
+  // 생년월일 → 만나이 (제출 시각 같은 "날짜+시각" 칸은 생년월일로 읽지 않습니다)
+  const dobStr=findDobStr(raw);
+  if(dobStr){ const dp=dobStr.split('-').map(Number); const b=new Date(dp[0],dp[1]-1,dp[2]);
+    o.dob=dobStr; o.age=Math.round(((Date.now()-b)/31557600000)*10)/10;
+    if(o.age<0||o.age>25) o.age=null; }
+
+  // 성별 추정 — 가중 투표 (기록지에 성별 칸이 없어 단서를 모아 판단)
+  let m=0,f=0;
+  if(/남아\s*[-–:]|고환|변성기|음경|포경|아들/.test(t)) m+=5;
+  if(/여아\s*[-–:]|가슴\s*(멍울|몽우리|발달)|유방|분비물|외동딸|장녀|딸/.test(t)) f+=5;
+  if(/(초경|생리)\s*(을|를)?\s*(시작|했)/.test(t)) f+=5;      // 아이 초경
+  if(/\d\s*남\s*\d*\s*녀/.test(t)){ /* 남매 — 판단 보류 */ }
+  else{ if(/\d\s*녀\s*중|\d녀중/.test(t)) f+=3;
+        if(/\d\s*남\s*중|\d남중|장남/.test(t)) m+=3; }
+  o.sex = m>f?"M" : f>m?"F" : null;
+  if(sexOverride) o.sex=sexOverride;
+
+  // 키 · 몸무게
+  o.ht=num(/키\s*:?\s*(\d{2,3}(?:\.\d)?)/,t) || num(/(\d{2,3}(?:\.\d)?)\s*cm\s*\/\s*몸무게/,t);
+  o.wt=num(/몸무게\s*:?\s*(\d{1,3}(?:\.\d)?)/,t) || num(/체중\s*:?\s*(\d{1,3}(?:\.\d)?)/,t);
+  if(!o.ht||!o.wt){                      // "2026-04-20/169.4/63.5" 처럼 라벨 없는 표기
+    const bare=t.match(/\/\s*(\d{2,3}(?:\.\d)?)\s*(?:cm)?\s*\/\s*(\d{1,3}(?:\.\d)?)\s*(?:kg)?/);
+    if(bare){ o.ht=o.ht||+bare[1]; o.wt=o.wt||+bare[2]; }
+  }
+  if(o.ht&&(o.ht<45||o.ht>200)) o.ht=null;
+  if(o.wt&&(o.wt<3||o.wt>150)) o.wt=null;
+  if(o.ht&&o.wt) o.bmi=Math.round(o.wt/Math.pow(o.ht/100,2)*10)/10;
+
+  // 부모 키
+  o.fh=num(/(?:아버지|아빠|부)\s*:?\s*(1[5-9]\d(?:\.\d)?)/,t);
+  o.mh=num(/(?:어머니|어머님|엄마|모)\s*:?\s*(1[4-8]\d(?:\.\d)?)/,t);
+  if(!o.fh||!o.mh){ const pair=t.match(/(1[5-9]\d(?:\.\d)?)\s*\/\s*(1[4-8]\d(?:\.\d)?)/);
+    if(pair){ o.fh=o.fh||+pair[1]; o.mh=o.mh||+pair[2]; } }
+  if(o.fh&&o.mh&&o.sex) o.mph=Math.round(((o.fh+o.mh+(o.sex==="M"?13:-13))/2)*10)/10;
+
+  // 성장속도
+  o.gv=num(/1년\s*(?:간|동안)?\s*(?:약\s*|대략\s*)?([\d.]+)\s*(?:cm|센치|센티)/,t)
+     || num(/([\d.]+)\s*(?:cm|센치|센티)\s*(?:정도\s*)?(?:성장|자람|큼)/,t);
+
+  if(o.gv===null||o.gv===undefined){ // 한 칸에 "8cm"처럼 값만 적힌 1년 성장량 (1~15cm)
+    const cols=String(raw).split('\t').map(c=>c.trim()); for(const c of cols){ const mm=c.match(/^(\d{1,2}(?:\.\d)?)\s*(?:cm|센치|센티)$/i); if(mm){ const v=parseFloat(mm[1]); if(v>=1&&v<=15){ o.gv=v; break; } } } }
+
+  // 모 초경
+  const men=t.match(/초경\s*:?\s*(초\s*\d|중\s*\d|고\s*\d|만?\s*\d{1,2}\s*세)/);
+  if(men){ const v=men[1].replace(/\s/g,"");
+    o.mMen = /초[1-5]/.test(v)||/1[01]세/.test(v) ? "early" : /초6|중1/.test(v) ? "avg" : "late"; }
+
+  // 사춘기 징후
+  o.pub = /가슴\s*(멍울|몽우리|발달|나옴|통증)|유방|분비물|초경\s*시작|생리\s*시작|고환\s*(크기)?\s*(변화|커)|변성기|음모|체모|겨드랑이\s*털|정수리\s*냄새|머리\s*냄새|여드름|피지/.test(t)
+        && !/징후\s*(는)?\s*(없|아직|모름|관찰\s*안)|없음\s*$/.test(t.slice(-30));
+  { const tv=num(/고환\s*:?\s*(\d+(?:\.\d+)?)\s*(?:cc|ml|mL|㎖)/i,t); if(tv!==null){ o.testis=tv; if(tv>=4) o.pub=true; } }
+  o.onGH = /성장\s*호르몬\s*(?:투여|주사|치료)\s*중|GH\s*(?:투여|주사|치료)\s*중|투여\s*중인?\s*약물?\s*:?\s*성장\s*호르몬/i.test(t);  // 이미 성장호르몬 치료 중
+  o.menarche = /초경\s*시작|생리\s*(를)?\s*시작|초경\s*했|생리\s*중/.test(t);
+
+  // 생활
+  // 취침시각: "10시~11시이전 취침 7시반 기상"처럼 범위·수식어(이전/경 등)가 섞이거나
+  // 취침과 기상 시각이 한 문장에 같이 나오는 실제 기록 표현을 견고하게 처리한다.
+  // (예전 방식은 이런 경우 기상시각을 취침시각으로 잘못 읽는 경우가 있었음)
+  const bedHour = extractBedHour(t);
+  if(bedHour!==null){
+    let h=bedHour;
+    // "몇 시 취침"이라는 문구는 대개 오후~자정 무렵을 가리킴 — 12(자정)=24, 8~11시=오후 8~11시(20~23),
+    // 1~7시=다음날 새벽(25~31)로 환산해야 "늦게 잔다"는 판정이 실제 시각과 맞아떨어진다.
+    if(h===12) h=24;
+    else if(h>=1&&h<=7) h+=24;
+    else if(h>=8&&h<=11) h+=12;
+    o.bed=h;
+  }
+  o.lateBed = o.bed>=23 || /새벽\s*[1-5]\s*시|12시\s*(넘어|이후)|자정/.test(t);
+  o.media = num(/(\d)\s*시간/,(t.match(/(?:스마트폰|태블릿|미디어|폰)[^가-힣]{0,20}\d\s*시간/)||[""])[0]) || 0;
+  o.noExercise = /운동\s*(은)?\s*(없|안\s*함|거의\s*안|x|X|하지\s*않)/.test(t);
+  o.picky = /편식|안\s*먹|잘\s*안\s*먹|입이\s*짧|식욕\s*(이)?\s*없|소식|식사량\s*(이)?\s*적|양이\s*적/.test(t);
+  o.noMilk = /우유\s*(는)?\s*(거의\s*)?(안\s*(먹|마)|잘\s*안|싫어|안먹)|유제품\s*(거의\s*)?안/.test(t);
+  o.snack = /간식\s*(을)?\s*(좋아|많이|자주|매일)|단\s*음료|군것질|과자\s*(를)?\s*(좋아|자주|매일)/.test(t);
+
+  // 보호자 걱정 문구
+  o.cShort = /작(은|음|아|다|고)|앞번호|또래보다\s*(작|덜)|저신장|덜\s*자라|성장이\s*(더디|느리)/.test(t);
+  o.cTall  = /또래보다\s*(크|큼)|친구보다\s*키가\s*큼|많이\s*큼|커서\s*(걱정|나중)/.test(t);
+  o.cPub   = /성조숙|조숙|초경(이)?\s*(빠|일찍)|사춘기(가)?\s*(빠|일찍)|2차\s*성징/.test(t);
+  o.cObes  = /비만|과체중|살이\s*(찌|많)|체중이\s*(많이|늘)|통통|뚱뚱/.test(t);
+  o.cBone  = /뼈\s*나이|골연령|성장판|예측키|최종\s*키|남은\s*성장|얼마나\s*더/.test(t);
+  o.cDrop  = /백분위\s*(가)?\s*(감소|떨어|내려)|퍼센트\s*(가)?\s*(감소|떨어|내려)|점점\s*(작|차이|격차)|성장이\s*(멈|둔화|정체)|안\s*크/.test(t);
+  return o;
+}
+
+/* ---------- 점수화 ---------- */
+const PRIO1=[4,5,3,1,7,2];
+function scoreIntake(o){
+  const S={},W={};
+  const add=(no,pt,why)=>{ S[no]=(S[no]||0)+pt; if(why){(W[no]=W[no]||[]); if(!W[no].includes(why))W[no].push(why);} };
+
+  const z = (o.sex&&o.age&&o.ht)?htZ(o.sex,o.age,o.ht):null;
+  const p = z!==null?zToP(z):null;
+  const bb= (o.sex&&o.age&&o.bmi)?bmiBand(o.sex,o.age,o.bmi):null;
+  o._z=z; o._p=p; o._bb=bb;
+
+  const early = o.pub && o.age && (o.sex==="F" ? o.age<8.5 : o.age<9.5);
+
+  /* ── 3번 사춘기 · 성조숙 ── */
+  if(o.pub&&o.age){
+    const border= o.sex==="F" ? o.age<9.5 : o.age<10.5;
+    if(early)      add(4,12,`만 ${o.age}세에 사춘기 징후`);
+    else if(border)add(4,8,`만 ${o.age}세 · 사춘기 징후 (경계)`);
+    else           add(4,4,"사춘기 징후 확인됨");
+  }
+  if(o.menarche) add(4,7,"초경 시작");
+  if(o.cPub) add(4,3,"보호자가 성조숙을 걱정");
+  if(o.mMen==="early") add(4,2,"어머니 초경이 빠른 편");
+  if(z!==null&&z>1.3&&o.age&&o.age<10) add(4,4,`또래보다 큼 (${p}백분위)`);
+  if(o.cTall) add(4,2,"또래보다 크다는 걱정");
+
+  /* ── 1번 성장도표 · 저신장 ── */
+  if(p!==null){
+    if(p<=3)       add(1,12,`신장 ${p}백분위`);
+    else if(p<=10) add(1,8,`신장 ${p}백분위`);
+    else if(p<=25) add(1,5,`신장 ${p}백분위`);
+  }
+  if(o.mph&&o.ht&&o.age>=8&&z!==null){
+    const mz=htZ(o.sex,17,o.mph);
+    if(mz!==null&&z-mz<=-1.2) add(1,5,"중간부모키 대비 낮음");
+  }
+  if(o.cShort) add(1,p===null?3:1,"또래보다 작다는 걱정");
+
+  /* ── 2번 골연령 · 남은 성장 ── */
+  if(o.gv!==null&&o.age){
+    const f=gvFloor(o.age);
+    if(o.gv<f-1.5) add(5,11,`성장속도 ${o.gv}cm/년`);
+    else if(o.gv<f) add(5,7,`성장속도 ${o.gv}cm/년`);
+    else if(o.gv>f+3.5&&o.age<11) add(5,5,`성장속도 ${o.gv}cm/년 (빠름)`);
+  }
+  if(o.cDrop) add(5,7,"백분위 하락 · 성장 둔화 호소");
+  if(o.cBone) add(5,6,"뼈나이·예측키를 궁금해함");
+  if(o.pub&&p!==null&&p<=25) add(5,6,"사춘기 징후 + 낮은 백분위");
+  if(o.pub&&o.age>=10) add(5,3,"사춘기 진행 중");
+
+  /* ── 7번 비만 · 대사 ── */
+  if(bb===95) add(7,11,`BMI ${o.bmi} (95백분위 이상)`);
+  else if(bb===85) add(7,7,`BMI ${o.bmi} (85백분위 이상)`);
+  if(o.cObes) add(7,3,"체중 증가를 걱정");
+  if(bb&&o.snack) add(7,2,"간식·단음료 잦음");
+
+  /* ── 4번 검사 안내 ── 초진에서 검사로 이어질 가능성이 높은 소견 */
+  if(o.onGH) add(5,6,"성장호르몬 치료 중 · 효과 궁금");   // 이미 치료 중이면 효과 설명(5번)을 우선, 검사 안내(3번)는 빼기
+  const willTest = !o.onGH && ((p!==null&&p<=10) || (o.gv!==null&&o.age&&o.gv<gvFloor(o.age)) || early || bb===95);
+  if(willTest) add(3,5,"검사로 이어질 가능성이 높음");
+  if(o.cBone) add(3,3,"검사·예측키를 궁금해함");
+
+  /* ── 5번 생활습관 ── */
+  if(o.lateBed) add(2,4,"취침이 늦음");
+  if(o.media>=3) add(2,3,`미디어 ${o.media}시간`);
+  if(o.noExercise) add(2,1,"규칙적 운동 없음");
+  if(o.picky) add(2,1,"편식·소식");
+
+  if(!Object.keys(S).length) add(1,5,"특이 소견 없음 · 기본 안내");
+
+  let out=Object.keys(S).map(Number)
+    .map(no=>({no,score:S[no],why:(W[no]||[]).slice(0,2).join(" · ")}))
+    .sort((a,b)=>b.score-a.score || PRIO1.indexOf(a.no)-PRIO1.indexOf(b.no));
+
+  /* 기존 초진 890건을 돌려 보니 신장 중앙값이 25백분위, 48%가 25백분위 이하였습니다.
+     1번(성장도표 읽는 법)은 사실상 전 환자 공통이라 개별 슬롯을 차지할 이유가 없어,
+     1순위에 고정하고 나머지 두 칸을 개별화합니다.
+     예외 — 신장이 50백분위 이상이면서 조기 사춘기나 고도비만이 뚜렷하면 1번을 뺍니다. */
+  const drop1 = (p!==null && p>=50) && (early || bb===95);
+
+  let final;
+  if(drop1){ final=out.slice(0,3); }
+  else{
+    const common = out.find(r=>r.no===1) || {no:1,score:0,why:"전 환자 공통 · 성장 평가 기본"};
+    final=[common].concat(out.filter(r=>r.no!==1).slice(0,2));
+  }
+  const fill=[[5,"예측키 기본 안내"],[3,"검사 절차 기본 안내"],[2,"생활습관 기본 안내"]];
+  for(const [no,why] of fill){ if(final.length>=3) break;
+    if(!final.some(r=>r.no===no)) final.push({no,score:0,why}); }
+  return final.slice(0,3);
+}
+
+
+const IMPRESSIONS=[
+  {k:"사춘기 발달 빠름", v:[4,5], v2:[3,4]},   // v2 = STEP 2(혈액검사 전)에서 쓰는 순서: 검사 먼저, 확진 뒤(STEP 3)에 치료
+  {k:"저신장", v:[1,3]},
+  {k:"성장 속도 감소", v:[1,5]},
+  {k:"골연령 선행", v:[5,4]},
+  {k:"골연령 지연", v:[5]},
+  {k:"과체중·비만", v:[7,2]},
+  {k:"수면·식습관 문제", v:[2]},
+  {k:"검사 진행 예정", v:[3]},
+  {k:"성장호르몬 치료 검토", v:[5,6]},
+  {k:"억제 + 성장호르몬 병행 검토", v:[6,4]},
+  {k:"특이 소견 없음 · 추적", v:[1]},
+  {k:"키 성장 고민", v:[1]}
+];
+// IMPRESSIONS와 같은 순서 - 차트에 적은 소견/플랜 문구를 자동으로 인식하기 위한 규칙.
+// STEP2(임상 임프레션)의 자동 인식과 STEP3(진료 후)의 파싱에서 공용으로 사용합니다.
+const IMPRESS_RULES=[
+  /사춘기.{0,12}(빠름|빠른|조기|앞섬|앞서)|조기\s*사춘기|성조숙증|precocious\s*puberty|\bCPP\b/i,
+  /저신장|단신|또래보다\s*작음/,
+  /성장\s*속도\s*(감소|둔화)|성장\s*둔화|백분위\s*(감소|하락)/,
+  /골연령\s*(선행|앞섬|빠름)|뼈나이.{0,10}(빠름|앞섬)/,
+  /골연령\s*지연|뼈나이.{0,10}지연/,
+  /과체중|비만/,
+  /수면\s*(부족|문제)|식습관\s*문제|편식/,
+  /검사\s*(진행|예정|필요)|정밀\s*검사|추가\s*검사|GnRH\s*(stim|자극)|LHRH\s*(stim|자극)|(stimulation|자극)\s*(test|검사)|stim\.?\s*test/i,
+  /성장\s*호르몬\s*(치료|주사)|성장\s*호르몬.{0,10}(wanted|희망|원함|원해|원하|관심|문의)|\bGH\b\s*[:：]?\s*(wanted|want|희망|원함)/i,
+  /억제\s*(치료|주사).{0,20}(병행|\+|및).{0,10}성장\s*호르몬|GnRH.{0,20}병행|성조숙증.{0,15}치료.{0,15}병행/i,
+  /특이\s*소견\s*없음|정상\s*범위|경과\s*관찰|추적\s*관찰/,
+  /키\s*(성장)?\s*(고민|걱정|궁금)|성장\s*(고민|걱정)|잘\s*(클|자랄)\s*(까|지)|키가?\s*(작|안\s*(크|커|자))|더\s*컸으면/
+];
+/* ---------- 차트 읽기 엔진 ----------
+   1) 부정 표현 처리: "성조숙증 아님", "비만 없음", "(-)" 는 소견으로 잡지 않습니다.
+   2) 초진 기록지(STEP 1에 붙여넣은 내용)와 겹치는 줄은 빼고, 차트에서 새로 추가된 내용만 읽습니다.
+      (보호자가 적은 걱정이 진찰 소견으로 잘못 읽히는 것을 막기 위해)
+   3) GnRH 자극검사 peak LH 수치가 있으면 기준(LH_PEAK_CUT)과 비교해 성조숙증 소견을 넣거나 뺍니다.
+   4) 영상은 임프레션 순서가 아니라 점수 → 단계별 우선순위로 정렬합니다. */
+const LH_PEAK_CUT=5;   // GnRH 자극검사 peak LH 기준(IU/L). 원장님 기준에 맞게 이 숫자만 바꾸세요.
+const NEGT=/(없(음|어|고|다|는|습|네|었|던|이)|않|아니(에|고|다|야|라|어|었|며)|아닙|아님|배제|음성|정상|\(\s*[-–]\s*\)|\bneg|\bno\b|\bnot\b|^[은는이가도]?\s*안\s)/i;
+function hitNegEv(s,re){   // 뒤따르는 부정 표현이 없는 첫 일치의 앞뒤 문구를 돌려줌(없으면 null)
+  const g=new RegExp(re.source,(re.flags||"").replace("g","")+"g"), ms=[]; let m;
+  while((m=g.exec(s))){ ms.push({i:m.index,l:m[0].length}); if(!m[0].length) g.lastIndex++; }
+  for(let k=0;k<ms.length;k++){
+    const st=ms[k].i+ms[k].l, en=Math.min(st+14, k+1<ms.length?ms[k+1].i:s.length);
+    const tail=s.slice(st,en).replace(/^\s*[:：\-]\s*/,"").split(/[,./·:：\n]/)[0];
+    if(!NEGT.test(tail)){
+      const ls=s.lastIndexOf("\n",ms[k].i)+1; let le=s.indexOf("\n",st); if(le<0) le=s.length;
+      const a=Math.max(ls,ms[k].i-14), b=Math.min(le,st+26);
+      return (a>ls?"…":"")+s.slice(a,b).replace(/\s+/g," ").trim()+(b<le?"…":"");
+    }
+  }
+  return null;
+}
+function peakLH(t){
+  const m=t.match(/peak\s*LH\s*[:=]?\s*(\d+(?:\.\d+)?)|LH\s*peak\s*[:=]?\s*(\d+(?:\.\d+)?)|(?:최고|최대)\s*LH\s*[:=]?\s*(\d+(?:\.\d+)?)/i);
+  return m ? parseFloat(m[1]||m[2]||m[3]) : null;
+}
+function normKey(s){ return String(s).toLowerCase().replace(/[\s.,;:!?·•()\[\]{}"'“”‘’\-–—_\/\\]+/g,""); }
+function addedOnly(chart,intake){
+  const inK=normKey(intake||"");
+  if(inK.length<20) return {text:chart, added:null, skipped:0};
+  const G=new Set(); for(let i=0;i+5<=inK.length;i++) G.add(inK.slice(i,i+5));
+  const segs=chart.split(/[\n\t]+|[.!?。]\s+/).map(x=>x.trim()).filter(Boolean);
+  const keep=[]; let skipped=0;
+  for(const sg of segs){
+    const k=normKey(sg);
+    if(!k) continue;
+    if(k.length<5){ if(k && inK.includes(k)){ skipped++; continue; } keep.push(sg); continue; }
+    let hit=0,tot=0; for(let i=0;i+5<=k.length;i++){ tot++; if(G.has(k.slice(i,i+5))) hit++; }
+    if(hit/tot>=0.7) skipped++; else keep.push(sg);
+  }
+  return {text:keep.join("\n"), added:keep, skipped};
+}
+function chartFindings(text){
+  const out=[];
+  IMPRESS_RULES.forEach((re,i)=>{ const ev=hitNegEv(text,re); if(ev!==null) out.push({i,ev}); });
+  detectTableImpressions(text).idx.forEach(i=>{ if(!out.some(o=>o.i===i)) out.push({i,ev:"검사표 수치"}); });
+  return out;
+}
+function analyzeChart(raw,intake){
+  const d=addedOnly(raw,intake||"");
+  const usedDiff=d.added!==null;
+  const text=usedDiff?d.text:raw;
+  const ev=text.trim()?chartFindings(text):[];
+  const notes=[];
+  const lh=peakLH(text);
+  if(lh!==null){
+    const t7=ev.findIndex(f=>f.i===7 && /stim|자극/i.test(f.ev));   // 결과가 이미 나왔으면 "검사 예정"은 아님
+    if(t7>=0){ ev.splice(t7,1); notes.push("GnRH 자극검사 결과(peak LH)가 있어 '검사 진행 예정'은 뺐습니다."); }
+    const at=ev.findIndex(f=>f.i===0);
+    if(lh>=LH_PEAK_CUT){
+      if(at<0) ev.push({i:0,ev:"peak LH "+lh}); else ev[at].ev+=" · peak LH "+lh;
+      notes.push("peak LH "+lh+" ≥ "+LH_PEAK_CUT+" → 성조숙증 소견으로 읽었습니다.");
+    }else{
+      if(at>=0) ev.splice(at,1);
+      notes.push("peak LH "+lh+" < "+LH_PEAK_CUT+" → 성조숙증 소견은 제외했습니다. 다르면 STEP 2에서 직접 골라 주세요.");
+    }
+  }
+  return {idx:[...new Set(ev.map(f=>f.i))], ev, notes, usedDiff, added:d.added, skipped:d.skipped};
+}
+function autoDetectImpressions(raw){ return analyzeChart(raw,"").idx; }
+// 단계별 영상 우선순위: STEP 2(혈액검사 전)는 검사·치료 설명 위주, STEP 3(확정)은 치료 위주
+const PRIO_STAGE={2:[3,4,5,6,7,1,2], 3:[4,6,5,7,3,1,2]};
+function stageV(i,stage){ const im=IMPRESSIONS[i]; return (stage===2 && im.v2) ? im.v2 : im.v; }
+function rankVideos(idxList,stage,limit){
+  const sc={};
+  idxList.forEach(i=>stageV(i,stage).forEach((no,pos)=>{ sc[no]=(sc[no]||0)+Math.max(1,3-pos); }));
+  const pr=PRIO_STAGE[stage]||PRIO_STAGE[2];
+  return Object.keys(sc).map(Number).sort((a,b)=>sc[b]-sc[a] || pr.indexOf(a)-pr.indexOf(b)).slice(0,limit||3);
+}
+const esc=x=>String(x).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+// 차트 프로그램이 "AGE BA TS WT HT BMI" 같은 표 형태로 수치를 뽑아 줄 때는
+// 문구가 아니라 숫자만 있어서 위의 문구 인식(IMPRESS_RULES)이 아무것도 못 찾는다.
+// 이 표를 직접 읽어서 골연령 선행/지연, 저신장, 과체중, 사춘기 조기 징후를 함께 판단한다.
+function detectTableImpressions(t){
+  const re = /AGE\s+BA\s+TS\s+WT\s+HT\s+BMI(?:\s+BT)?\s*(?:\d{4}-\d{1,2}-\d{1,2}\s*)?([\d.]+)\s+([\d.]+)\s+T?(\d)\s+([\d.]+)(?:\(([\d.]+)\))?\s+([\d.]+)(?:\(([\d.]+)\))?\s+([\d.]+)(?:\(([\d.]+)\))?/;
+  const m = t.match(re);
+  if(!m) return { found:false, idx:[] };
+
+  const age=+m[1], ba=+m[2], ts=+m[3];
+  const htPct = m[7]!==undefined?+m[7]:null;
+  const bmiPct = m[9]!==undefined?+m[9]:null;
+
+  const idx = new Set();
+  const baDiff = ba - age;
+  if(baDiff >= 0.8) idx.add(3);        // 골연령 선행
+  else if(baDiff <= -0.8) idx.add(4);  // 골연령 지연
+
+  if(htPct !== null && htPct <= 10) idx.add(1);   // 저신장
+  if(bmiPct !== null && bmiPct >= 85) idx.add(5); // 과체중·비만
+
+  // 사춘기 징후 — 성별별 조기사춘기 나이 기준(여아 9.5세/남아 10.5세 미만)을 재사용.
+  // 성별을 아직 못 골랐으면 더 넉넉한 여아 기준(9.5세)으로 판단.
+  if(ts >= 2){
+    const early = sexOverride==='M' ? age<10.5 : age<9.5;
+    if(early) idx.add(0);
+  }
+  return { found:true, idx:[...idx], raw:{age,ba,ts,htPct,bmiPct} };
+}
+
+
+  /* ---------- 공개 함수 ---------- */
+  // 구글폼 한 줄에는 시트 스크립트가 덧붙인 링크·문구가 같이 따라옵니다. 그 부분은 빼고 읽습니다.
+  function sanitizeIntake(raw){
+    let t = String(raw||'').replace(/\r/g,'');
+    const cut = t.search(/\[삼성자라다\s*소아청소년과\]|진료\s*전에\s*아래\s*영상/);
+    if(cut > 0) t = t.slice(0, cut);
+    t = t.replace(/https?:\/\/\S+/g, ' ');
+    return t;
+  }
+  function vid(no, why){ const v=V(no); return { no, title:v.title, question:v.sub, link:v.src, why:why||'' }; }
+  function thumb(link){ const m=String(link||'').match(/(?:youtu\.be\/|v=)([A-Za-z0-9_-]{6,})/); return m ? `https://img.youtube.com/vi/${m[1]}/mqdefault.jpg` : ''; }
+  // 초진 기록지 → 진료 전 영상 3편
+  function preVideos(raw, sex){
+    sexOverride = sex || null;
+    const o = parseIntake(sanitizeIntake(raw));
+    const list = scoreIntake(o);
+    sexOverride = null;
+    return { o, list, videos: list.map(r=>vid(r.no, r.why)) };
+  }
+  // 진료 후 소견/플랜 텍스트 → 영상 3편 (STEP 3 규칙)
+  // exclude: 진료 전에 이미 보낸 영상 번호 — 진료 후에는 새로운 영상을 보여주기 위해 제외합니다.
+  function postVideos(text, intake, sex, exclude){
+    sexOverride = sex || null;
+    const res = analyzeChart(String(text||''), intake ? sanitizeIntake(intake) : '');
+    sexOverride = null;
+    const ex = new Set(exclude || []);
+    const ranked = rankVideos(res.idx, 3, 7);
+    const nos = ranked.filter(n=>!ex.has(n)).slice(0,3);
+    return { res, nos, videos: nos.map(n=>vid(n)), excluded: ranked.filter(n=>ex.has(n)) };
+  }
+  function link(nos){ return KIOSK_BASE + '#v=' + nos.join(''); }
+  function watchLink(nos){ return FV_VIDEO_SITE + '?v=' + nos.join(''); }
+  function preMessageBody(videos){
+    const l = videos.map((v,i)=>`${i+1}순위) ${v.no}. ${v.title}`).join('\n');
+    return `진료 전에 아래 영상을 순서대로 봐 주세요. 같은 설명을 진료실에서 반복하지 않고, 아이에게 필요한 이야기부터 시작할 수 있습니다.\n\n${l}\n\n${link(videos.map(v=>v.no))}`;
+  }
+  return { VIDEOS, V, vid, thumb, link, watchLink, sanitizeIntake, findDobStr, parseIntake, scoreIntake, analyzeChart, rankVideos, preVideos, postVideos, preMessageBody, IMPRESSIONS };
+})();
+
+/* ---------- 초진 기록지 한 줄 → 접수 정보 ---------- */
+function parseFirstIntake(raw){
+  const clean = JRDV.sanitizeIntake(raw);
+  const out = { name:'', dob:'', sex:'', phone:'', ht:null, wt:null, fh:null, mh:null, history:[] };
+  const cols = clean.split('\t').map(c=>c.trim());
+  const flat = clean.replace(/\s+/g,' ');
+  out.dob = JRDV.findDobStr(clean);
+  const STOP = /^(없음|있음|모름|정상|해당없음|아니오|예|남|여)$/;
+  for(const c of cols.slice(0,5)){ if(/^[가-힣]{2,4}$/.test(c) && !STOP.test(c)){ out.name = c; break; } }
+  if(!out.name){ const nm = flat.match(/(?:이름|성함|환아명?)\s*[:：]?\s*([가-힣]{2,4})/); if(nm) out.name = nm[1]; }
+  // 정규식의 '뒤돌아보기(lookbehind)'는 iPadOS 16.3 이하 Safari에서 앱 전체가 안 열리게 해서 쓰지 않고 직접 확인합니다
+  const ph = (function(){ const re = /01[016789][-\s.]?\d{3,4}[-\s.]?\d{4}(?!\d)/g; let m; while((m = re.exec(flat))){ if(m.index === 0 || !/\d/.test(flat[m.index-1])) return m; } return null; })();
+  if(ph){
+    const dg = ph[0].replace(/\D/g,'');
+    out.phone = dg.length===11 ? `${dg.slice(0,3)}-${dg.slice(3,7)}-${dg.slice(7)}` : `${dg.slice(0,3)}-${dg.slice(3,6)}-${dg.slice(6)}`;
+  }
+  const o = JRDV.parseIntake(clean);
+  out.sex = o.sex || '';
+  out.fh = o.fh; out.mh = o.mh; out.ht = o.ht; out.wt = o.wt;
+  const hre = /((?:19|20)\d{2})\s*[.\-\/]\s*(\d{1,2})\s*[.\-\/]\s*(\d{1,2})\s*[\/,:\s]*키\s*:?\s*(\d{2,3}(?:\.\d)?)\s*(?:cm|센티)?\s*[\/,\s]*(?:몸무게|체중)\s*:?\s*(\d{1,3}(?:\.\d)?)/g;
+  let hm; const seen = new Set();
+  while((hm = hre.exec(flat))){
+    const date = `${hm[1]}-${String(hm[2]).padStart(2,'0')}-${String(hm[3]).padStart(2,'0')}`, h = parseFloat(hm[4]), w = parseFloat(hm[5]);
+    if(h<45||h>200||w<3||w>150||seen.has(date)) continue;
+    seen.add(date); out.history.push({ date, height:h, weight:w });
+  }
+  out.history.sort((a,b)=> a.date<b.date ? -1 : 1);
+  const tg = flat.match(/목표\s*키\s*[:：(]?\s*(\d{3}(?:\.\d)?)/); if(tg) out.target = parseFloat(tg[1]);
+  else{ for(const c of cols){ const m = c.match(/^(1[5-9]\d)\s*cm$/i); if(m){ out.target = parseFloat(m[1]); break; } } }
+  return out;
+}
 
 
 /* =====================================================================
@@ -8707,7 +8793,24 @@ function fvNormDate(y,m,d){ return `${y}-${String(m).padStart(2,'0')}-${String(d
 function fvNum(re, t){ const m = t.match(re); return m ? parseFloat(m[1]) : null; }
 
 /* ---------- 진료 후 문구 기본 초안 (의사가 반드시 확인·수정) ---------- */
-/* fvLifestyleDraft 은 shared/chart-common.js 로 옮겼습니다 (index.html · flow.html 공용) */
+function fvLifestyleDraft(kind, p){
+  const text = [p.diagnosis||'', (p.firstVisit&&p.firstVisit.post&&p.firstVisit.post.summary)||'', p.notes||''].join(' ');
+  const obese = /비만|과체중/.test(text);
+  const early = /성조숙|조발|사춘기/.test(text);
+  if(kind==='exercise'){
+    let s = '하루 30~60분, 주 3~5회 정도 몸을 움직이는 시간을 만들어 주세요. 줄넘기·농구·수영·자전거처럼 뛰고 점프하는 운동이 좋아요. 운동 직후와 잠들기 직전의 과격한 운동은 피하는 편이 좋아요.';
+    if(obese) s += ' 체중 관리를 위해 걷기·자전거 같은 유산소 운동을 매일 꾸준히 하고, 화면 보는 시간은 줄여 주세요.';
+    return s;
+  }
+  if(kind==='nutrition'){
+    let s = '매 끼니 단백질 반찬(살코기·생선·달걀·두부·콩)을 한 가지씩 꼭 넣어 주세요. 아침 식사를 거르지 않고, 우유·요거트 같은 칼슘 식품을 하루 1~2회 챙겨 주세요. 채소와 과일은 매일, 탄산·단 음료·야식은 줄여 주세요. 성장 보조식품이나 영양제는 먹이기 전에 상의해 주세요.';
+    if(obese) s += ' 빨리 먹기, 과식, 야식을 줄이고 간식은 정해진 시간·양으로 먹도록 해주세요. 무리한 식사 제한은 하지 마세요.';
+    if(early) s += ' 성호르몬이 들어 있다고 알려진 보양식·건강식품은 피해 주세요.';
+    return s;
+  }
+  // sleep
+  return '밤 10시 이전에 잠자리에 들어 하루 9~10시간(초등 기준)을 푹 자도록 해주세요. 자기 1시간 전에는 스마트폰·TV를 끄고, 방은 어둡고 조용하게 해주세요. 성장호르몬은 깊이 잠든 뒤 가장 많이 나오기 때문에, 수면 시간만큼 "깊은 잠"이 중요해요. 주말에도 기상 시간을 크게 바꾸지 않는 것이 좋아요.';
+}
 function fvAgeMonths(str){ const m = String(str||'').match(/^(\d+)(?:\.(\d{1,2}))?$/); return m ? parseInt(m[1])*12 + (m[2] ? parseInt(m[2]) : 0) : null; }   // 차트 표기: 소수점 아래 = 개월 (8.07 = 8세 7개월)
 function fvFmtAge(mo){ const y = Math.floor(mo/12), r = mo%12; return r ? `${y}세 ${r}개월` : `${y}세`; }
 function fvBoneAgeLine(text){
@@ -9207,7 +9310,7 @@ function rvSyncFlow(visits){
 async function rvFlowPoll(){
   if(document.hidden || !getApiUrl()) return;
   try{ if(typeof isDoctorAppUnlocked==='function' && !isDoctorAppUnlocked()) return; }catch(e){}
-  try{ const fl = await bqPost({ action:'flowlist' }); if(fl && fl.status==='ok' && Array.isArray(fl.visits)){ rvSyncFlow(fl.visits); txSyncFlow(fl.visits); labSyncFlow(fl.visits); } }catch(e){}
+  try{ const fl = await bqPost({ action:'flowlist' }); if(fl && fl.status==='ok' && Array.isArray(fl.visits)){ rvSyncFlow(fl.visits); txSyncFlow(fl.visits); } }catch(e){}
 }
 setTimeout(rvFlowPoll, 7000);
 setInterval(rvFlowPoll, 90000);
@@ -9496,191 +9599,8 @@ async function fvLoadUploadInfo(p){
     el.innerHTML = `<div style="margin-bottom:6px;"><b>📎 내원 전 성장기록지 ${mine.length}건 제출됨</b> <span style="font-weight:400;">(눌러서 크게 보기 · 아래 "환아 제출함"에도 있어요)</span></div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;">${mine.slice(0,8).map(r=> r.fileId
         ? `<img src="${fileUrl(r.fileId,'w400')}" alt="성장기록지" title="${escapeHtml(fmtDate(r.date)||'')}" style="width:78px;height:78px;object-fit:cover;border-radius:8px;border:1px solid var(--border);cursor:pointer;" onclick="openLightbox('${fileUrl(r.fileId,'w2000')}')">`
-        : `<span style="font-size:11px;">${escapeHtml(r.fileName||'파일')}</span>`).join('')}</div>`
-      + (mine.some(r=>r.fileId) ? `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;">${mine.filter(r=>r.fileId).slice(0,8).map((r,i)=>`<button class="btn btn-outline" style="font-size:12px;padding:6px 10px;" onclick="gsReadOpen('${r.id}','${r.fileId}')">🤖 ${mine.length>1 ? (i+1)+'번 사진' : '사진'}에서 키·몸무게 읽기${p.gsDraft && p.gsDraft[r.id] ? ' (초안 있음)' : ''}</button>`).join('')}</div><div style="font-size:11px;color:var(--secondary);margin-top:4px;">AI가 읽은 값은 초안이에요. 사진과 나란히 보고 확인한 줄만 기록에 들어갑니다.</div>` : '');
+        : `<span style="font-size:11px;">${escapeHtml(r.fileName||'파일')}</span>`).join('')}</div>`;
   }catch(e){}
-}
-
-/* =====================================================================
- * 성장기록지 사진 판독 (초안 → 원장 확인 → 기록)   2026-11-11
- * 보호자가 초진방에 올린 성장기록지 사진을 서버(Security.gs의 readgrowthsheet)가 AI로 읽어 날짜·키·몸무게 초안을 만듭니다.
- * 초안은 그대로 기록에 들어가지 않습니다. 사진과 나란히 보고, 원장이 체크한 줄만 들어가며,
- * 이미 있는 기록의 값은 덮어쓰지 않습니다(빈 칸만 채움). 사진만 보내고 이름·등록번호는 보내지 않습니다.
- * ===================================================================== */
-const GS = { rowId:'', fileId:'', pid:'', rows:[], busy:false, img:'', memo:'', kind:'', err:'', info:'' };
-function gsOv(){
-  let ov = document.getElementById('gsOv');
-  if(!ov){
-    ov = document.createElement('div'); ov.id = 'gsOv'; ov.className = 'modal-ov'; ov.style.cssText = 'align-items:center;justify-content:center;';
-    ov.innerHTML = '<div id="gsBox" style="background:var(--light);width:96%;max-width:1000px;max-height:94vh;overflow:auto;border-radius:14px;padding:16px;box-sizing:border-box;"></div>';
-    document.body.appendChild(ov);
-  }
-  return ov;
-}
-function gsClose(){ const ov = document.getElementById('gsOv'); if(ov) ov.classList.remove('open'); GS.busy = false; }
-function gsPatient(){ return getPatient(GS.pid); }
-// "만 5세 3개월" · "36개월" · "7세" 처럼 나이만 적힌 줄은 생년월일로 날짜를 어림합니다(확인 필요 표시).
-function gsDateFromAge(ageText, dob){
-  if(!ageText || !/^\d{4}-\d{2}-\d{2}$/.test(dob||'')) return '';
-  const t = String(ageText); let mo = null;
-  const y = t.match(/(\d{1,2})\s*(?:세|살)/), m = t.match(/(\d{1,3})\s*개월/);
-  if(y) mo = Number(y[1]) * 12 + (m ? Number(m[1]) : 0); else if(m) mo = Number(m[1]);
-  if(mo == null || mo < 0 || mo > 240) return '';
-  const d = new Date(dob + 'T00:00:00'); d.setMonth(d.getMonth() + mo);
-  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-}
-function gsRowFromAi(r, p){
-  const row = { on:false, date: r.date || '', height: r.height == null ? '' : r.height, weight: r.weight == null ? '' : r.weight, sure: r.sure !== false, note: r.note || '', ageText: r.ageText || '' };
-  if(!row.date && row.ageText){ const d = gsDateFromAge(row.ageText, p && p.dob); if(d){ row.date = d; row.sure = false; row.note = (row.note ? row.note + ' · ' : '') + '날짜는 나이(' + row.ageText + ')로 어림'; } }
-  return row;
-}
-// 한 줄씩 점검: 넣을 수 없는 이유(bad)와 주의할 점(warn), 이미 있는 기록(ex)
-function gsCheck(row, i, rows, p){
-  const out = { bad:'', warn:[], ex:null };
-  const h = row.height === '' ? null : Number(row.height), w = row.weight === '' ? null : Number(row.weight);
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(row.date||'') || isNaN(new Date(row.date + 'T00:00:00'))) out.bad = '날짜를 넣어 주세요';
-  else if(row.date > todayStr()) out.bad = '오늘보다 뒤 날짜';
-  else if(p && p.dob && row.date < p.dob) out.bad = '생일보다 앞 날짜';
-  if(!out.bad && h == null && w == null) out.bad = '키·몸무게가 없어요';
-  if(h != null && (isNaN(h) || h < 40 || h > 210)) out.bad = out.bad || '키 값 확인(40~210cm)';
-  if(w != null && (isNaN(w) || w < 2 || w > 200)) out.bad = out.bad || '몸무게 값 확인(2~200kg)';
-  if(!row.sure) out.warn.push('AI가 확신하지 못함');
-  if(row.note) out.warn.push(row.note);
-  if(!out.bad){
-    const prev = rows.filter((x, j)=> j !== i && x.date && x.date < row.date && x.height !== '' && !isNaN(Number(x.height))).sort((a,b)=> a.date < b.date ? 1 : -1)[0];
-    if(prev && h != null && h < Number(prev.height) - 0.5) out.warn.push('앞 날짜(' + prev.date + ' ' + prev.height + 'cm)보다 키가 작아요');
-    if(prev && h != null){ const yrs = (new Date(row.date) - new Date(prev.date)) / (365.25 * 86400000); if(yrs > 0.2 && (h - Number(prev.height)) / yrs > 15) out.warn.push('앞 기록보다 너무 많이 컸어요(연 ' + Math.round((h - Number(prev.height)) / yrs) + 'cm)'); }
-    if(rows.some((x, j)=> j !== i && x.date === row.date)) out.warn.push('같은 날짜 줄이 또 있어요');
-    const ex = p && (p.records||[]).find(x=>x.date === row.date);
-    if(ex && (ex.height || ex.weight)) out.ex = ex;
-  }
-  return out;
-}
-function gsRender(){
-  const box = document.getElementById('gsBox'); if(!box) return;
-  const p = gsPatient(), rows = GS.rows, narrow = window.innerWidth < 760;
-  const n = rows.filter((r,i)=> r.on && !gsCheck(r, i, rows, p).bad).length;
-  const head = `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;">
-      <h3 style="font-size:16px;font-weight:800;">🤖 성장기록지 읽기 — ${escapeHtml((p && p.name) || '')} <span style="font-size:11px;font-weight:600;color:var(--secondary);">초안 · 확인한 줄만 기록됩니다</span></h3>
-      <button onclick="gsClose()" style="background:none;border:none;font-size:20px;color:var(--secondary);">✕</button></div>`;
-  const pic = GS.img ? `<img src="${GS.img}" alt="성장기록지" onclick="openLightbox('${fileUrl(GS.fileId,'w2000')}')" style="width:100%;max-height:${narrow ? '34vh' : '76vh'};object-fit:contain;background:#fff;border-radius:10px;border:1px solid var(--border);cursor:zoom-in;">
-      <div style="font-size:11px;color:var(--secondary);margin-top:4px;">사진을 누르면 크게 볼 수 있어요.</div>` : `<div style="padding:30px;text-align:center;color:var(--secondary);font-size:13px;">사진 불러오는 중…</div>`;
-  const msg = (GS.err ? `<div style="background:#FDECEC;border:1px solid #F3B4B4;border-radius:8px;padding:8px 10px;font-size:12px;margin-bottom:8px;">❌ ${escapeHtml(GS.err)}</div>` : '')
-    + (GS.info ? `<div style="background:#FFF6E5;border:1px solid #F0D49A;border-radius:8px;padding:8px 10px;font-size:12px;margin-bottom:8px;">${escapeHtml(GS.info)}</div>` : '')
-    + (GS.busy ? `<div style="padding:10px;font-size:13px;color:var(--secondary);">🤖 AI가 사진을 읽는 중… (10~30초)</div>` : '')
-    + ((GS.kind || GS.memo) && !GS.busy ? `<div style="font-size:12px;color:var(--secondary);margin-bottom:6px;">${GS.kind ? '종류: <b>' + escapeHtml(GS.kind) + '</b>' : ''}${GS.memo ? ' · ' + escapeHtml(GS.memo) : ''}</div>` : '');
-  const inp = 'border:1px solid var(--border);border-radius:6px;padding:6px;font-size:13px;box-sizing:border-box;';
-  const trs = rows.map((r, i)=>{
-    const c = gsCheck(r, i, rows, p);
-    const tone = c.bad ? '#FDECEC' : (c.warn.length || c.ex) ? '#FFF9EA' : 'transparent';
-    const exTxt = c.ex ? `기록에 이미 있음: ${c.ex.height ? c.ex.height + 'cm' : '키 없음'} / ${c.ex.weight ? c.ex.weight + 'kg' : '몸무게 없음'} → 빈 칸만 채워요` : '';
-    const notes = [c.bad ? '⛔ ' + c.bad : ''].concat(c.warn.map(w=>'⚠️ ' + w)).concat(exTxt ? ['📌 ' + exTxt] : []).filter(Boolean);
-    return `<tr style="background:${tone};">
-      <td style="padding:4px;text-align:center;"><input type="checkbox" ${r.on && !c.bad ? 'checked' : ''} ${c.bad ? 'disabled' : ''} onchange="gsSet(${i},'on',this.checked)" style="width:20px;height:20px;"></td>
-      <td style="padding:4px;"><input type="date" value="${escapeHtml(r.date)}" onchange="gsSet(${i},'date',this.value)" style="${inp}width:140px;"></td>
-      <td style="padding:4px;"><input type="number" step="0.1" inputmode="decimal" value="${escapeHtml(String(r.height))}" onchange="gsSet(${i},'height',this.value)" style="${inp}width:76px;" placeholder="cm"></td>
-      <td style="padding:4px;"><input type="number" step="0.1" inputmode="decimal" value="${escapeHtml(String(r.weight))}" onchange="gsSet(${i},'weight',this.value)" style="${inp}width:76px;" placeholder="kg"></td>
-      <td style="padding:4px;"><button onclick="gsDel(${i})" title="이 줄 지우기" style="background:none;border:none;color:var(--secondary);font-size:15px;">✕</button></td>
-    </tr>${notes.length ? `<tr style="background:${tone};"><td></td><td colspan="4" style="padding:0 4px 6px;font-size:11px;line-height:1.5;color:${c.bad ? 'var(--danger)' : '#8A6100'};">${notes.map(escapeHtml).join('<br>')}</td></tr>` : ''}`;
-  }).join('');
-  const table = `<table style="width:100%;border-collapse:collapse;font-size:13px;">
-      <thead><tr style="font-size:11px;color:var(--secondary);text-align:left;"><th style="padding:4px;width:34px;">확인</th><th style="padding:4px;">측정일</th><th style="padding:4px;">키(cm)</th><th style="padding:4px;">몸무게(kg)</th><th></th></tr></thead>
-      <tbody>${trs || `<tr><td colspan="5" style="padding:14px;text-align:center;color:var(--secondary);font-size:12px;">${GS.busy ? '' : '읽은 줄이 없어요. 「＋ 줄 추가」로 사진을 보며 직접 적을 수 있어요.'}</td></tr>`}</tbody></table>`;
-  const tools = `<div style="display:flex;flex-wrap:wrap;gap:6px;margin:10px 0;">
-      <button class="btn btn-outline" style="font-size:12px;padding:6px 10px;" onclick="gsAdd()">＋ 줄 추가</button>
-      <button class="btn btn-outline" style="font-size:12px;padding:6px 10px;" onclick="gsTickClean()">주의 표시 없는 줄 모두 체크</button>
-      <button class="btn btn-outline" style="font-size:12px;padding:6px 10px;" onclick="gsRun(true)" ${GS.busy || !GS.img ? 'disabled' : ''}>🔄 AI로 다시 읽기</button></div>`;
-  const foot = `<div style="display:flex;gap:8px;justify-content:flex-end;align-items:center;margin-top:8px;flex-wrap:wrap;">
-      <span style="font-size:11px;color:var(--secondary);margin-right:auto;">사진과 값이 맞는지 본 줄만 체크해 주세요. 이미 있는 기록의 값은 바꾸지 않습니다.</span>
-      <button class="btn btn-outline" onclick="gsClose()">닫기</button>
-      <button class="btn btn-primary" id="gsApplyBtn" onclick="gsApply()" ${n ? '' : 'disabled'}>체크한 ${n}줄 기록에 넣기</button></div>`;
-  box.innerHTML = head + `<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;">
-      <div style="flex:1 1 320px;min-width:260px;max-width:100%;${narrow ? 'position:sticky;top:-16px;z-index:2;background:var(--light);padding-bottom:4px;' : 'position:sticky;top:0;'}">${pic}</div>
-      <div style="flex:1 1 380px;min-width:300px;">${msg}${table}${tools}</div></div>` + foot;
-}
-function gsSet(i, k, v){ const r = GS.rows[i]; if(!r) return; if(k === 'on') r.on = !!v; else { r[k] = v; if(k === 'date' || k === 'height' || k === 'weight'){ r.sure = true; r.note = ''; r.on = false; } } gsKeep(); gsRender(); }
-function gsDel(i){ GS.rows.splice(i, 1); gsKeep(); gsRender(); }
-function gsAdd(){ GS.rows.push({ on:false, date:'', height:'', weight:'', sure:true, note:'', ageText:'' }); gsRender(); }
-function gsTickClean(){ const p = gsPatient(); GS.rows.forEach((r, i)=>{ const c = gsCheck(r, i, GS.rows, p); if(!c.bad && !c.warn.length) r.on = true; }); gsRender(); }
-// 초안을 환아 기록 옆에 보관(다시 열어도 AI를 또 부르지 않게). 체크 표시는 보관하지 않습니다 — 열 때마다 다시 확인.
-function gsKeep(){
-  const p = gsPatient(); if(!p || !GS.rowId) return;
-  if(!p.gsDraft) p.gsDraft = {};
-  p.gsDraft[GS.rowId] = { at: Date.now(), kind: GS.kind, memo: GS.memo, rows: GS.rows.map(r=>({ date:r.date, height:r.height, weight:r.weight, sure:r.sure, note:r.note, ageText:r.ageText })) };
-  p.updatedAt = new Date().toISOString(); savePatients();
-}
-function gsShrink(dataUrl){
-  return new Promise((ok, no)=>{
-    const im = new Image();
-    im.onload = ()=>{ const sc = Math.min(1, 1600 / Math.max(im.naturalWidth, im.naturalHeight)); const cv = document.createElement('canvas'); cv.width = Math.round(im.naturalWidth * sc); cv.height = Math.round(im.naturalHeight * sc); cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height); ok({ data: cv.toDataURL('image/jpeg', 0.9).split(',')[1], mediaType: 'image/jpeg' }); };
-    im.onerror = ()=> no(new Error('사진 형식을 열 수 없어요(PDF는 아직 읽지 못해요)'));
-    im.src = dataUrl;
-  });
-}
-async function gsReadOpen(rowId, fileId){
-  const p = getPatient(currentPatientId); if(!p) return;
-  Object.assign(GS, { rowId, fileId, pid: p.id, rows: [], busy: false, img: '', memo: '', kind: '', err: '', info: '' });
-  const saved = p.gsDraft && p.gsDraft[rowId];
-  if(saved){ GS.rows = (saved.rows||[]).map(r=>Object.assign({ on:false }, r)); GS.memo = saved.memo || ''; GS.kind = saved.kind || ''; }
-  gsOv().classList.add('open'); gsRender();
-  try{ GS.img = await resolveFileUrl(fileUrl(fileId, 'w1600')); }
-  catch(e){ GS.err = '사진을 불러오지 못했어요: ' + (e.message || e); gsRender(); return; }
-  if(GS.rowId !== rowId) return;
-  gsRender();
-  if(!saved) await gsRun(false);
-}
-async function gsRun(again){
-  const p = gsPatient(), rowId = GS.rowId; if(!p || !GS.img || GS.busy) return;
-  if(again && GS.rows.length && !confirm('지금 표의 내용을 지우고 AI로 다시 읽을까요?')) return;
-  GS.busy = true; GS.err = ''; GS.info = ''; gsRender();
-  try{
-    const caps = await serverCaps();
-    if(!caps.readgrowthsheet){ GS.info = 'AI 읽기는 서버(Security.gs)를 새 버전으로 배포한 뒤에 쓸 수 있어요. 지금은 「＋ 줄 추가」로 사진을 보며 직접 적어 넣을 수 있습니다.'; return; }
-    const small = await gsShrink(GS.img);
-    const d = await bqPost({ action:'readgrowthsheet', image: small.data, mediaType: small.mediaType, dob: /^\d{4}-\d{2}-\d{2}$/.test(p.dob||'') ? p.dob : '', today: todayStr() });
-    if(GS.rowId !== rowId) return;
-    if(!d || d.status !== 'ok' || !Array.isArray(d.rows)){
-      if(d && d.code === 'nokey') GS.info = (d.message || 'AI 키가 없어요.') + ' 지금은 「＋ 줄 추가」로 직접 적어 넣을 수 있습니다.';
-      else GS.err = (d && d.message) || 'AI가 읽지 못했어요. 다시 시도해 주세요.';
-      return;
-    }
-    GS.kind = d.kind || ''; GS.memo = d.memo || '';
-    GS.rows = d.rows.map(r=>gsRowFromAi(r, p)).sort((a,b)=> (a.date||'9') < (b.date||'9') ? -1 : 1);
-    if(!GS.rows.length) GS.info = '사진에서 키·몸무게 기록을 찾지 못했어요.' + (GS.memo ? ' (' + GS.memo + ')' : '');
-    gsKeep();
-  }catch(e){ GS.err = 'AI 읽기에 실패했어요: ' + (e.message || e); }
-  finally{ if(GS.rowId === rowId){ GS.busy = false; gsRender(); } }
-}
-function gsApply(){
-  const p = gsPatient(); if(!p) return;
-  const rows = GS.rows, picked = rows.filter((r, i)=> r.on && !gsCheck(r, i, rows, p).bad);
-  if(!picked.length) return;
-  if(!p.records) p.records = [];
-  let added = 0, filled = 0, kept = 0;
-  picked.forEach(r=>{
-    const h = r.height === '' ? null : Math.round(Number(r.height) * 10) / 10, w = r.weight === '' ? null : Math.round(Number(r.weight) * 10) / 10;
-    const ex = p.records.find(x=>x.date === r.date);
-    if(ex){
-      let ch = false;
-      if(h != null){ if(ex.height == null || ex.height === '') { ex.height = h; ch = true; } else if(Number(ex.height) !== h) kept++; }
-      if(w != null){ if(ex.weight == null || ex.weight === '') { ex.weight = w; ch = true; } else if(Number(ex.weight) !== w) kept++; }
-      if(ch) filled++;
-    }else{
-      const rec = { id: uid(), date: r.date, callDone: false, fromSheet: true };
-      if(h != null) rec.height = h; if(w != null) rec.weight = w;
-      p.records.push(rec); added++;
-    }
-  });
-  GS.rows = rows.filter(r=> picked.indexOf(r) < 0);
-  if(!p.appliedInboxIds) p.appliedInboxIds = [];
-  if(!p.appliedInboxIds.includes(GS.rowId)) p.appliedInboxIds.push(GS.rowId);
-  if(!p.gsDraft) p.gsDraft = {};
-  if(GS.rows.length) p.gsDraft[GS.rowId] = { at: Date.now(), kind: GS.kind, memo: GS.memo, rows: GS.rows.map(r=>({ date:r.date, height:r.height, weight:r.weight, sure:r.sure, note:r.note, ageText:r.ageText })) };
-  else delete p.gsDraft[GS.rowId];
-  p.updatedAt = new Date().toISOString(); savePatients();
-  gsClose();
-  try{ renderDetail(); }catch(e){}
-  alert(`성장기록지에서 ${added + filled}건을 기록에 넣었어요.` + (added ? `\n· 새 날짜 ${added}건` : '') + (filled ? `\n· 기존 기록의 빈 칸 채움 ${filled}건` : '') + (kept ? `\n· 이미 값이 있어 그대로 둔 칸 ${kept}개` : ''));
 }
 function fvCur(){ return getPatient(currentPatientId); }
 async function fvDownloadReport(){
@@ -10945,7 +10865,7 @@ async function bqFileText(f){
       if(ai && ai.rows){ return { text: '', pre: { rows: ai.rows, cancelled: ai.cancelled, skipped: [] } }; }
       bqSay('AI 읽기를 쓸 수 없어 글자 인식으로 대신해요 (' + ((ai && ai.fail) || '') + ')', true);
     }catch(e){ bqSay('AI 읽기에 실패해 글자 인식으로 대신해요 (' + (e.message || e) + ')', true); }
-    if(typeof Tesseract === 'undefined') await bqLoadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js');
+    if(typeof Tesseract === 'undefined') await bqLoadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js');
     const r = await Tesseract.recognize(f, 'kor+eng');
     return { text: r.data.text || '', pre: null };
   }
@@ -11039,7 +10959,7 @@ function bqRenderPreview(skipped, cancelled, batchUsed){
   { const br = document.getElementById('bq_batchRow'); if(br) br.style.display = ((skipped || []).length ? 'flex' : 'none'); }   // 날짜를 못 읽은 줄이 있을 때만 이용일 칸을 보여줘요
   if(!bqParsed.length && bqCancelNos.length){ box.innerHTML = '<div style="font-size:12px;margin-bottom:6px;">새로 저장할 예약은 없고, <b>취소된 예약 ' + bqCancelNos.length + '건</b>을 읽었어요.</div><button type="button" class="btn btn-primary btn-block" onclick="bqApplyCancels()">대기열에서도 취소 처리</button>'; return; }
   if(!bqParsed.length){ box.innerHTML = '<div style="color:var(--danger);font-size:12px;">읽을 수 있는 예약을 찾지 못했어요. 이름·연락처·날짜가 같이 보이는지 확인하거나 「＋ 직접 추가」를 쓰세요.' + (skipped.length ? '<br>읽지 못한 줄: ' + escapeHtml(skipped.slice(0,3).join(' / ')) : '') + '</div>'; return; }
-  const inp = (id, v, ph, type, w) => `<input type="${type||'text'}" id="${id}" value="${escapeHtml(v||'')}" placeholder="${escapeHtml(ph||'')}" style="font-size:12px;padding:5px;width:${w||'100%'};min-width:0;">`;
+  const inp = (id, v, ph, type, w) => `<input type="${type||'text'}" id="${id}" value="${escapeHtml(v||'')}" placeholder="${ph||''}" style="font-size:12px;padding:5px;width:${w||'100%'};min-width:0;">`;
   box.innerHTML = '<div style="font-size:12px;margin-bottom:4px;"><b>' + bqParsed.length + '건</b>을 읽었어요. 맞는지 확인하고 고친 뒤 저장하세요.' + (cancelled ? ' (취소 ' + cancelled + '건은 뺐어요' + (bqCancelNos.length ? ' · 저장하면 대기열의 같은 예약번호도 취소 처리해요' : '') + ')' : '') + (skipped.length ? ' (읽지 못한 줄 ' + skipped.length + '개)' : '') + (batchUsed ? '<br><span style="color:var(--secondary);">날짜가 표에 없어서 위에서 고른 이용일(' + batchUsed.slice(5).replace('-', '/') + ')로 넣었어요.</span>' : '') + '</div>'
     + bqParsed.map((r, i) => `<div style="padding:6px 0;border-bottom:1px solid var(--border);"><label style="font-size:12px;"><input type="checkbox" id="bq_p_ok${i}" checked> ${i+1}번 예약</label>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:3px;">${inp('bq_p_name'+i, r.name, '예약자')}${inp('bq_p_phone'+i, r.phone, r.last4 ? '연락처(전체 번호 모르면 비워두세요 · 뒤 ' + r.last4 + ')' : '연락처')}${inp('bq_p_vis'+i, r.visitor, '방문자(아이) 이름')}<span></span>${inp('bq_p_date'+i, r.date, '', 'date')}${inp('bq_p_time'+i, r.time, '', 'time')}</div>${inp('bq_p_svc'+i, r.service, '상품(초진 등)')}</div>`).join('')
@@ -11633,7 +11553,6 @@ function nuSentLoad(){ try{ return JSON.parse(localStorage.getItem(nuSentKey())|
 function nuSentMark(k){ try{ const m = nuSentLoad(); m[k] = Date.now(); localStorage.setItem(nuSentKey(), JSON.stringify(m)); Object.keys(localStorage).forEach(x=>{ if(x.indexOf('nu_sent_')===0 && x!==nuSentKey()) localStorage.removeItem(x); }); }catch(e){} }
 function nuHideLoad(){ try{ return JSON.parse(localStorage.getItem('nu_hide')||'{}') || {}; }catch(e){ return {}; } }
 function nuHideAdd(r){ try{ const m = nuHideLoad(), lim = Date.now() - 30*86400000; Object.keys(m).forEach(k=>{ if(m[k] < lim) delete m[k]; }); m[r.k + '|' + r.date] = Date.now(); localStorage.setItem('nu_hide', JSON.stringify(m)); }catch(e){} }
-function nuHideDel(hk){ try{ const m = nuHideLoad(); if(hk === '*') Object.keys(m).forEach(k=>delete m[k]); else delete m[hk]; localStorage.setItem('nu_hide', JSON.stringify(m)); }catch(e){} }   // 직접 지운 아이를 다시 목록에 넣기
 function nuKey(phone, name){ const d = ucDg(phone); return d.length>=9 ? 'p'+d : 'n'+ucNm(name); }
 async function nuBuild(){
   const today = bqYmd(new Date()), sentToday = nuSentLoad();
@@ -11664,7 +11583,7 @@ async function nuBuild(){
     addRow({ k, name:r.name, guardian:'', phone:r.phone||'', last4:'', date:r.date, time:r.time||'', chart:r.chart||'', src:['EMR'], bqId:'', guided:g });
   });
   const hid = nuHideLoad();
-  for(let i = list.length - 1; i >= 0; i--){ if(hid[list[i].k + '|' + list[i].date]){ NU.excl.push({ name:list[i].name, guardian:list[i].guardian, date:list[i].date, time:list[i].time, why:'목록에서 직접 지움', hk:list[i].k + '|' + list[i].date }); list.splice(i, 1); } }
+  for(let i = list.length - 1; i >= 0; i--){ if(hid[list[i].k + '|' + list[i].date]){ NU.excl.push({ name:list[i].name, guardian:list[i].guardian, date:list[i].date, time:list[i].time, why:'목록에서 직접 지움' }); list.splice(i, 1); } }
   list.sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')));
   const old = {}; (NU.rows||[]).forEach(r=>{ old[r.k] = r.pick; });
   list.forEach(r=>{ r.pick = (r.k in old) ? old[r.k] : (!r.guided && !!ucDg(r.phone)); });
@@ -11689,7 +11608,7 @@ function nuRender(){
       <label style="font-size:12px;display:flex;gap:5px;align-items:center;"><input type="checkbox" data-nu="auto" ${nuAutoOn()?'checked':''}> 앱이 열려 있을 때 자동 발송 <span style="color:var(--secondary);">(기본 꺼짐)</span></label>
       <span style="font-size:11px;color:var(--secondary);">${NU.at ? '마지막 점검 ' + new Date(NU.at).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}) : ''}</span></div>`;
   const ex = (NU.excl||[]).slice().sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
-  const exH = ex.length ? `<details style="margin:6px 0;font-size:12px;"><summary style="cursor:pointer;color:var(--secondary);">제외된 예약 ${ex.length}명 — 왜 빠졌는지 보기</summary>${ex.some(x=>x.hk) ? `<button type="button" class="uc-act o" data-nu="undelall" style="margin:6px 0;font-size:12px;">↩ 직접 지운 ${ex.filter(x=>x.hk).length}명 모두 다시 넣기</button>` : ''}${ex.map(x=>`<div style="padding:3px 0;border-bottom:1px solid #eee;">${e(x.date.slice(5).replace('-','/'))} ${e(x.time)} <b>${e(x.name||'')}</b>${x.guardian && x.guardian!==x.name ? ' <span style="color:var(--secondary);">보호자 '+e(x.guardian)+'</span>' : ''} → <span style="color:#8A5A00;">${e(x.why)}</span>${x.hk ? ` <button type="button" data-nu="undel" data-hk="${e(x.hk)}" style="border:1px solid var(--ok);background:#fff;color:var(--ok);border-radius:12px;padding:1px 9px;font-size:11.5px;font-weight:700;cursor:pointer;">↩ 다시 넣기</button>` : ''}</div>`).join('')}</details>` : '';
+  const exH = ex.length ? `<details style="margin:6px 0;font-size:12px;"><summary style="cursor:pointer;color:var(--secondary);">제외된 예약 ${ex.length}명 — 왜 빠졌는지 보기</summary>${ex.map(x=>`<div style="padding:3px 0;border-bottom:1px solid #eee;">${e(x.date.slice(5).replace('-','/'))} ${e(x.time)} <b>${e(x.name||'')}</b>${x.guardian && x.guardian!==x.name ? ' <span style="color:var(--secondary);">보호자 '+e(x.guardian)+'</span>' : ''} → <span style="color:#8A5A00;">${e(x.why)}</span></div>`).join('')}</details>` : '';
   if(!NU.rows.length){ box.innerHTML = `<div style="margin-bottom:14px;padding-bottom:12px;border-bottom:2px dashed #E3C98E;">${head}${exH}<div style="color:var(--ok);font-size:13px;padding:4px 0;">${NU.at ? '✅ 기록지를 안 쓴 예약 환자가 없어요.' : '아직 점검 전이에요. 「지금 다시 점검」을 눌러 주세요.'}</div></div>`; return; }
   const sendBar = `<div class="uc-bar" style="position:static;box-shadow:none;margin:6px 0;"><label style="font-size:12px;"><input type="checkbox" data-nu="all"${n&&n===NU.rows.filter(r=>ucDg(r.phone)).length?' checked':''}> 전체</label><span style="font-size:12px;color:var(--secondary);">${n}명 선택</span>
     <button type="button" class="uc-act" style="--c:#C2751A;flex:1;padding:11px;" data-nu="send"${(NU.busy||!n)?' disabled':''}>${NU.busy?'📤 보내는 중…':'📨 선택한 '+n+'명에게 기록지 작성 안내 문자 한 번에 보내기'}</button></div>`;
@@ -11762,10 +11681,6 @@ document.addEventListener('click', ev=>{
     NU.rows = NU.rows.filter(x=>x!==r); nuRender();
     ids.forEach(id=>{ bqPost({ action:'deletebooking', id:id }).catch(()=>{}); });
     if(ids.length) setTimeout(()=>{ try{ bqLoad(true); }catch(e){} }, 800);
-  }
-  else if(k==='undel' || k==='undelall'){
-    nuHideDel(k==='undelall' ? '*' : t.dataset.hk);
-    nuCheck(true);   // 다시 모아서 목록에 넣음
   }
   else if(k==='auto'){
     if(t.checked && !confirm('자동 발송을 켤까요?\n· 이 앱(원장·원무과 화면)이 열려 있는 동안, 기록지를 안 쓴 예약 환자에게 안내 문자를 자동으로 보냅니다.\n· 아이마다 하루에 한 번, 한 번에 최대 10명까지예요.\n· 앱을 닫으면 보내지 않아요.')){ t.checked = false; return; }
