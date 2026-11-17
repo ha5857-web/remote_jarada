@@ -2303,7 +2303,7 @@ function pmReceiptHtml(){
     st(3,'문자로 받은 코드 입력하기','코드는 한 번만 사용할 수 있어요.','코드 입력하러 가기',PM_RECEIPT.guideUrl)+
     '</details><p style="margin:8px 0 0;font-size:13px;color:var(--muted)">문의 02-523-0111</p></div>';
 }
-/* ▶️ 사용법 안내 영상 — 카드 QR을 찍은 보호자 휴대폰 화면에 항상 붙습니다(이미 인쇄한 카드의 QR은 그대로 두고 화면만 바뀜) */
+/* ▶️ 사용법 안내 영상 — 카드 QR을 찍은 보호자 휴대폰 화면에 항상 붙습니다 */
 const PM_MANUAL_URL='https://jaradacare.com/app.html#manual';
 function pmManualHtml(){
   return `<a class=\"pm-man\" href=\"${PM_MANUAL_URL}\" target=\"_blank\" rel=\"noopener\"><div class=\"i\">▶️</div><div><b>사용법 안내 영상</b><span>자라다 케어 사용법을 영상으로 확인하세요</span></div><div class=\"ar\">›</div></a>`;
@@ -3812,6 +3812,9 @@ async function runFor(id,text,useAI,opt){
     g.post={summary:pick('summary',draft.summary),labs:pick('labs',draft.labs),xray:pick('xray',draft.xray),direction:pick('direction',draft.direction),
       exercise:pick('exercise',fvLifestyleDraft('exercise',shim)),nutrition:pick('nutrition',fvLifestyleDraft('nutrition',shim)),sleep:pick('sleep',fvLifestyleDraft('sleep',shim)),
       nextDate:draft.nextDate||'',tests:draft.tests||[],videos:pickVideos(add.text||text,v.vids)};
+    /* 혈액검사는 차트(#Lab)에 결과가 있을 때만 적습니다. index에서 EMR 업로드로 만든 초안(old.from==='index')이 있으면 그 검사 내용을 기준으로 삼아요 */
+    if(!String(add.labs||'').trim()){ if(g.post.labs)warn=(warn?warn+' · ':'')+'차트에 혈액검사 결과가 없어 혈액검사 칸을 비웠어요'; g.post.labs=''; }
+    if(old.from==='index'&&old.post){ if(String(old.post.labs||'').trim())g.post.labs=String(old.post.labs).trim(); if(String(old.post.xray||'').trim()&&!String(g.post.xray||'').trim())g.post.xray=String(old.post.xray).trim(); }
     g.reviewed=false;g.reviewedAt=null;g.printedAt=null;g.ai=!!A;
     DIFF[id]=(g.src==='today'&&(pre||oldPost))?{lines:pre?nl:null,oldPost:oldPost,oldSrc:old.src||''}:null;
     var vv=S.items.get(id);if(!vv)return false;
