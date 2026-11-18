@@ -411,6 +411,12 @@
 .gr-wrap{width:min(794px,100%);overflow:hidden;background:#e9eef1}
 .gr-inner{width:794px;display:flex;flex-direction:column;gap:14px;transform-origin:0 0}
 .gr-inner .rp{box-shadow:0 1px 6px rgba(0,0,0,.15)}
+
+/* 해외 환자 새 제출(질문·키 등록) 눈에 띄게 */
+.patient-card.new-item{border-left:4px solid var(--danger);background:#FFF3F0}
+.patient-card.recent-item{border-left:4px solid #F5A623;background:#FFF9EE}
+.new-tag{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;background:var(--danger);color:#fff;font-size:10px;font-weight:800;vertical-align:middle;letter-spacing:.3px}
+.new-tag.recent-tag{background:#F5A623}
 </style>
 </head>
 <body>
@@ -632,6 +638,8 @@
       <button type="button" class="btn ge-nav" id="ge_skip" onclick="guideEditGo(1)" aria-label="다음 아이">›</button>
     </div>
     <div id="ge_saved" class="ge-saved"></div>
+    <button class="btn btn-block" id="ge_complete" onclick="guideCompleteSend()" style="margin-top:8px;background:#1E7B3A;border-color:#1E7B3A;color:#fff;">✅ 저장 · 성장 리포트 완성 · 환자에게 PDF 보내기</button>
+    <div id="ge_completeNote" style="font-size:11px;color:var(--secondary);margin-top:6px;line-height:1.5;"></div>
   </div>
 </div>
 
@@ -2490,7 +2498,17 @@ function setCountBadge(el, n){
 }
 // 대시보드의 "진료 리마인더 승인 대기 / 키·몸무게 확인 대기 / 답변 대기 질문" 3개 섹션을
 // 평소엔 접어두고, 제목을 누르면 펼쳤다 접었다 할 수 있게 합니다.
+var dashTouched = new Set(); // 직접 접거나 펼친 섹션은 자동으로 다시 펼치지 않음
+function freshness(ts){ const t = new Date(ts).getTime(); if(isNaN(t)) return ''; const h = (Date.now()-t)/36e5; return h<24 ? 'new' : h<72 ? 'recent' : ''; }
+function freshTag(f){ return f==='new' ? '<span class="new-tag">NEW</span>' : f==='recent' ? '<span class="new-tag recent-tag">최근</span>' : ''; }
+function autoOpenDash(key, n){
+  if(!(n>0) || dashTouched.has(key)) return;
+  const body = document.getElementById(key+'List'), chevron = document.getElementById(key+'Chevron');
+  if(body) body.style.display = 'block';
+  if(chevron) chevron.textContent = '▾';
+}
 function toggleDashSection(key){
+  dashTouched.add(key);
   const body = document.getElementById(key+'List');
   const chevron = document.getElementById(key+'Chevron');
   if(!body) return;
@@ -2515,14 +2533,16 @@ async function renderPendingQuestions(){
       if(!p) return false;
       const dismissed = new Set(p.dismissedInboxIds||[]);
       return !dismissed.has(r.id);
-    }).sort((a,b)=> a.timestamp < b.timestamp ? -1 : 1); // 오래된 질문이 위로
+    }).sort((a,b)=> a.timestamp < b.timestamp ? 1 : -1); // 최근 질문이 위로
     setCountBadge(countEl, visible.length);
+    autoOpenDash('pendingQ', visible.length);
     if(!visible.length){ list.innerHTML = `<div class="empty-note">답변 대기 중인 질문이 없습니다.</div>`; return; }
     list.innerHTML = visible.map(r=>{
       const p = patients.find(pp=>pp.accessCode===r.pid);
-      return `<div class="patient-card" onclick="goToQuestionReply('${p.id}','${r.id}')">
+      const fr = freshness(r.timestamp);
+      return `<div class="patient-card${fr?' '+fr+'-item':''}" onclick="goToQuestionReply('${p.id}','${r.id}')">
         <div>
-          <div class="name-row"><span class="name">${escapeHtml(p.name)}</span><span style="font-size:10px;color:var(--danger);font-weight:700;margin-left:6px;">${timeAgo(r.timestamp)}</span></div>
+          <div class="name-row"><span class="name">${escapeHtml(p.name)}</span><span style="font-size:10px;color:var(--danger);font-weight:700;margin-left:6px;">${timeAgo(r.timestamp)}</span>${freshTag(fr)}</div>
           <div class="sub" style="white-space:pre-wrap;">${escapeHtml((r.question||'').slice(0,60))}${(r.question||'').length>60?'…':''}</div>
         </div>
         <div class="arrow">›</div>
@@ -2654,15 +2674,17 @@ async function renderPendingMeasurements(){
       const dismissed = new Set(p.dismissedInboxIds||[]);
       if(dismissed.has(r.id)) return false;
       return !(p.appliedInboxIds||[]).includes(r.id);
-    }).sort((a,b)=> a.timestamp < b.timestamp ? -1 : 1);
+    }).sort((a,b)=> a.timestamp < b.timestamp ? 1 : -1); // 최근 제출이 위로
     setCountBadge(countEl, pending.length);
+    autoOpenDash('pendingMeasure', pending.length);
     if(!pending.length){ list.innerHTML = `<div class="empty-note">확인 대기 중인 키/몸무게 기록이 없습니다. (해외 환자만 표시됩니다)</div>`; return; }
     list.innerHTML = pending.map(r=>{
       const p = patients.find(pp=>pp.accessCode===r.pid);
       const vals = [r.height?`키 ${r.height}cm`:'', r.weight?`몸무게 ${r.weight}kg`:''].filter(Boolean).join(' · ');
-      return `<div class="patient-card" onclick="goToInboxMeasurement('${p.id}','${r.id}')">
+      const fr = freshness(r.timestamp);
+      return `<div class="patient-card${fr?' '+fr+'-item':''}" onclick="goToInboxMeasurement('${p.id}','${r.id}')">
         <div>
-          <div class="name-row"><span class="name">${escapeHtml(p.name)}</span><span style="font-size:10px;color:var(--secondary);font-weight:700;margin-left:6px;">${timeAgo(r.timestamp)}</span></div>
+          <div class="name-row"><span class="name">${escapeHtml(p.name)}</span><span style="font-size:10px;color:var(--secondary);font-weight:700;margin-left:6px;">${timeAgo(r.timestamp)}</span>${freshTag(fr)}</div>
           <div class="sub">${escapeHtml(vals)} · ${fmtDate(r.date)}</div>
           ${r.height ? `<div class="mack-ctx">${escapeHtml(mackContext(p, r))}</div>` : ''}
           ${mackChips(p.id, r)}
@@ -3636,7 +3658,7 @@ async function fvGuideBuild(p, chartText, baseline){
     try{
       const res = await fetch(getApiUrl(), { method:'POST', body: JSON.stringify({
         action:'generatefirstvisitchart', kind, compare: fvGuideCompare(p), name:p.name, gender: p.sex==='M'?'남':'여', ageText: calcAge(p.dob),
-        chart: add.parts.chart, plan: add.plan, labs: labsIn, extra: add.extra, added: add.text, intake: kind==='first' ? String(baseline||p.notes||'').slice(0,3000) : ''
+        chart: add.parts.chart, plan: add.plan, labs: labsIn, labsDone: !!String(labsIn||'').trim(), extra: add.extra, added: add.text, intake: kind==='first' ? String(baseline||p.notes||'').slice(0,3000) : ''
       })});
       const data = await res.json();
       if(data && data.via === 'jarada-codegs' && data.status === 'ok' && data.data) ai = data.data;
@@ -3650,6 +3672,8 @@ async function fvGuideBuild(p, chartText, baseline){
     exercise: pick('exercise', fvLifestyleDraft('exercise', shim)), nutrition: pick('nutrition', fvLifestyleDraft('nutrition', shim)), sleep: pick('sleep', fvLifestyleDraft('sleep', shim)),
     videos: []
   };
+  // 차트(#Lab)에 결과가 없으면 혈액검사를 하지 않은 것 — AI가 적었더라도 비웁니다
+  if(!String(labsIn||'').trim()){ if(post.labs){ warn = [warn, '차트에 혈액검사 결과가 없어 혈액검사 칸을 비웠어요'].filter(Boolean).join(' · '); } post.labs = ''; }
   try{
     const preNos = ((p.firstVisit && p.firstVisit.preVideos) || []).map(v=>v.no);
     let vids = JRDV.postVideos(add.text || text, '', p.sex, preNos).videos.slice();
@@ -3678,6 +3702,8 @@ async function fvGuideGenerateAll(targets){
       if(r.skip){ skipped.push(p.name); continue; }
       p.guideDraft = { date: todayStr(), kind: r.kind, post: r.post, count: r.count, ai: r.ai, warn: r.warn, generatedAt: new Date().toISOString(), sentAt: '' };
       p.pendingGuideSend = true; p.updatedAt = new Date().toISOString();
+      try{ rvAdoptDraft(p); }catch(e){}
+      try{ if(fvGuideIsFirst(p)) rvPushFlow(p, { draft:true, reset:true }); }catch(e){}
       savePatients(); renderBatchSendBar(); renderPatientList();
       made.push(p.name);
     }catch(e){ failed.push(p.name); }
@@ -3807,6 +3833,7 @@ function geAutosize(e){ if(!e || e.tagName!=='TEXTAREA') return; e.style.height 
 function guideEditGo(d, ok){
   const p = getPatient(guideEditId);
   guideEditPersist();
+  geSyncFlow(p);
   if(ok && p && p.guideDraft){ p.guideDraft.okAt = Date.now(); p.updatedAt = new Date().toISOString(); savePatients(); }
   const q = guideQueueIds(), i = q.indexOf(guideEditId);
   let nx = null;
@@ -3847,14 +3874,69 @@ function guideEdit(id){
   document.querySelectorAll('#guideEditOv textarea').forEach(t=>{ if(!t.dataset.rows) t.dataset.rows = t.getAttribute('rows') || '3'; t.setAttribute('rows', mob ? '1' : t.dataset.rows); if(!mob) t.style.height = ''; t.placeholder = mob ? '(비어 있음 — 눌러서 쓰기)' : ''; });
   geEmrRender();
   setTimeout(()=>{ if(mob) document.querySelectorAll('#guideEditOv textarea').forEach(geAutosize); }, 30);
-  document.getElementById('ge_title').textContent = `📋 ${p.name||''} · ${fvGuideIsFirst(p) ? '초진' : '재진'} 진료 후 안내 초안`;
+  document.getElementById('ge_title').innerHTML = `📋 ${escapeHtml(p.name||'')}${(()=>{ const c = String(p.chartNo||'').trim(); return c ? ` <span role="button" data-chart="${escapeHtml(c)}" onclick="copyChartNo(this.dataset.chart, this)" title="누르면 등록번호가 복사돼요" style="cursor:pointer;display:inline-block;font-size:14px;font-weight:800;padding:2px 10px;margin:0 2px;border-radius:10px;background:#F3ECFA;color:#6B3FA0;border:1px solid #E1D2F0;vertical-align:middle;">${escapeHtml(c)}</span>` : ' <span style="font-size:12px;font-weight:600;color:var(--secondary);">(등록번호 없음)</span>'; })()} · ${fvGuideIsFirst(p) ? '초진' : '재진'} 진료 후 안내 초안`;
   const g = p.guideDraft;
   document.getElementById('ge_info').textContent = (g.ai ? 'AI가 이전 차트와 비교해 정리한 초안이에요.' : 'AI 없이 차트 표기로 정리한 초안이에요.') + (g.count ? ` 새로 추가된 ${g.count}줄을 근거로 썼어요.` : '') + (g.warn ? ' ※ ' + g.warn : '') + ' 꼭 읽어보고 고친 뒤 보내세요.';
+  const _cb = document.getElementById('ge_complete'), _cn = document.getElementById('ge_completeNote');
+  if(_cb){ _cb.style.display = fvGuideIsFirst(p) ? '' : 'none'; }
+  if(_cn){ _cn.textContent = fvGuideIsFirst(p) ? '누르면 ① 환자 앱 초진방에 진료 후 안내가 올라가고 ② 성장 리포트 PDF가 만들어져 환자가 받을 수 있고 ③ flow 인쇄 대상으로 넘어가요.' : '재진 환자는 환자 앱에 PDF를 올리는 자리가 아직 없어서, 위 「저장」만 쓸 수 있어요.'; }
   openModal('guideEditOv');
 }
 function guideEditSave(){
+  const p = getPatient(guideEditId);
   if(guideEditId) guideEditPersist();
   closeModal('guideEditOv'); guideEditId = null; renderBatchSendBar();
+  geSyncFlow(p);
+}
+/* 진료 후 안내 초안을 저장할 때 flow 리포트(초진=초안, 재진=초안에서 온 경과 기록)도 함께 맞춥니다 */
+function geSyncFlow(p){
+  if(!p || !p.guideDraft) return;
+  try{
+    if(fvGuideIsFirst(p)) rvPushFlow(p, { draft:true, reset:true });
+    else if(!p.firstVisit && p.rvNote && p.rvNote.fromDraft && !p.rvNote.editedAt){ p.rvNote.post = Object.assign({}, p.guideDraft.post); savePatientsLocalOnly(); rvPushFlow(p, { reset:true }); }
+  }catch(e){}
+}
+async function guideCompleteSend(){
+  const p = getPatient(guideEditId); if(!p || !p.guideDraft) return;
+  if(!fvGuideIsFirst(p)){ alert('재진 환자는 환자 앱에 PDF를 올리는 자리가 아직 없어요. 「저장」만 눌러 주세요.'); return; }
+  if(!getApiUrl()){ alert('연동 설정에서 백엔드 URL을 먼저 입력해주세요.'); return; }
+  const notify = !!p.phone;
+  if(!confirm(p.name + ' — 진료 후 안내를 확정할까요?\n· 환자 앱 초진방에 진료 후 안내가 올라가요\n· 성장 리포트 PDF가 만들어져 환자가 받을 수 있어요\n· flow 인쇄 대상으로 넘어가요' + (notify ? '\n· 카카오 알림톡으로 확인 안내도 가요' : '\n(연락처가 없어 알림톡은 건너뛰어요)') + '\n\n내용을 읽어보고 고치셨는지 한 번 더 확인해 주세요.')) return;
+  // 1) 입력칸 저장
+  const g = k => (document.getElementById('ge_'+k)||{value:''}).value.trim();
+  const po0 = p.guideDraft.post || {};
+  ['summary','labs','xray','direction','nextDate','exercise','nutrition','sleep'].forEach(k=>{ po0[k] = g(k); });
+  p.guideDraft.post = po0; p.guideDraft.edited = true; p.updatedAt = new Date().toISOString(); savePatients();
+  const btn = document.getElementById('ge_complete'), note = document.getElementById('ge_completeNote');
+  const say = (t, bad)=>{ if(note){ note.textContent = t; note.style.color = bad ? 'var(--danger)' : 'var(--secondary)'; } };
+  if(btn) btn.disabled = true;
+  try{
+    const po = Object.assign({}, po0), iso = new Date().toISOString();
+    const snap = p.firstVisit ? JSON.stringify(p.firstVisit) : null;
+    // 2) 초진방 본문
+    say('① 환자 앱 초진방에 올리는 중…');
+    if(!p.firstVisit) p.firstVisit = { status:'post', visitDate: (p.firstFlag && p.firstFlag.date) || todayStr(), intakeAt: iso, preVideos: [], prep: '', registeredBy:'의사(진료 후 안내 확정)' };
+    p.firstVisit.status = 'post';
+    p.firstVisit.post = Object.assign({}, po, { sentAt: iso });
+    p.firstVisit.post.sentSig = fvPostSig(p.firstVisit.post);
+    fvGuideApplyNext(p, po);
+    const posted = await fvPushToPatientApp(p);
+    if(!posted){ p.firstVisit = snap ? JSON.parse(snap) : undefined; if(!snap) delete p.firstVisit; say('❌ 초진방에 올리지 못했어요. 인터넷과 연동 설정을 확인해 주세요.', true); return; }
+    p.pendingFvLinkSend = false; p.guideDraft.sentAt = iso; p.pendingGuideSend = false; savePatients();
+    // 3) 성장 리포트 PDF → 환자 앱
+    say('② 성장 리포트 PDF를 만들어 올리는 중… (몇 초 걸려요)');
+    const pdfOk = await fvSendReport(p);
+    // 4) flow 인쇄 대상
+    say('③ flow 인쇄 대상으로 넘기는 중…');
+    try{ await rvPushFlow(p, { manual:false, reviewed:true, fv:true }); }catch(e){}
+    // 5) 알림톡
+    let alim = '';
+    if(notify){ let a = false; try{ a = await fvSendInviteAlimtalk(p); }catch(e){} alim = a ? ' · 알림톡 발송' : ' · ⚠️ 알림톡 실패'; }
+    renderBatchSendBar(); renderPatientList();
+    if(pdfOk){ say('✅ 완료 — 초진방 안내 + PDF 업로드 + flow 인쇄 대기' + alim); setTimeout(()=>closeModal('guideEditOv'), 1800); }
+    else { say('⚠️ 초진방 안내는 올라갔지만 PDF는 올리지 못했어요: ' + (window.fvLastReportMsg || '생년월일·키·몸무게 기록을 확인해 주세요') + alim, true); }
+  }catch(e){ say('❌ ' + (e.message || '처리하지 못했어요'), true); }
+  finally{ if(btn) btn.disabled = false; }
 }
 // 서버에 쌓인 과거 네이버 예약 + 클라우드 환자 목록에서 "이미 내원한 적 있는 아이(이름|전화 뒤4자리)"를 받아옵니다. 실패해도 업로드는 그대로 진행돼요.
 let fvPastKeys = null;
@@ -8880,10 +8962,23 @@ function fvStepper(status){
   const idx = status==='done' ? 3 : status==='post' ? 2 : 1;
   return `<div style="display:flex;gap:4px;margin:6px 0 10px;">${steps.map((s,i)=>`<div style="flex:1;text-align:center;font-size:11px;font-weight:700;padding:5px 2px;border-radius:6px;${i<=idx?'background:var(--primary);color:#fff;':'background:var(--light);color:var(--secondary);'}">${i+1}. ${s[0]}</div>`).join('')}</div>`;
 }
+/* 오늘 만든 「진료 후 안내 초안」이 있으면 재진 리포트 칸을 자동으로 채우고 flow에도 올립니다 (이미 내용이 있으면 건드리지 않음) */
+function rvAdoptDraft(p){
+  try{
+    if(!p || p.firstVisit) return false;
+    const gd = p.guideDraft; if(!gd || gd.date!==todayStr() || !gd.post || !rvHasContent(gd.post)) return false;
+    const n = p.rvNote; if(n && n.date===todayStr() && rvHasContent(n.post)) return false;
+    p.rvNote = Object.assign({}, n || {}, { date: todayStr(), chart: (n && n.chart) || '', post: Object.assign({}, gd.post), fromDraft: true });
+    try{ savePatientsLocalOnly(); }catch(e){}
+    setTimeout(()=>{ try{ rvPushFlow(p, { reset:true }); }catch(e){} }, 300);
+    return true;
+  }catch(e){ return false; }
+}
 /* ---------- 재진 환자: 🤖 오늘 경과 기록 + 기록지 PDF (초진 환자와 같은 형식) ---------- */
 function rvRender(p){
   const box = document.getElementById('rvReportBox'); if(!box) return;
   if(!p || p.firstVisit){ box.style.display = 'none'; return; }       // 초진 환자는 위쪽 초진 카드를 씁니다
+  rvAdoptDraft(p);
   const n = p.rvNote || {}, po = n.post || {};
   const f = (id, label, val, rows)=> `<div class="field"><label>${label}</label><textarea id="${id}" rows="${rows||3}" oninput="rvSave()">${escapeHtml(val||'')}</textarea></div>`;
   box.style.display = 'block';
@@ -8982,12 +9077,12 @@ function rvRead(p){
   const g = id => { const e = document.getElementById(id); return e ? e.value : ''; };
   if(!document.getElementById('rv_summary')) return p.rvNote || {};
   const post = Object.assign({}, (p.rvNote && p.rvNote.post) || {}, { summary:g('rv_summary'), labs:g('rv_labs'), xray:g('rv_xray'), direction:g('rv_direction'), nextDate:g('rv_next'), exercise:g('rv_ex'), nutrition:g('rv_nu'), sleep:g('rv_sl') });
-  p.rvNote = { date: todayStr(), chart: g('rv_chart'), post };
+  p.rvNote = Object.assign({}, p.rvNote || {}, { date: todayStr(), chart: g('rv_chart'), post });
   return p.rvNote;
 }
 let rvT = null;
 let rvFT = null;
-function rvSave(){ clearTimeout(rvT); rvT = setTimeout(()=>{ const p = fvCur(); if(!p || p.firstVisit) return; rvRead(p); try{ savePatientsLocalOnly(); }catch(e){} clearTimeout(rvFT); rvFT = setTimeout(()=>{ const q = fvCur(); if(q && q === p && !q.firstVisit && rvHasContent((q.rvNote||{}).post)) rvPushFlow(q, {}); }, 1500); }, 500); }
+function rvSave(){ clearTimeout(rvT); rvT = setTimeout(()=>{ const p = fvCur(); if(!p || p.firstVisit) return; rvRead(p); p.rvNote.editedAt = Date.now(); try{ savePatientsLocalOnly(); }catch(e){} clearTimeout(rvFT); rvFT = setTimeout(()=>{ const q = fvCur(); if(q && q === p && !q.firstVisit && rvHasContent((q.rvNote||{}).post)) rvPushFlow(q, {}); }, 1500); }, 500); }
 /* ---- flow 연동: 오늘 flow에 있는 같은 환자의 「성장 리포트」로 내용을 보냅니다 (flow의 [성장 리포트] 탭에서 직원이 인쇄) ---- */
 function rvFlowSay(t, bad){ const e = document.getElementById('rv_flowStatus') || document.getElementById('fv_flowStatus'); if(e){ e.textContent = t; e.style.color = bad ? 'var(--danger)' : 'var(--ok)'; } }
 function rvRecsText(p){
@@ -9001,8 +9096,8 @@ function rvRecsText(p){
 async function rvPushFlow(p, o){
   o = o || {};
   if(!p) return;
-  if(p.firstVisit && !o.fv) return;                         // 초진은 「작성 완료」 버튼(fvComplete)에서만 보냅니다
-  const n = p.firstVisit ? { date: p.firstVisit.visitDate || todayStr(), post: p.firstVisit.post || {} } : rvRead(p), po = n.post || {};
+  if(p.firstVisit && !o.fv && !o.draft) return;             // 초진은 「작성 완료」 버튼(fvComplete)이나 진료 후 안내 초안(draft)에서만 보냅니다
+  const n = o.draft ? { date: todayStr(), post: (p.guideDraft && p.guideDraft.post) || {} } : (p.firstVisit ? { date: p.firstVisit.visitDate || todayStr(), post: p.firstVisit.post || {} } : rvRead(p)), po = n.post || {};
   if(!rvHasContent(po)){ if(o.manual) rvFlowSay('먼저 진료 후 내용을 입력하거나 🤖 AI로 정리해 주세요.', true); return; }
   if(!getApiUrl()){ if(o.manual) rvFlowSay('연동 설정의 백엔드 URL이 없어요.', true); return; }
   try{
@@ -9014,6 +9109,7 @@ async function rvPushFlow(p, o){
     if(!m.length){ const byName = cands.filter(v=>v.name===p.name); if(byName.length===1) m = byName; }
     if(m.length!==1){ rvFlowSay(m.length ? '오늘 flow에 같은 이름이 여러 명이라 보내지 못했어요. 차트번호를 확인해 주세요.' : '오늘 flow에 이 환자가 없어요. flow에 등록(예약 불러오기·환자 등록)한 뒤 다시 눌러 주세요.', true); return; }
     const v = m[0], old = v.gr || {};
+    if(o.draft && old.ready && (old.reviewed || old.from==='flow') && rvHasContent(old.post)){ rvFlowSay('flow에서 이미 쓰신 리포트가 있어 초안으로 덮어쓰지 않았어요.'); return; }
     const vids = (po.videos||[]).filter(x=>x && x.no).map(x=>({ no:x.no, title:x.title||'', question:x.question||'' }));
     const gr = Object.assign({}, old, {
       name: p.name||'', date: n.date || today,
@@ -9159,9 +9255,34 @@ function rvAutoFromFlow(visits){
   });
   return ch;
 }
+/* flow에서 원장이 쓰거나 고친 리포트(gr.from==='flow')를 재진 환자의 「오늘 경과 기록」으로 가져옵니다.
+   index에서 그 뒤에 직접 고친 내용이 있으면(editedAt) 덮어쓰지 않아요. */
+function rvPullFlow(visits){
+  let ch = false, curTouched = false; const cur = (typeof fvCur==='function') ? fvCur() : null;
+  patients.forEach(p=>{
+    if(!p || p.firstVisit) return;
+    const v = fvFlowFindVisit(p, visits); if(!v) return;
+    const g = v.gr; if(!g || g.from!=='flow' || !rvHasContent(g.post)) return;
+    const n = p.rvNote || {};
+    if((g.at||0) <= Math.max(n.flowAt||0, n.editedAt||0)) return;
+    const keys = ['summary','labs','xray','direction','exercise','nutrition','sleep','nextDate'];
+    const post = Object.assign({}, n.post || {});
+    keys.forEach(k=>{ post[k] = String(g.post[k]||''); });
+    if(Array.isArray(g.post.tests)) post.tests = g.post.tests.slice();
+    if(Array.isArray(g.post.videos)) post.videos = g.post.videos.slice();
+    p.rvNote = Object.assign({}, n, { date: todayStr(), chart: n.chart || '', post, flowAt: g.at||Date.now() });
+    p.updatedAt = new Date().toISOString(); ch = true; if(cur && cur===p) curTouched = true;
+  });
+  if(ch){
+    try{ savePatientsLocalOnly(); }catch(e){}
+    if(curTouched){ const a = document.activeElement; if(!(a && /^rv_/.test(a.id||''))){ try{ rvRender(cur); }catch(e){} } }
+  }
+  return ch;
+}
 function rvSyncFlow(visits){
   try{
     if(!Array.isArray(visits)) return; let ch = false;
+    try{ if(rvPullFlow(visits)) ch = true; }catch(e){}
     try{ if(rvAutoFromFlow(visits)) ch = true; }catch(e){}
     patients.forEach(p=>{
       const q = p.rvQ; if(!q || q.st!=='wait') return;
@@ -9268,7 +9389,9 @@ async function rvAI(){
   st.style.color = 'var(--secondary)'; st.textContent = '🤖 AI가 정리하는 중…';
   let r; try{ r = await fvGuideBuild(p, text, ''); }catch(e){ st.style.color = 'var(--danger)'; st.textContent = '❌ ' + (e.message || '정리하지 못했어요'); return; }
   if(!r || r.skip){ st.textContent = 'ℹ️ ' + ((r && r.skip) || '정리할 내용이 없어요'); return; }
-  p.rvNote = { date: todayStr(), chart: text, post: Object.assign({}, r.post) };
+  const gdp = (p.guideDraft && p.guideDraft.date===todayStr() && p.guideDraft.post) ? p.guideDraft.post : null;   // 오늘 EMR 업로드로 만든 초안 = 검사 사실의 기준
+  if(gdp){ r.post.labs = gdp.labs || ''; if(gdp.xray) r.post.xray = gdp.xray; }
+  p.rvNote = Object.assign({}, p.rvNote || {}, { date: todayStr(), chart: text, post: Object.assign({}, r.post), editedAt: Date.now() });
   try{ savePatientsLocalOnly(); }catch(e){}
   rvRender(p);
   rvPushFlow(p, { reset:true });
@@ -9691,18 +9814,18 @@ async function fvDownloadReport(){
   catch(e){ if(st){ st.textContent = '❌ ' + (e.message || 'PDF를 만들지 못했어요. 생년월일과 키·몸무게 기록을 확인해 주세요.'); st.style.color = 'var(--danger)'; } }
 }
 // 성장 리포트 PDF를 서버에 조각(행)으로 올려 초진방에서 받을 수 있게 합니다 (행 하나당 최대 약 4만 자)
-async function fvSendReport(){
-  const p = fvCur(); if(!p || !p.firstVisit) return; const st = document.getElementById('fv_rptStatus');
-  const say = (t, c)=>{ if(st){ st.textContent = t; st.style.color = c || 'var(--secondary)'; } };
-  const api = getApiUrl(); if(!api){ say('❌ 연동 설정의 백엔드 URL이 없어요.', 'var(--danger)'); return; }
+async function fvSendReport(pp){
+  const p = pp || fvCur(); if(!p || !p.firstVisit) return false; const st = pp ? null : document.getElementById('fv_rptStatus');
+  const say = (t, c)=>{ window.fvLastReportMsg = t; if(st){ st.textContent = t; st.style.color = c || 'var(--secondary)'; } };
+  const api = getApiUrl(); if(!api){ say('❌ 연동 설정의 백엔드 URL이 없어요.', 'var(--danger)'); return false; }
   if(!p.accessCode){ p.accessCode = genAccessCode(); savePatients(); }
-  try{ fvReadPre(p); fvReadPost(p); }catch(e){}
+  if(!pp){ try{ fvReadPre(p); fvReadPost(p); }catch(e){} }   // 다른 환자를 지정했을 땐 화면 입력칸을 읽지 않아요(다른 아이 내용이 섞이지 않게)
   try{
     say('PDF를 만드는 중…');
     const r = await GR.pdfBlob(p.id, 0.72);
     const b64 = await new Promise((ok, no)=>{ const fr = new FileReader(); fr.onload = ()=>ok(String(fr.result).split(',')[1]); fr.onerror = ()=>no(new Error('파일을 읽지 못했어요')); fr.readAsDataURL(r.blob); });
     const SZ = 38000, n = Math.ceil(b64.length / SZ);
-    if(n > 40){ say('❌ 파일이 너무 커요(' + Math.round(r.blob.size/1024) + 'KB). 기록이 많으면 「PDF 받기」로 내려받아 따로 전달해 주세요.', 'var(--danger)'); return; }
+    if(n > 40){ say('❌ 파일이 너무 커요(' + Math.round(r.blob.size/1024) + 'KB). 기록이 많으면 「PDF 받기」로 내려받아 따로 전달해 주세요.', 'var(--danger)'); return false; }
     const post = async body => { const x = await fetch(api, { method:'POST', body: JSON.stringify(body) }); let j = null; try{ j = await x.json(); }catch(e){} return j; };
     say('초진방에 올리는 중… (0/' + n + ')');
     const stamp = Date.now().toString(36);
@@ -9723,7 +9846,8 @@ async function fvSendReport(){
     p.updatedAt = p.firstVisit.report.at; savePatients();
     const ok = await fvPushToPatientApp(p);       // 초진방 본문에 「받을 수 있는 리포트가 있어요」 표시를 같이 올림
     say(ok ? '✅ 초진방에 PDF를 올렸어요 (' + r.name + ' · ' + Math.round(r.blob.size/1024) + 'KB). 환아 앱에서 받을 수 있어요.' : '⚠️ 파일은 올렸지만 초진방 갱신에 실패했어요. 「진료 후 안내 초진방으로 보내기」를 한 번 더 눌러 주세요.', ok ? 'var(--ok)' : '#9a5b00');
-  }catch(e){ say('❌ ' + (e.message || '보내지 못했어요.'), 'var(--danger)'); }
+    return !!ok;
+  }catch(e){ say('❌ ' + (e.message || '보내지 못했어요.'), 'var(--danger)'); return false; }
 }
 // 차트 글에서 「등록일자 AGE BA TS WT HT BMI」 표를 찾아 환자 기록(키·몸무게·뼈나이)에 합칩니다. 바뀐 건수를 돌려줘요.
 function fvMergeGrowth(p, text){

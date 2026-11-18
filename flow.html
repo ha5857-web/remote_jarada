@@ -212,6 +212,11 @@ body.pm .pm-gift>b{font-size:19px}
 body.pm .pm-gift p{margin:6px 0 10px;font-size:16px;line-height:1.6}
 body.pm .pm-gift a{display:block;text-align:center;text-decoration:none;padding:14px;border-radius:12px;background:#03C75A;color:#fff;font-size:18px;font-weight:800}
 body.pm .pm-gift small{display:block;margin-top:6px;font-size:13px;color:#5A6B73}
+body.pm .pm-man{display:flex;align-items:center;gap:12px;margin-top:14px;padding:14px;border-radius:14px;background:#FFF1F0;border:1.5px solid #FF3B30;text-decoration:none;color:inherit}
+body.pm .pm-man .i{flex:0 0 auto;font-size:26px}
+body.pm .pm-man b{display:block;font-size:19px;color:#D32F2F}
+body.pm .pm-man span{display:block;margin-top:2px;font-size:15px;line-height:1.5;color:#6B4A47}
+body.pm .pm-man .ar{margin-left:auto;font-size:24px;color:#D32F2F}
 body.pm .kiosk .kvrow{background:#fff;border:0;box-shadow:0 4px 16px rgba(20,35,43,.1);border-radius:18px;padding:10px 10px 14px}
 body.pm .kiosk .kvth{border-radius:12px;background:linear-gradient(135deg,#0B7A85,#0E5E73)}
 body.pm .kiosk .kvitem.on .kvrow{box-shadow:0 0 0 3px #0B7A85,0 4px 16px rgba(20,35,43,.1)}
@@ -2320,6 +2325,11 @@ function pmReceiptHtml(){
     st(3,'문자로 받은 코드 입력하기','코드는 한 번만 사용할 수 있어요.','코드 입력하러 가기',PM_RECEIPT.guideUrl)+
     '</details><p style="margin:8px 0 0;font-size:13px;color:var(--muted)">문의 02-523-0111</p></div>';
 }
+/* ▶️ 사용법 안내 영상 — 카드 QR을 찍은 보호자 휴대폰 화면에 항상 붙습니다 */
+const PM_MANUAL_URL='https://jaradacare.com/app.html#manual';
+function pmManualHtml(){
+  return `<a class=\"pm-man\" href=\"${PM_MANUAL_URL}\" target=\"_blank\" rel=\"noopener\"><div class=\"i\">▶️</div><div><b>사용법 안내 영상</b><span>자라다 케어 사용법을 영상으로 확인하세요</span></div><div class=\"ar\">›</div></a>`;
+}
 function pmGiftHtml(k){
   if(k&&k.code&&/^[A-Z0-9]{6,12}$/.test(k.code))return `<div class="pm-gift"><b>🎁 보호자 안내서 선물</b><p><b>네이버 영수증 리뷰</b>에 참여해 주시면 「보호자 안내서」(성장·성조숙증·비만 Q&amp;A 116개)가 바로 열려요.</p><a href="${PM_GUIDE_SITE}?rv=${encodeURIComponent(k.code)}" rel="noopener">네이버 리뷰 참여하고 안내서 받기</a><small>리뷰를 남기고 창을 닫으면 안내서가 자동으로 열려요 · 이 아이 전용 · 한 번만 사용</small></div>`;
   return pmReceiptHtml();
@@ -2363,6 +2373,7 @@ function pmLiveHtml(c,k,d,now){
   }
   if(d.step<8)h+=pmAskHtml(c,k,d);
   if(d.step>=8)h+=pmRateHtml(c,k);
+  h+=pmManualHtml();
   h+=kioskVideos({vids:d.vids,xv:d.xv,first:!!d.first,lab:{proto:d.proto||'single'}});
   return h;
 }
@@ -2395,6 +2406,7 @@ function pmRender(force,ui){
   else if(k.st==='done')h=`<div class="pm-hero"><small>삼성자라다 소아청소년과</small><h2>${esc(k.nm||'')} 어린이</h2><div class="pm-now"><b>오늘 진료가 끝났어요</b><span>수고 많으셨어요. 조심히 들어가세요.</span></div></div>`+pmRateHtml(c,k);
   else if(!PM.loaded)h='<p class="kbig">불러오는 중…</p>';
   else h='<h2>삼성자라다 소아청소년과</h2><p class="kbig">'+(PM.fail?'대기 현황을 불러오지 못했습니다. 자동으로 다시 시도합니다.<br><span style="font-size:15px">계속 안 되면 접수 데스크에 카드를 보여 주세요.</span>':'지금 확인되는 접수 정보가 없습니다. 접수 후 다시 카드를 찍어 주세요.')+'</p>'+pmReceiptHtml();
+  if(!d&&PM.loaded)h+=pmManualHtml();
   const tabs=pmTabsHtml(s);
   el.innerHTML=tabs?(d||k.st==='done'?h.replace('<div class="pm-hero">','<div class="pm-hero">'+tabs):tabs+h):h;
   pmTick(el,now);pmAlarms(s,now);
@@ -3859,6 +3871,9 @@ async function runFor(id,text,useAI,opt){
     g.post={summary:pick('summary',draft.summary),labs:pick('labs',draft.labs||(v.labx&&v.labx.t)||''),xray:pick('xray',draft.xray),direction:pick('direction',draft.direction),
       exercise:pick('exercise',fvLifestyleDraft('exercise',shim)),nutrition:pick('nutrition',fvLifestyleDraft('nutrition',shim)),sleep:pick('sleep',fvLifestyleDraft('sleep',shim)),
       nextDate:draft.nextDate||'',tests:draft.tests||[],videos:pickVideos(add.text||text,v.vids)};
+    /* 혈액검사는 차트(#Lab)에 결과가 있을 때만 적습니다. index에서 EMR 업로드로 만든 초안(old.from==='index')이 있으면 그 검사 내용을 기준으로 삼아요 */
+    if(!String(add.labs||'').trim()){ if(g.post.labs)warn=(warn?warn+' · ':'')+'차트에 혈액검사 결과가 없어 혈액검사 칸을 비웠어요'; g.post.labs=''; }
+    if(old.from==='index'&&old.post){ if(String(old.post.labs||'').trim())g.post.labs=String(old.post.labs).trim(); if(String(old.post.xray||'').trim()&&!String(g.post.xray||'').trim())g.post.xray=String(old.post.xray).trim(); }
     g.reviewed=false;g.reviewedAt=null;g.printedAt=null;g.ai=!!A;
     DIFF[id]=(g.src==='today'&&(pre||oldPost))?{lines:pre?nl:null,oldPost:oldPost,oldSrc:old.src||''}:null;
     var vv=S.items.get(id);if(!vv)return false;
