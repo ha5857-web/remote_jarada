@@ -162,14 +162,14 @@ header button{ background:none; border:1px solid var(--border); border-radius:8p
   <div style="font-size:13px;font-weight:800;margin-bottom:6px;">📒 전체 접수자 명부 올리기 <span style="font-weight:400;font-size:11px;color:var(--secondary);">— 환자로 등록되지 않고, flow에서 등록번호 조회용으로만 저장돼요</span></div>
   <textarea class="cd_text" rows="2" placeholder="EMR 전체 명단 파일을 끌어다 놓거나, 표를 붙여넣으세요" style="width:100%;box-sizing:border-box;font-size:12.5px;padding:10px;border:2px dashed #3A6EA5;border-radius:10px;resize:vertical;font-family:inherit;background:#F5F9FD;"
     ondragover="event.preventDefault();" ondrop="event.preventDefault(); cdFile(event.dataTransfer.files[0]);"
-    onpaste="setTimeout(cdText,60)"></textarea>
+    onpaste="cdPaste(event)"></textarea>
   <div class="cd_say" style="font-size:12px;margin-top:6px;color:var(--secondary);"></div>
 </div>
 <div id="tr_card" style="margin-bottom:10px;padding:12px;border:1px solid var(--border);border-radius:12px;background:#fff;">
   <div style="font-size:13px;font-weight:800;margin-bottom:6px;">📅 예약 환자 올리기 <span style="font-weight:400;font-size:11px;color:var(--secondary);">— 며칠치를 한꺼번에 올려도 돼요. 해당 날짜가 되면 flow 예약 칸에 자동으로 떠요 (같은 날짜를 다시 올리면 그 날짜만 갱신)</span></div>
   <textarea class="tr_text" rows="2" placeholder="EMR 예약 명단(여러 날짜 가능)을 끌어다 놓거나 표를 붙여넣으세요 (수진자명·예약일시·챠트번호 칸 필요)" style="width:100%;box-sizing:border-box;font-size:12.5px;padding:10px;border:2px dashed #2E7D6B;border-radius:10px;resize:vertical;font-family:inherit;background:#F3FAF7;"
     ondragover="event.preventDefault();" ondrop="event.preventDefault(); trFile(event.dataTransfer.files[0]);"
-    onpaste="setTimeout(trText,60)"></textarea>
+    onpaste="trPaste(event)"></textarea>
   <div class="tr_say" style="font-size:12px;margin-top:6px;color:var(--secondary);"></div>
 </div>
 </div>
@@ -1830,7 +1830,7 @@ function npParse(text){
     name = ucNm(name); if(!name) return;
     const st = get(ix.status) || (ix.status<0 ? (c.find(x=>/^(예약|내원|취소|삭제|접수|완료|대기|진료중)$/.test(x))||'') : '');
     if(/취소|삭제/.test(st)) return;
-    const tm = (get(ix.time)||'').match(/(\d{1,2}):(\d{2})/) || c.map(x=>x.match(/^(\d{1,2}):(\d{2})$/)).find(Boolean);
+    const tm = (get(ix.time)||'').match(/(\d{1,2}):(\d{2})/) || c.map(x=>x.match(/^(\d{1,2}):(\d{2})$/)).find(Boolean) || c.map(x=>x.match(/^\d{4}[-./]\d{1,2}[-./]\d{1,2}\.?\s+(\d{1,2}):(\d{2})/)).find(Boolean);   // 날짜 칸에 시간이 붙은 표(예약일자 2026-11-21 10:00:00)
     let dob = '', sex = '';
     const rrnV = (ix.rrn>=0 ? [get(ix.rrn)] : c).map(x=>x.replace(/\s/g,'').match(/^(\d{2})(\d{2})(\d{2})-?([1-8])[\d*●]{0,6}$/)).find(Boolean);
     if(rrnV){ const cc = ({'1':1900,'2':1900,'5':1900,'6':1900,'3':2000,'4':2000,'7':2000,'8':2000})[rrnV[4]]; dob = (cc+(+rrnV[1]))+'-'+rrnV[2]+'-'+rrnV[3]; sex = /[1357]/.test(rrnV[4]) ? 'M' : 'F'; }
@@ -1839,7 +1839,7 @@ function npParse(text){
       else { m = dv.replace(/\D/g,'').match(/^(\d{2})(\d{2})(\d{2})$/); if(m){ const y = +m[1]; dob = ((y<=26?2000:1900)+y)+'-'+m[2]+'-'+m[3]; } } }
     if(!sex){ const sx = get(ix.sex) || c.find(x=>/^(남|여|남자|여자|M|F)$/.test(x)); if(sx) sex = ucSex(sx); }
     const key = chart || (name+'|'+phone);
-    const arrived = ix.status<0 ? true : /내원|접수|진료중|완료/.test(st);
+    const arrived = ix.status<0 ? true : (/내원|접수|진료중|완료/.test(st) && !/승인/.test(st));   // 네이버 「승인완료」는 예약이 확정됐다는 뜻(아직 안 옴)
     const prev = map.get(key); if(prev && prev.arrived && !arrived) return;
     if(prev && prev.date <= rdate && prev.arrived === arrived) return;   // 같은 환자가 여러 날 예약돼 있으면 가장 가까운 날짜 하나만
     map.set(key, { date: rdate, name, phone: phone.length>=9 ? bqFmtPhone(phone) : '', dob, sex, chart, time: tm ? bqPad(+tm[1])+':'+tm[2] : '', status: st || '', arrived, first, revisit, growthBad });
@@ -2007,6 +2007,50 @@ document.addEventListener('click', ev=>{
 
 /* ===== 직원용: EMR 명단 올리기 (예약 환자 · 전체 접수자) ===== */
 
+/* 📷 EMR 화면 캡처(Win+Shift+S 등)를 붙여넣거나 사진 파일을 끌어다 놓아도 읽어요.
+   · 클립보드에 표 글자가 같이 있으면(EMR·엑셀에서 Ctrl+C) 글자를 먼저 씁니다 — 그림은 글자가 없을 때만.
+   · 그림은 🤖 AI(서버 readbookingimage)가 읽어 이름·연락처·예약일·시간 표로 바꿉니다. 안 되면 표를 복사하는 방법을 안내해요. */
+function stIsImage(f){ return !!f && (/^image\//.test(f.type||'') || /\.(png|jpe?g|webp|gif|bmp|heic)$/i.test(f.name||'')); }
+function stClipImage(ev){
+  const cd = ev && ev.clipboardData; if(!cd) return null;
+  if(String(cd.getData('text')||'').trim()) return null;
+  const items = cd.items || [];
+  for(let i=0;i<items.length;i++){ if(items[i].kind==='file' && /^image\//.test(items[i].type)){ const f = items[i].getAsFile(); if(f) return f; } }
+  return Array.from(cd.files||[]).find(stIsImage) || null;
+}
+const ST_IMG_HELP = 'EMR 표를 마우스로 드래그해 Ctrl+C로 복사한 뒤 붙여넣거나, 엑셀 파일을 끌어다 놓아 주세요.';
+async function stReadImage(f, say){
+  say('🤖 캡처를 읽는 중… (10~20초)');
+  let ai = null;
+  try{ ai = await bqAiImage(f); }catch(e){ ai = { fail: e.message || String(e) }; }
+  if(!ai || !ai.rows){ say('❌ 캡처(사진)를 읽지 못했어요' + (ai && ai.fail ? ' — ' + ai.fail : '') + '.\n' + ST_IMG_HELP, true); return null; }
+  if(!ai.rows.length){ say('❌ 캡처에서 예약 환자를 찾지 못했어요' + (ai.cancelled ? ' (취소 ' + ai.cancelled + '건 제외)' : '') + '. 이름·연락처·예약일이 보이게 다시 캡처하거나, ' + ST_IMG_HELP, true); return null; }
+  return ai;
+}
+function cdPaste(ev){
+  const f = stClipImage(ev);
+  if(f){ ev.preventDefault(); cdSay('❌ 명부는 캡처(사진)로는 올릴 수 없어요(등록번호를 정확히 읽어야 해요). ' + ST_IMG_HELP, true); return; }
+  setTimeout(cdText, 60);
+}
+function trPaste(ev){
+  const f = stClipImage(ev);
+  if(f){ ev.preventDefault(); trImage(f); return; }
+  setTimeout(trText, 60);
+}
+async function trImage(f){
+  const ai = await stReadImage(f, trSay); if(!ai) return;
+  const grid = [['수진자명','챠트번호','예약일자','예약시간','예약상태']].concat(ai.rows.map(r=>[r.visitor||r.name||'', String(r.chart||r.chartNo||'').replace(/\D/g,''), r.date||'', r.time||'', '예약']));
+  await trDone(grid);
+  const el = document.querySelector('.tr_say'); if(el && /^✅/.test(el.textContent)) trSay('🤖 캡처에서 ' + ai.rows.length + '명을 읽었어요(AI — 이름이 맞는지 flow에서 확인해 주세요). ' + el.textContent);
+}
+async function npImage(f){
+  const ai = await stReadImage(f, npSay); if(!ai) return;
+  const H = ['수진자명','이동전화','챠트번호','진료일자','진료시간','예약상태','초/재진','생년월일','성별'];
+  document.getElementById('np_text').value = [H.join('\t')].concat(ai.rows.map(r=>[r.visitor||r.name||'', r.phone||'', String(r.chart||r.chartNo||'').replace(/\D/g,''), r.date||'', r.time||'', '예약', (String(r.service||'').match(/초진|재진/)||[''])[0], r.dob||'', r.sex||''].map(x=>String(x).replace(/[\t\r\n]+/g,' ')).join('\t'))).join('\n');
+  await npGo();
+  const m = document.getElementById('np_msg'); if(m && !/^[❌⚠️]/.test(m.textContent)) npSay('🤖 캡처에서 ' + ai.rows.length + '명을 읽었어요(AI) — 위 칸에서 이름·번호가 맞는지 확인하세요.' + (ai.cancelled ? ' (취소 ' + ai.cancelled + '건 제외)' : '') + '\n' + m.textContent);
+}
+
 function todayStr(){ return bqYmd(new Date()); }
 function getProtectedApiUrl(){ const api = getApiUrl(); if(!api) return ''; const key = localStorage.getItem('jrd_sync_key') || ''; return key ? api + '?key=' + encodeURIComponent(key) : api; }
 async function stXlsx(){ if(typeof XLSX === 'undefined') await bqLoadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'); }
@@ -2096,6 +2140,7 @@ async function cdUpload(){
 function cdSay(t,bad){ document.querySelectorAll('.cd_say').forEach(e=>{ e.textContent = t; e.style.color = bad ? 'var(--danger)' : 'var(--ok)'; }); }
 async function cdFile(f){
   if(!f) return;
+  if(stIsImage(f)){ cdSay('❌ 명부는 캡처(사진)로는 올릴 수 없어요. ' + ST_IMG_HELP, true); return; }
   try{
     cdSay('읽는 중…');
     await stXlsx();
@@ -2135,7 +2180,7 @@ function trParse(grid){
     const dm = (g(iD)||g(iT)).match(/(\d{4})[-./](\d{1,2})[-./](\d{1,2})/);
     const ymd = dm ? dm[1]+'-'+String(+dm[2]).padStart(2,'0')+'-'+String(+dm[3]).padStart(2,'0') : td;
     if(ymd < td){ past++; return; }
-    const tm = g(iT).match(/(\d{1,2}):(\d{2})/); const time = tm ? String(+tm[1]).padStart(2,'0')+':'+tm[2] : '';
+    const tm = (g(iT) || g(iD)).match(/(\d{1,2}):(\d{2})/); const time = tm ? String(+tm[1]).padStart(2,'0')+':'+tm[2] : '';
     const chart = g(iC).replace(/\D/g,''); const key = ymd+'|'+(chart || name); if(seen[key]) return; seen[key] = 1;
     out.push([ymd, chart, name, time]);
   });
@@ -2181,6 +2226,7 @@ async function trDone(grid){
 }
 async function trFile(f){
   if(!f) return;
+  if(stIsImage(f)) return trImage(f);
   try{
     trSay('읽는 중…');
     await stXlsx();
@@ -2197,6 +2243,7 @@ function trText(){
 
 async function npFile(f){
   if(!f) return;
+  if(stIsImage(f)) return npImage(f);
   try{
     npSay('엑셀을 읽는 중…');
     await stXlsx();
@@ -2215,7 +2262,9 @@ document.addEventListener('paste', ev=>{
   const typing = t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) && t.id!=='np_text';
   if(typing || !card || !card.offsetParent) return;
   const cd = ev.clipboardData; if(!cd) return;
-  if(cd.files && cd.files.length){ ev.preventDefault(); npFile(cd.files[0]); return; }
+  const img = stClipImage(ev);
+  if(img){ ev.preventDefault(); npImage(img); return; }   // 캡처(그림만 있을 때) → AI로 읽기
+  if(!String(cd.getData('text')||'').trim() && cd.files && cd.files.length){ ev.preventDefault(); npFile(cd.files[0]); return; }
   if(t.id!=='np_text'){ const txt = cd.getData('text'); if(txt && txt.indexOf('\t')>=0){ ev.preventDefault(); document.getElementById('np_text').value = txt; npGo(); } return; }
   setTimeout(npGo, 60);
 });
