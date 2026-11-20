@@ -3062,7 +3062,9 @@ function cpState(){
   return { k: ask ? 'asked' : 'pick' };
 }
 function cpLineId(){ const v = String((CP.plan && CP.plan.line) || qs.get('line') || (IS_OVERSEAS ? '@214wlixe' : '')).trim(); return /^@?[A-Za-z0-9._-]{3,30}$/.test(v) ? (v[0]==='@' ? v : '@' + v) : ''; }
-function cpLineHtml(){ const id = cpLineId(); return id ? `<a class="cp-line" href="https://line.me/R/ti/p/${encodeURIComponent(id)}" target="_blank" rel="noopener">${cpT('lineAdd')}</a><div class="cp-sub">${cpT('lineSub')}</div>` : ''; }
+const CP_ZALO = 'https://zalo.me/821064180430', CP_ZALO_NO = '+82 10-6418-0430';   // 병원 Zalo — 베트남 보호자용
+function cpLineHtml(){ if(IS_OVERSEAS && currentLang()==='vi') return `<a class="cp-line" style="background:#0068FF;" href="${CP_ZALO}" target="_blank" rel="noopener">🔵 Nhắn Zalo cho phòng khám</a><div class="cp-sub">Zalo ${CP_ZALO_NO} — bạn cũng có thể nhắn Zalo để đổi giờ hoặc hỏi thắc mắc.</div>`;
+  const id = cpLineId(); return id ? `<a class="cp-line" href="https://line.me/R/ti/p/${encodeURIComponent(id)}" target="_blank" rel="noopener">${cpT('lineAdd')}</a><div class="cp-sub">${cpT('lineSub')}</div>` : ''; }
 function cpLink(){ return (CP.plan && /^https?:\/\//i.test(CP.plan.link||'') ? CP.plan.link : '') || (typeof ZOOM !== 'undefined' ? ZOOM : ''); }
 function cpInstallUrl(link){ if(/zoom\.us/i.test(link)) return 'https://zoom.us/download'; if(/meet\.google/i.test(link)) return 'https://support.google.com/meet/answer/9302870'; if(/voovmeeting|meeting\.tencent/i.test(link)) return 'https://voovmeeting.com/download-center.html'; if(/doxy\.me/i.test(link)) return ''; return ''; }
 function cpLeft(iso){

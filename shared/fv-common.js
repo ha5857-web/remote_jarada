@@ -565,9 +565,14 @@ const FV_INTL_SUBJ = { en:'[Jarada Care] First-Visit Room link', zh:'[Jarada Car
 function fvIntlVideoLink(nos, lang){ return JRDV.watchLink(nos) + '&lang=' + (lang==='zt' ? 'zh' : lang); }
 const FV_CLINIC_LINE = '@214wlixe';   // 병원 LINE 공식계정 (삼성자라다소아청소년과의원)
 const FV_CLINIC_LINE_URL = 'https://line.me/R/ti/p/' + encodeURIComponent(FV_CLINIC_LINE);
-function fvIntlInvite(lang, name, link, vlink){
-  const t = FV_INTL_MSG[lang] || FV_INTL_MSG.en;
-  return t.replace('{name}', name).replace('{link}', link).replace('{vlink}', vlink).replace('☎', '💬 LINE ' + FV_CLINIC_LINE + ': ' + FV_CLINIC_LINE_URL + '\n☎');
+const FV_CLINIC_ZALO = '+82 10-6418-0430';   // 병원 Zalo (Samsung Jarada Pediatrics)
+const FV_CLINIC_ZALO_URL = 'https://zalo.me/821064180430';
+// 베트남 보호자 → 병원 Zalo, 그 밖의 언어 → 병원 LINE (+ 기록지에서 Zalo를 고른 보호자는 Zalo도)
+function fvIntlInvite(lang, name, link, vlink, apps){
+  const t = FV_INTL_MSG[lang] || FV_INTL_MSG.en, add = [];
+  if(lang !== 'vi') add.push('💬 LINE ' + FV_CLINIC_LINE + ': ' + FV_CLINIC_LINE_URL);
+  if(lang === 'vi' || /zalo/i.test(apps || '')) add.push('💬 Zalo ' + FV_CLINIC_ZALO + ': ' + FV_CLINIC_ZALO_URL);
+  return t.replace('{name}', name).replace('{link}', link).replace('{vlink}', vlink).replace('☎', add.join('\n') + '\n☎');
 }
 // 보낼 곳 버튼들 — 보호자가 기록지에서 고른 메신저가 앞에, 크게
 const FV_INTL_APPS = [

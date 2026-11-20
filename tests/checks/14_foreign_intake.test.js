@@ -105,3 +105,18 @@ test('병원 LINE 공식계정(@214wlixe)이 기본값: 원장 앱 해외 환아
   assert.strictEqual(await d.p.evaluate(() => cpLineId()), '');
   await d.ctx.close();
 });
+
+test('병원 Zalo(+82 10-6418-0430): 베트남 안내문·화상통화 문구·보호자 화면은 Zalo, 대만은 LINE', async () => {
+  const o = await open(b, page('index.html'), { storage: { jrd_api_url: API, jrd_site_url: 'https://example.test/', jrd_auth_token: doctorToken(), jrd_auth_mode: 'token', jrd_doctor_unlocked: '1' } });
+  const r = await o.p.evaluate(() => [fvIntlInvite('vi', 'Bé An', 'L', 'V', 'Zalo'), fvIntlInvite('zt', 'Lin', 'L', 'V', 'LINE'), fvIntlInvite('en', 'Tom', 'L', 'V', 'WhatsApp, Zalo'),
+    vcMessage({ name: 'Bé An', accessCode: 'abcabcabcabcabcabc56', lang: 'vi', location: 'overseas', records: [] }, 'propose', { slots: ['2026-12-01T05:00:00Z'] })]);
+  assert.match(r[0], /Zalo \+82 10-6418-0430: https:\/\/zalo\.me\/821064180430/); assert.doesNotMatch(r[0], /LINE @214wlixe/);
+  assert.match(r[1], /LINE @214wlixe/); assert.doesNotMatch(r[1], /Zalo/);
+  assert.match(r[2], /LINE @214wlixe/); assert.match(r[2], /Zalo \+82/);
+  assert.match(r[3], /Zalo: \+82 10-6418-0430 https:\/\/zalo\.me\/821064180430/); assert.doesNotMatch(r[3], /line\.me\/R\/ti/);
+  await o.ctx.close();
+  const g = await open(b, page('자라다케어_환아용.html') + '?pid=abcabcabcabcabcabc56&lang=vi&loc=overseas', { phone: true });
+  const h = await g.p.evaluate(() => cpLineHtml());
+  assert.match(h, /zalo\.me\/821064180430/); assert.match(h, /Nhắn Zalo cho phòng khám/);
+  await g.ctx.close();
+});

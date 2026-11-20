@@ -362,7 +362,7 @@ header button{ background:none; border:1px solid var(--border); border-radius:8p
   </div>
 </div>
 
-<script src="shared/fv-common.js?v=20261120j"></script>
+<script src="shared/fv-common.js?v=20261120k"></script>
 <script>
 const NAVER_RESERVATION_URL = 'https://map.naver.com/p/entry/place/2075175246?placePath=%2Fhome&c=15.00,0,0,0,dh';
 const INTAKE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScQHJ4Agz36KqkruYzihV_Cj-98uaHg-lLDQdAmL_v6kdgqeg/viewform'; // 환아가 열 수 있는 공개 응답 주소
@@ -690,7 +690,7 @@ async function fsPreview(){
   msg += `\n☎ 02-523-0111\n- 삼성자라다소아청소년과 -`;
   fsLms = msg; fsCurLink = link;
   const intlP = fvIntlOf(fsParsed);
-  if(intlP){ fsLms = fvIntlInvite(intlP.lang, f.name, link, fvIntlVideoLink(fsVideos.map(v=>v.no), intlP.lang)); const rm = document.querySelector('input[name="fs_method"][value="manual"]'); if(rm) rm.checked = true; }
+  if(intlP){ fsLms = fvIntlInvite(intlP.lang, f.name, link, fvIntlVideoLink(fsVideos.map(v=>v.no), intlP.lang), intlP.apps); const rm = document.querySelector('input[name="fs_method"][value="manual"]'); if(rm) rm.checked = true; }
   const dKr = f.visit ? (()=>{ const p = f.visit.split('-'); return `${+p[1]}월 ${+p[2]}일`; })() : '미정';
   const vl = fsVideos.map(v=>`${v.no}. ${v.title}`);
   fsKakaoNew = `[삼성자라다소아청소년과] 초진 안내\n\n${f.name} 보호자님, 안녕하세요.\n초진 진료 안내입니다. 아래 전용 링크(초진방) 하나로 진료 전과 진료 후를 모두 확인하실 수 있어요.\n\n▶ 진료 전: 보시면 좋은 영상 시청, 성장기록지 올리기\n▶ 진료 후: 같은 링크를 다시 열면 진료 요약, 검사 결과 설명, 운동·영양·수면 안내를 확인하실 수 있어요\n\n■ 초진방 링크\n${link}\n\n■ 진료 전에 보실 영상\n${vl.join('\n')}\n영상 바로 보기: ${JRDV.watchLink(fsVideos.map(v=>v.no))}\n\n■ 진료 예정일\n${dKr}\n\n본 메시지는 초진 진료를 신청하신 ${f.name} 어린이 보호자님께 발송되는 안내입니다.\n문의: 02-523-0111`;
