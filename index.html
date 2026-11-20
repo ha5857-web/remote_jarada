@@ -7396,6 +7396,7 @@ function buildPatientLinkAndMsg(p){
   if(p.dob) params.set('dob', p.dob);
   if(p.sex) params.set('sex', p.sex);
   if(p.zoomLink) params.set('zoom', p.zoomLink);
+  try{ const lo = localStorage.getItem('jrd_line_oa'); if(lo) params.set('line', lo); }catch(e){}
   if(getApiUrl()) params.set('api', getApiUrl());
   if(getChatbotUrl() !== DEFAULT_CHATBOT_URL) params.set('bot', getChatbotUrl());
   const nextCall = nextCallInfo(p);
@@ -12011,6 +12012,19 @@ const VC_MSG = {
   mn:{ propose:'[Самсунг Жарада хүүхдийн эмнэлэг] {name}-ийн асран хамгаалагч танаа, дараагийн видео дуудлагын цагийг тохирох гэж байна. Доорх холбоосыг нээвэл таны орон нутгийн цагаар санал болгосон цагууд харагдана. Тохирох цагаа дарвал шууд захиалагдана.\n{slots}\n{link}', confirm:'[Самсунг Жарада хүүхдийн эмнэлэг] {name}-ийн видео дуудлага {time} (орон нутгийн цагаар) товлогдлоо. Тэр цагт доорх холбоосыг нээж «Видео дуудлагад нэгдэх»-ийг дарна уу.\n{link}', remind:'[Самсунг Жарада хүүхдийн эмнэлэг] Сануулга: {name}-ийн видео дуудлага {time} (орон нутгийн цагаар). 10 минутын өмнө доорх холбоосыг нээнэ үү.\n{link}' }
 };
 let VC = { rows:null, at:0, draft:{} };
+/* 화상통화 설정(이 기기): 기본 통화 링크(Google Meet 고정 회의실) · 병원 LINE 공식계정 ID. 환아별 링크(p.vcLink)가 있으면 그게 먼저예요. */
+function vcDefLink(){ try{ return localStorage.getItem('jrd_call_link') || ''; }catch(e){ return ''; } }
+function vcLineId(){ try{ const v = (localStorage.getItem('jrd_line_oa') || '').trim(); return /^@?[A-Za-z0-9._-]{3,30}$/.test(v) ? (v[0]==='@' ? v : '@' + v) : ''; }catch(e){ return ''; } }
+function vcLinkOf(p){ return (p && p.vcLink) || vcDefLink() || (p && p.zoomLink) || ''; }
+function vcSaveSettings(id){
+  const g = x => String((document.getElementById(x)||{}).value||'').trim();
+  const link = g('vcSetLink'), line = g('vcSetLine'), mine = g('vcSetMine'), p = getPatient(id);
+  if(link && !/^https:\/\//.test(link)){ alert('통화 링크는 https:// 로 시작하는 주소를 붙여넣어 주세요.'); return; }
+  if(line && !/^@?[A-Za-z0-9._-]{3,30}$/.test(line)){ alert('LINE ID는 @로 시작하는 영문·숫자예요 (예: @123abcde).'); return; }
+  if(mine && !/^https:\/\//.test(mine)){ alert('이 환아 전용 링크는 https:// 로 시작해야 해요.'); return; }
+  try{ localStorage.setItem('jrd_call_link', link); localStorage.setItem('jrd_line_oa', line ? (line[0]==='@' ? line : '@' + line) : ''); }catch(e){}
+  if(p){ p.vcLink = mine; savePatients(); vcRender(p); }
+}
 function vcLang(p){ const l = (p && p.lang) || 'ko'; return VC_MSG[l] ? l : 'en'; }
 function vcTzLabel(tz){ const x = VC_TZ.find(a=>a[0]===tz); return x ? x[1] : (tz || '시간대 모름'); }
 const VC_WD = { 'mn-MN':['Ня','Да','Мя','Лх','Пү','Ба','Бя'] };
@@ -12096,19 +12110,28 @@ async function vcRender(p){
     chips.push(`<button type="button" class="vc-chip ${on?'on':good?'good':ok?'okay':'night'}" onclick="vcToggle('${p.id}','${iso}')" title="${tz?'현지 '+escapeHtml(vcFmt(iso,tz)):''}">${hm}${tz?`<small>${escapeHtml(vcFmt(iso, tz, 'ko-KR', { month:undefined, day:undefined, weekday: vcDay(iso, tz) !== d.date ? 'short' : undefined }))}</small>`:''}</button>`);
   }
   const sel = d.slots.slice().sort().map(iso=>`<span class="vc-pick">${escapeHtml(vcFmt(iso,'Asia/Seoul'))} 서울${tz?` → 현지 ${escapeHtml(vcFmt(iso,tz))}`:''} <b onclick="vcToggle('${p.id}','${iso}')">✕</b></span>`).join('');
-  const link = p.zoomLink || '';
+  const link = vcLinkOf(p), lineId = vcLineId();
+  const kind = /meet\.google/.test(link) ? 'Google Meet' : /zoom\.us/.test(link) ? 'Zoom' + (link === p.zoomLink && !p.vcLink && !vcDefLink() ? ' (무료면 40분 제한)' : '') : '화상통화';
   box.innerHTML = `<div class="vc-card">
     <div class="vc-h">📅 화상통화 일정 <button class="btn btn-outline vc-sm" onclick="vcSummary('${p.id}')">📋 통화 전 한눈에 보기</button></div>
     ${vcStatusHtml(p, plan, rows, tz)}
-    ${plan && plan.status==='confirmed' ? `<div class="vc-row"><button class="btn btn-primary vc-sm" onclick="vcShare('${p.id}','confirm')">✉️ 확정 안내 보내기</button><button class="btn btn-outline vc-sm" onclick="vcShare('${p.id}','remind')">🔔 알림 보내기</button>${/^https?:/.test(link)?`<a class="btn btn-outline vc-sm" href="${escapeHtml(link)}" target="_blank" rel="noopener">🎥 통화 열기</a>`:''}<button class="btn btn-outline vc-sm" onclick="vcCancel('${p.id}')">취소</button></div>` : ''}
+    ${plan && plan.status==='confirmed' ? `<div class="vc-row"><button class="btn btn-primary vc-sm" onclick="vcShare('${p.id}','confirm')">✉️ 확정 안내 보내기</button><button class="btn btn-outline vc-sm" onclick="vcShare('${p.id}','remind')">🔔 알림 보내기</button>${/^https?:/.test(plan.link||link)?`<a class="btn btn-outline vc-sm" href="${escapeHtml(plan.link||link)}" target="_blank" rel="noopener">🎥 통화 열기</a>`:''}<button class="btn btn-outline vc-sm" onclick="vcCancel('${p.id}')">취소</button></div>` : ''}
     <details class="vc-new"${!plan || plan.status!=='confirmed' ? ' open' : ''}><summary>${plan && plan.status!=='cancelled' ? '🔁 새 후보 시간 보내기' : '➕ 후보 시간 보내기'}</summary>
       <div class="vc-row"><label class="vc-lab">보호자 시간대</label><select onchange="vcSetTz('${p.id}',this.value)"><option value="">— 골라 주세요 —</option>${opts}</select>${tz?`<span class="vc-dim">현지 지금 ${escapeHtml(nowLocal)}</span>`:'<span class="vc-st bad" style="padding:2px 8px;">시간대를 골라야 현지 시각이 보여요</span>'}</div>
       <div class="vc-row"><label class="vc-lab">날짜 (한국)</label><input type="date" value="${d.date}" min="${todayStr()}" onchange="vcSetDate('${p.id}',this.value)"><label class="vc-lab">통화 길이</label><select onchange="VC.draft['${p.id}'].dur=+this.value">${[15,20,30,40].map(n=>`<option value="${n}"${n===d.dur?' selected':''}>${n}분</option>`).join('')}</select></div>
       <div class="vc-legend"><span class="vc-chip good">보호자 낮</span><span class="vc-chip okay">이른 아침·늦은 밤</span><span class="vc-chip night">한밤중</span> — 한국 시각을 누르면 후보에 담겨요 (작은 글씨가 현지 시각)</div>
       <div class="vc-chips">${chips.join('') || '<span class="vc-dim">이 날짜에는 고를 시간이 없어요.</span>'}</div>
       ${sel ? `<div class="vc-sel">${sel}</div>` : '<div class="vc-dim">후보를 2~4개 고르시면 보호자가 그중 하나를 고릅니다. 다른 날짜로 바꿔 가며 더 담을 수 있어요.</div>'}
-      ${/^https?:/.test(link) ? `<div class="vc-dim">통화 링크: ${escapeHtml(link)} <span>(환아 정보 「수정」에서 바꿔요)</span></div>` : `<div class="vc-st bad">통화 링크가 없어요 — 환아 정보 「수정」의 화상통화 링크에 Zoom 회의실 주소를 넣어 주세요.</div>`}
+      ${/^https?:/.test(link) ? `<div class="vc-dim">통화 링크(${escapeHtml(kind)}): ${escapeHtml(link)} <span>— 아래 ⚙️ 화상통화 설정에서 바꿔요</span></div>` : `<div class="vc-st bad">통화 링크가 없어요 — 아래 ⚙️ 화상통화 설정에 Google Meet 회의실 주소를 넣어 주세요.</div>`}
       <div class="vc-row"><button class="btn btn-primary" ${d.slots.length && tz ? '' : 'disabled'} onclick="vcPropose('${p.id}')">📨 보호자에게 후보 보내기 (${d.slots.length}개)</button><span class="vc-dim" id="vcMsg_${p.id}"></span></div>
+    </details>
+    <details class="vc-new"${!vcDefLink() && !p.vcLink ? ' open' : ''}><summary>⚙️ 화상통화 설정 ${vcDefLink() ? '✓' : '(처음 한 번)'}${lineId ? ' · LINE ' + escapeHtml(lineId) : ''}</summary>
+      <div class="vc-dim">① <a href="https://meet.google.com/" target="_blank" rel="noopener">Google Meet</a>에 ha5857@gmail.com으로 들어가 「새 회의 → 나중에 진행할 회의 만들기」로 받은 주소를 붙여넣으세요. 모든 해외 환아가 이 회의실을 같이 쓰고, 보호자가 들어오면 원장님이 「수락」해야 들어와요(무료 1:1은 시간 제한 없음).</div>
+      <div class="vc-row"><label class="vc-lab">기본 통화 링크</label><input id="vcSetLink" style="flex:1;min-width:220px;" placeholder="https://meet.google.com/abc-defg-hij" value="${escapeHtml(vcDefLink())}"></div>
+      <div class="vc-dim">② 병원 LINE 공식계정 ID(@로 시작)를 넣으면 보호자 화면에 「병원 LINE 친구 추가」 버튼이 생기고, 안내 문구에도 들어가요.</div>
+      <div class="vc-row"><label class="vc-lab">병원 LINE ID</label><input id="vcSetLine" style="width:160px;" placeholder="@123abcde" value="${escapeHtml(lineId)}"></div>
+      <div class="vc-row"><label class="vc-lab">이 환아만 다른 링크</label><input id="vcSetMine" style="flex:1;min-width:220px;" placeholder="비워 두면 기본 통화 링크" value="${escapeHtml(p.vcLink||'')}"></div>
+      <div class="vc-row"><button class="btn btn-outline vc-sm" onclick="vcSaveSettings('${p.id}')">저장</button><span class="vc-dim">기본 링크·LINE ID는 이 기기에 저장돼요. 이미 보낸 후보에는 다음에 보낼 때부터 반영돼요.</span></div>
     </details>
   </div>`;
 }
@@ -12118,7 +12141,7 @@ function vcSetTz(id, v){ const p = getPatient(id); if(!p) return; p.vcTz = v || 
 async function vcPropose(id){
   const p = getPatient(id), d = VC.draft[id]; if(!p || !d || !d.slots.length) return;
   const tz = vcGuessTz(p, VC.rows||[]); if(!tz){ alert('보호자 시간대를 먼저 골라 주세요.'); return; }
-  const slots = d.slots.slice().sort(), plan = { v:1, ver: Date.now().toString(36), status:'proposed', slots, slot:null, dur:d.dur||20, link:p.zoomLink||'', tz, by:'의사' };
+  const slots = d.slots.slice().sort(), plan = { v:1, ver: Date.now().toString(36), status:'proposed', slots, slot:null, dur:d.dur||20, link:vcLinkOf(p), line:vcLineId(), tz, by:'의사' };
   const m = document.getElementById('vcMsg_'+id); if(m) m.textContent = '저장 중…';
   try{
     const rows = await vcFetchRows(true);
@@ -12140,7 +12163,8 @@ function vcMessage(p, kind, plan){
   const one = iso => vcFmt(iso, tz, loc, { year:undefined }) + (tz==='Asia/Seoul' ? '' : ' (' + vcFmt(iso, 'Asia/Seoul', loc, { weekday:undefined }) + ' KST)');
   const tpl = VC_MSG[lang][kind];
   const slots = kind==='propose' ? (plan.slots||[]).map((s,i)=>`${i+1}) ${one(s)}`).join('\n') : '';
-  return tpl.split('{name}').join(nm).split('{slots}').join(slots).split('{time}').join(plan && plan.slot ? vcFmt(plan.slot, tz, loc) : '').split('{link}').join(link);
+  const lineId = (plan && plan.line) || vcLineId();
+  return tpl.split('{name}').join(nm).split('{slots}').join(slots).split('{time}').join(plan && plan.slot ? vcFmt(plan.slot, tz, loc) : '').split('{link}').join(link) + (lineId ? '\nLINE: https://line.me/R/ti/p/' + encodeURIComponent(lineId) : '');
 }
 async function vcShare(id, kind, plan){
   const p = getPatient(id); if(!p) return;
@@ -12156,7 +12180,7 @@ async function vcShare(id, kind, plan){
     <textarea id="vcShareText" style="width:100%;min-height:190px;font-size:13px;padding:10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;" dir="auto">${escapeHtml(msg)}</textarea>
     <div class="vc-row" style="margin-top:10px;">
       <button class="btn btn-primary" onclick="vcShareGo('copy')">📋 복사</button>
-      <button class="btn btn-outline" style="${p.lang==='zt'||p.lang==='th'||p.lang==='ja' ? 'border-color:#06C755;color:#06C755;font-weight:800;' : ''}" onclick="vcShareGo('line')">🟢 LINE</button>
+      <button class="btn btn-outline" style="${p.lang==='zt'||p.lang==='th'||p.lang==='ja' ? 'border-color:#06C755;color:#06C755;font-weight:800;' : ''}" onclick="vcShareGo('line')">🟢 LINE${vcLineId() ? ' 공식계정' : ''}</button>
       ${p.email ? `<button class="btn btn-outline" onclick="vcShareGo('mail','${escapeHtml(p.email)}','${subj}')">✉️ 이메일 (${escapeHtml(p.email)})</button>` : `<button class="btn btn-outline" onclick="vcShareGo('mail','','${subj}')">✉️ 이메일</button>`}
       ${digits ? `<button class="btn btn-outline" onclick="vcShareGo('wa','${digits}')">💬 WhatsApp</button><button class="btn btn-outline" onclick="vcShareGo('sms','${digits}')">📱 문자</button>` : ''}
       <button class="btn btn-outline" onclick="vcShareGo('tg')">✈️ 텔레그램</button>
@@ -12170,7 +12194,10 @@ function vcShareGo(how, to, subj){
   if(how==='mail') window.location.href = 'mailto:' + (to||'') + '?subject=' + (subj||'') + '&body=' + encodeURIComponent(t);
   if(how==='wa') window.open('https://wa.me/' + to + '?text=' + encodeURIComponent(t), '_blank');
   if(how==='sms') window.open('sms:+' + to + '?body=' + encodeURIComponent(t), '_blank');
-  if(how==='line') window.open('https://line.me/R/share?text=' + encodeURIComponent(t), '_blank');   // 대만·태국·일본 보호자는 LINE이 기본 — 공유 화면에서 보호자를 고르면 돼요
+  if(how==='line'){
+    if(vcLineId()){ (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).catch(()=>prompt('복사하세요:', t)); alert('안내 문구를 복사했어요.\nLINE 공식계정 관리 화면(채팅)에서 보호자를 골라 붙여넣어 보내세요.\n(보호자가 병원 LINE을 친구로 추가해야 대화방이 생겨요)'); window.open('https://manager.line.biz/', '_blank'); }
+    else window.open('https://line.me/R/share?text=' + encodeURIComponent(t), '_blank');
+  }   // 대만·태국·일본 보호자는 LINE이 기본 — 공유 화면에서 보호자를 고르면 돼요
   if(how==='tg') window.open('https://t.me/share/url?url=' + encodeURIComponent(' ') + '&text=' + encodeURIComponent(t), '_blank');
 }
 /* 📋 통화 전 한눈에 보기 — 지난 통화(또는 최근 진료 기록) 이후 보호자가 올린 것만 모아요 */

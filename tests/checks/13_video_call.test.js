@@ -107,3 +107,34 @@ test('겹치면 확정하지 않음 · 다른 시간 요청은 원장 화면에 
   assert.ok(!S.rows.some(r => r.type === 'answer' && r.refId === 'qb'), '겹친 선택은 답변 처리하지 않음');
   assert.deepStrictEqual(doc.errors, []); await doc.ctx.close();
 });
+
+test('대만: 기본 Google Meet 링크·병원 LINE 공식계정 → 후보·안내 문구·보호자 화면(번체)에 반영', async () => {
+  const S = server(), TPID = 'twpid0123456789abcde';
+  const doc = await open(b, page('index.html'), { storage: { jrd_api_url: API, jrd_auth_token: doctorToken(), jrd_auth_mode: 'token', jrd_doctor_unlocked: '1', jrd_remote_gh_patients_v1: JSON.stringify([patient({ id: 'tw', name: '陳小美', lang: 'zt', accessCode: TPID, phone: '' })]) }, api: S.api, wait: 1500 });
+  const dialogs = []; doc.p.on('dialog', d => { dialogs.push(d.message()); d.accept(); });
+  await doc.p.evaluate(() => openDetail('tw')); await doc.p.waitForTimeout(1000);
+  assert.match(await doc.p.evaluate(() => document.getElementById('vcBox').innerText), /화상통화 설정 \(처음 한 번\)/);
+  await doc.p.evaluate(() => { document.getElementById('vcSetLink').value = 'https://meet.google.com/abc-defg-hij'; document.getElementById('vcSetLine').value = '123abcde'; vcSaveSettings('tw'); }); await doc.p.waitForTimeout(800);
+  const box = await doc.p.evaluate(() => document.getElementById('vcBox').innerText);
+  assert.match(box, /통화 링크\(Google Meet\): https:\/\/meet\.google\.com\/abc-defg-hij/); assert.match(box, /LINE @123abcde/);
+  assert.match(await doc.p.evaluate(() => document.querySelector('#vcBox select').value), /Asia\/Taipei/);   // 번체 → 대만 시간대
+  const day = tomorrowKst(), iso = await doc.p.evaluate(d => vcKstIso(d, '15:00'), day);
+  await doc.p.evaluate(i => vcToggle('tw', i), iso); await doc.p.evaluate(() => vcPropose('tw')); await doc.p.waitForTimeout(1200);
+  const plan = JSON.parse(S.rows.find(r => r.type === 'callplan').question);
+  assert.strictEqual(plan.link, 'https://meet.google.com/abc-defg-hij'); assert.strictEqual(plan.line, '@123abcde');
+  const msg = await doc.p.evaluate(() => document.getElementById('vcShareText').value);
+  assert.match(msg, /監護人您好/); assert.match(msg, /14:00/); assert.match(msg, /LINE: https:\/\/line\.me\/R\/ti\/p\/%40123abcde/); assert.match(msg, /line=%40123abcde/);
+  assert.match(await doc.p.evaluate(() => document.querySelector('#vcShareOv button[onclick*="line"]').innerText), /LINE 공식계정/);
+  // 보호자(대만 시간대, 번체)
+  const ctx = await b.newContext({ viewport: { width: 400, height: 860 }, timezoneId: 'Asia/Taipei' });
+  await ctx.addInitScript(pid => { localStorage.setItem('jrd_consent_' + pid, 'x'); localStorage.setItem('jrd_lang', 'zt'); }, TPID);
+  await ctx.route('**/*', async r => { const u = r.request().url(); if (u.startsWith('file:')) return r.continue(); if (u.startsWith('https://script.google.com/')) { let bd = null; try { bd = JSON.parse(r.request().postData() || 'null'); } catch (e) {} return r.fulfill({ contentType: 'application/json', body: JSON.stringify(S.api({ method: r.request().method(), url: u, body: bd }) || { status: 'ok' }) }); } return r.fulfill({ status: 204, body: '' }); });
+  const pp = await ctx.newPage(); const perr = []; pp.on('pageerror', e => perr.push(String(e)));
+  await pp.goto(page('자라다케어_환아용.html?pid=' + TPID + '&api=' + encodeURIComponent(API) + '&loc=overseas&lang=zt')); await pp.waitForTimeout(2500);
+  const card = await pp.evaluate(() => document.getElementById('cpCard').innerText);
+  assert.match(card, /請選擇視訊通話時間/); assert.match(card, /下午0?2:00/); assert.match(card, /台北/); assert.match(card, /加醫院LINE好友/);
+  assert.strictEqual(await pp.evaluate(() => document.querySelector('#cpCard a.cp-line').href), 'https://line.me/R/ti/p/%40123abcde');
+  assert.strictEqual(await pp.evaluate(() => document.querySelector('#cpLineBox a.cp-line').href), 'https://line.me/R/ti/p/%40123abcde');
+  assert.deepStrictEqual(perr, []); assert.deepStrictEqual(doc.errors, []);
+  await ctx.close(); await doc.ctx.close();
+});
