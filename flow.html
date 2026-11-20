@@ -1476,6 +1476,23 @@ function sdVids(sex,age){return '12'+((sex==='여'&&age>=6&&age<9.5)||(sex==='�
 const SD_PREP=['이전에 재어둔 키·몸무게 기록(학교 건강검진 결과, 소아과 기록 등)이 있으면 사진으로 올려주세요.','이전 검사 결과(혈액검사, 엑스레이 등)가 있으면 사진으로 올려주세요.','복용 중인 약과 영양제가 있다면 이름을 메모해 오세요.','진료 전 아래 영상을 시청하고 오시면 설명을 훨씬 쉽게 이해하실 수 있어요.'].join('\n');
 function sdPid(name,dob){let m={};try{m=JSON.parse(localStorage.getItem('jrd_fv_pids')||'{}')}catch(e){}const k=name+'|'+dob;
   if(!m[k]){const b=new Uint8Array(12);crypto.getRandomValues(b);m[k]=Array.from(b,x=>x.toString(16).padStart(2,'0')).join('');try{localStorage.setItem('jrd_fv_pids',JSON.stringify(m))}catch(e){}}return m[k]}
+/* 🔒 초진방 링크는 한 아이에게 한 번만: 보내기 바로 전에 서버 기록을 확인(원장 앱·원무과 앱·flow 어디서 보냈든).
+   찾으면 {t:보낸 때, pid:초진방 연결 코드, by:보낸 곳}, 없으면 null, 확인을 못 하면 {t:'?'} */
+async function fvSentBefore(name,dob){
+  const nm=String(name||'').replace(/[\s()\[\]]/g,'');if(!nm||/^등록번호/.test(nm))return null;
+  let rows;
+  try{const u=apiUrl(),tk=authToken();if(!u||!tk)return {t:'?'};const j=await (await fetch(u+(u.indexOf('?')<0?'?':'&')+'auth='+encodeURIComponent(tk))).json();if(!Array.isArray(j))return {t:'?'};rows=j}catch(e){return {t:'?'}}
+  const qo=r=>{try{return JSON.parse(r.question||'{}')||{}}catch(e){return {}}};
+  let hit=null;
+  rows.forEach(r=>{
+    const fv=r.type==='firstvisit'||r.type==='firstVisitPending',x=qo(r),vn=r.type==='visitNoticeSent'&&x.kind==='firstvisit';
+    if(!fv&&!vn)return;if(String(x.name||'').replace(/[\s()\[\]]/g,'')!==nm)return;if(dob&&x.dob&&x.dob!==dob)return;
+    const t=String(x.sentAt||x.updatedAt||r.timestamp||'1'),pid=fv&&dob&&x.dob===dob?(r.pid||x.pid||''):'';   // 연결 코드는 생년월일까지 같을 때만 이어 씀(동명이인 방지)
+    if(!hit||(pid&&!hit.pid)||t>hit.t)hit={t,pid:pid||(hit&&hit.pid)||'',by:x.by||(hit&&hit.by)||''};
+  });
+  return hit;
+}
+function fvSentText(h){if(!h||h.t==='?')return '발송 기록을 확인하지 못했어요(로그인·인터넷 확인)';const d=new Date(h.t);return '이미 초진방 링크를 받은 아이예요'+(isNaN(d)?'':' ('+(d.getMonth()+1)+'/'+d.getDate()+' '+pad(d.getHours())+':'+pad(d.getMinutes())+(h.by?' · '+h.by:'')+')')}
 async function sdInvite(v,phone){
   const site=ivSite(true);if(!site)throw new Error('초진방 사이트 주소가 없어요');
   const sx=v.sex==='남'?'M':'F',pid=v.pid||sdPid(v.name,v.dob),today=todayYmd();
@@ -1511,6 +1528,11 @@ async function sameDaySubmit(){
   put(v,true);UI.adding=false;UI.sel=v.id;UI.viewStep=null;
   if(card&&!v.card)linkCard(v,nextCard());else renderAll(true);
   if(!send){toast(name+': 당일접수로 대기에 넣었어요.');return}
+  const prev=v.invite&&v.invite.sentAt?{t:new Date(v.invite.sentAt).toISOString(),pid:v.invite.pid||v.pid||'',by:v.invite.by||''}:await fvSentBefore(name,dob);
+  if(prev){
+    if(prev.pid&&!v.pid){const x=S.items.get(v.id)||v;x.pid=prev.pid;if(prev.t!=='?'&&!x.invite)x.invite={sentAt:Date.parse(prev.t)||Date.now(),pid:prev.pid,by:prev.by||'이전 발송',prior:true};put(x,true);renderAll(true)}
+    if(!confirm(name+': '+fvSentText(prev)+'.\n\n그래도 초진방 링크를 다시 보낼까요? (보호자에게 한 번 더 갑니다)')){toast(name+': 대기에 넣었어요. '+fvSentText(prev)+' — 다시 보내지 않았어요.');return}
+  }
   toast(name+': 대기에 넣었어요 — 초진방 링크 보내는 중…');
   try{
     const r=await sdInvite(v,phone);
@@ -1619,6 +1641,12 @@ async function ivSend(){
   const sx2=($('#iv-sex2')||{}).value;if(sx2){body.sex=sx2;if(who)who=Object.assign({},who,{sex:sx2})}
   body.siteUrl=ivSite(true);
   if(!body.siteUrl){msg.textContent='사이트 주소가 있어야 링크를 만들 수 있어요.';msg.style.color='#b91c1c';return}
+  if(who&&who.name){
+    IV.busy=true;btn.disabled=true;msg.textContent='발송 기록 확인 중…';msg.style.color='';
+    const sv=!UI.adding&&S.items.get(UI.sel),prev=sv&&sv.invite&&sv.invite.sentAt?{t:new Date(sv.invite.sentAt).toISOString(),by:sv.invite.by||'flow'}:await fvSentBefore(who.name,who.dob||'');
+    IV.busy=false;btn.disabled=false;msg.textContent='';
+    if(prev&&!confirm(who.name+': '+fvSentText(prev)+'.\n\n그래도 초진방 링크를 다시 보낼까요? (보호자에게 한 번 더 갑니다)')){msg.textContent='⛔ '+fvSentText(prev)+' — 보내지 않았어요.';msg.style.color='#b91c1c';return}
+  }
   IV.busy=true;btn.disabled=true;btn.textContent='📤 발송 중…';msg.textContent='';msg.style.color='';
   try{
     let r=await api(body);

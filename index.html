@@ -10607,6 +10607,18 @@ async function fsSend(){
   const method = fsMethod();
   const text = fsLms;                      // 카카오 요청이 실패했을 때 대신 보낼 문자 내용(항상 함께 전달)
   const o = fsParsed ? fsParsed.o : {};
+  // 🔒 보내기 바로 전에 서버 발송 기록을 다시 확인 — 원장 화면·원무과 화면·flow 어디서 보냈든 이미 보냈으면 또 보내지 않아요
+  //    (일괄·자동 발송은 조용히 건너뛰고, 사람이 직접 누른 1건만 「그래도 다시 보낼까요?」를 물어요. 「진료 후 단계 되돌리기」 재발송은 확인 생략)
+  if(!window.fsForce){
+    let why = '';
+    try{ faRowsCache = null; why = await faAlreadyRegistered({ name:f.name, dob:f.dob, phone:f.phone }); }catch(e){ why = '?'; }
+    if(why){
+      const msg = why === '?' ? '발송 기록을 확인하지 못했어요(인터넷·로그인 확인)' : '이미 초진방 링크를 보낸 아이예요 — ' + why;
+      if(window.fsAuto || !confirm(f.name + ': ' + msg + '.\n\n그래도 다시 보낼까요? (보호자에게 링크가 한 번 더 갑니다)')){
+        st.textContent = '⛔ ' + msg + '. 보내지 않았어요.'; st.style.color = 'var(--danger)'; return;
+      }
+    }
+  }
   const pid = fsPidFor(f.name, f.dob);
   const sentAt = new Date().toISOString();
   const preVideos = fsVideos.map(v=>({ no:v.no, title:v.title, question:v.question, link:v.link }));
@@ -10716,7 +10728,7 @@ async function faTick(){
       if(!fsVideos.length){ seen[it.key]=1; hold++; continue; }
       const mk = document.querySelector('input[name="fs_method"][value="kakao"]'); if(mk) mk.checked = true;
       await fsPreview();
-      await fsSend();
+      window.fsAuto = true; try{ await fsSend(); } finally { window.fsAuto = false; }
       const ok = document.getElementById('fs_sendBtn').textContent.indexOf('발송됨')>=0;
       if(ok){ seen[it.key]=1; sent++; sentNames.push(o.name); }
       else{ fail[it.key]=(fail[it.key]||0)+1; if(fail[it.key]>=2){ seen[it.key]=1; hold++; } }
@@ -11508,8 +11520,9 @@ async function ucInvite(r, interactive){
   const radio = document.querySelector('input[name="fs_method"][value="kakao"]'); if(radio) radio.checked = true;
   await fsPreview();
   if($('fs_previewBox').style.display === 'none') return { ok:false, msg:$('fs_status').textContent || '미리보기를 만들지 못했어요' };
-  await fsSend();
+  window.fsAuto = !interactive; try{ await fsSend(); } finally { window.fsAuto = false; }
   const t = $('fs_status').textContent || '';
+  if(/^⛔/.test(t)) return { ok:false, dup:true, msg:t.replace(/^⛔\s*/,'') };
   if(!/^✅/.test(t)) return { ok:false, msg:t.replace(/^❌\s*/,'') || '발송 실패' };
   const vids = fsVideos.map(v=>v.no).join('');
   const rr = Object.assign({}, r, { name, phone, dob, sex });
@@ -11720,17 +11733,19 @@ async function npSend(){
   const sel = NP.rows.filter(r=>r.pick); if(!sel.length || NP.busy) return;
   if(!confirm(sel.length + '명에게 초진방 링크(진료 전 영상 포함)를 보낼까요?\n' + sel.map(r=>r.name).join(', ') + '\n\n※ flow 현황판에도 자동 등록돼요.')) return;
   NP.busy = true; npRender();
-  const ok = [], bad = [];
+  const ok = [], bad = [], dup = [];
   for(let i=0;i<sel.length;i++){
     const r = sel[i]; npSay('📤 ' + (i+1) + '/' + sel.length + ' ' + r.name + ' 보내는 중…');
     let res; try{ res = await ucInvite(r, sel.length===1); }catch(e){ res = { ok:false, msg:e.message||'오류' }; }
-    if(res.ok){ r.sent = true; r.pick = false; ok.push(r.name); } else bad.push(r.name + ' (' + res.msg + ')');
+    if(res.ok){ r.sent = true; r.pick = false; ok.push(r.name); }
+    else if(res.dup && !/확인하지 못했어요/.test(res.msg)){ r.sent = true; r.pick = false; dup.push(r.name); }   // 그 사이 다른 화면에서 보냄
+    else bad.push(r.name + ' (' + res.msg + ')');
     if(i < sel.length-1) await ucSleep(500);
   }
   NP.busy = false;
   try{ await ucLoad(true); NP.rows = npEnrich(NP.rows.map(r=>({ name:r.name, phone:r.phone, dob:r.dob, sex:r.sex, chart:r.chart, time:r.time, status:r.status, arrived:r.arrived }))); NP.rows.forEach(r=>{ r.pick = false; }); }catch(e){}
   npRender();
-  npSay((ok.length ? '✅ ' + ok.length + '명 완료: ' + ok.join(', ') : '') + (bad.length ? (ok.length?'\n':'') + '❌ ' + bad.length + '명 못 보냄\n' + bad.join('\n') : ''), bad.length>0 && !ok.length);
+  npSay((ok.length ? '✅ ' + ok.length + '명 완료: ' + ok.join(', ') : '') + (dup.length ? (ok.length?'\n':'') + '⏭ 이미 다른 화면에서 보낸 ' + dup.length + '명은 다시 보내지 않았어요: ' + dup.join(', ') : '') + (bad.length ? ((ok.length||dup.length)?'\n':'') + '❌ ' + bad.length + '명 못 보냄\n' + bad.join('\n') : ''), bad.length>0 && !ok.length);
 }
 document.addEventListener('click', ev=>{
   const t = ev.target.closest && ev.target.closest('#np_card [data-np], #np_go, #np_clear'); if(!t) return;
