@@ -71,5 +71,9 @@
   "file": "emr.js",
   "name": "휴대폰 EMR 차트 칸 (현황판·의사 앱)",
   "args": "flow+index"
+ },
+ {
+  "file": "intakevids.js",
+  "name": "초진기록지 추천 영상 자동 채우기"
  }
 ]

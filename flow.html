@@ -1347,19 +1347,57 @@ function videoEmbed(u){
   if(/\.(mp4|webm)(\?|$)/i.test(u))return `<video class="kv" src="${esc(u)}" controls playsinline></video>`;
   return '';
 }
-/* 초진 접수(자라다케어)의 보호자 안내 영상 7편. 환자별로 선별된 번호(예: 247)를 입력하면 그 순서대로 보여 줍니다. */
+/* 초진 접수(자라다케어)의 보호자 안내 영상 7편. 환자별로 선별된 번호(예: 247)를 입력하면 그 순서대로 보여 줍니다.
+   play·thumb: 2026-11-20 재구성판(jaradacare.com/v/ko/G1~G7) — 환자 폰·대기 화면에서 이 파일을 재생합니다. src(유튜브)는 초진방 안내 글에 그대로 씁니다. */
 const JRD_VIDEOS=[
- {no:1,title:'우리 아이, 잘 크고 있나요',src:'https://youtu.be/ccxsr-6cdn4'},
- {no:2,title:'키 크는 습관, 1순위는 잠입니다',src:'https://youtu.be/W80S1rwvM6Y'},
- {no:3,title:'왜 이렇게 검사가 많을까요',src:'https://youtu.be/Nkz4dDbGNeY'},
- {no:4,title:'이 주사, 어떻게 작용하나요',src:'https://youtu.be/ta7bS_O1rFs'},
- {no:5,title:'몇 cm나 클까요',src:'https://youtu.be/ijNvlNmLn1M'},
- {no:6,title:'우리 아이도 병행치료 해야 할까요',src:'https://youtu.be/zC8_55pK0TQ'},
- {no:7,title:'물만 먹어도 살찌는 아이',src:'https://youtu.be/DxoqacQTMYQ'}];
+ {no:1,title:'우리 아이, 잘 크고 있나요',src:'https://youtu.be/ccxsr-6cdn4',play:'https://jaradacare.com/v/ko/G1.mp4',thumb:'https://jaradacare.com/v/ko/G1.jpg'},
+ {no:2,title:'키 크는 습관, 1순위는 잠입니다',src:'https://youtu.be/W80S1rwvM6Y',play:'https://jaradacare.com/v/ko/G2.mp4',thumb:'https://jaradacare.com/v/ko/G2.jpg'},
+ {no:3,title:'왜 이렇게 검사가 많을까요',src:'https://youtu.be/Nkz4dDbGNeY',play:'https://jaradacare.com/v/ko/G3.mp4',thumb:'https://jaradacare.com/v/ko/G3.jpg'},
+ {no:4,title:'이 주사, 어떻게 작용하나요',src:'https://youtu.be/ta7bS_O1rFs',play:'https://jaradacare.com/v/ko/G4.mp4',thumb:'https://jaradacare.com/v/ko/G4.jpg'},
+ {no:5,title:'몇 cm나 클까요',src:'https://youtu.be/ijNvlNmLn1M',play:'https://jaradacare.com/v/ko/G5.mp4',thumb:'https://jaradacare.com/v/ko/G5.jpg'},
+ {no:6,title:'우리 아이도 병행치료 해야 할까요',src:'https://youtu.be/zC8_55pK0TQ',play:'https://jaradacare.com/v/ko/G6.mp4',thumb:'https://jaradacare.com/v/ko/G6.jpg'},
+ {no:7,title:'물만 먹어도 살찌는 아이',src:'https://youtu.be/DxoqacQTMYQ',play:'https://jaradacare.com/v/ko/G7.mp4',thumb:'https://jaradacare.com/v/ko/G7.jpg'}];
 /* 초진 접수 화면·안내 문자의 "1순위) 2. 제목" / "2순위 · 7. 제목" 글을 붙여 넣으면 순위 순서대로 영상 번호를 뽑습니다 */
 function parseVids(text){
   const m=[];String(text||'').replace(/([1-3])\s*순위\s*[)·:\.]?\s*(?:영상\s*)?([1-7])\s*\./g,(a,r,n)=>{m.push([+r,n])});
   const seen={};return m.sort((a,b)=>a[0]-b[0]).map(x=>x[1]).filter(n=>seen[n]?false:(seen[n]=1)).join('');
+}
+/* 초진기록지(보호자가 작성한 초진 기록지)로 골라진 영상을 자동으로 채웁니다.
+   예약 명단·도착 처리로 들어온 초진 아이는 기록지를 나중에 쓰는 경우가 많아, 대기 영상 번호가 비어 있으면
+   1분마다(같은 아이는 3분 간격) 서버의 환자 찾기(flowlookup)로 기록지 기반 추천 번호를 받아 넣습니다 → 환자 폰에 곧바로 뜹니다.
+   직원이 직접 넣은 번호는 건드리지 않고, 당일 접수 기본값(sdVids)만 기록지 추천으로 바꿉니다. */
+const VLK={};
+function needIntakeVids(v){
+  if(!v||v.hide||!isTodayV(v)||v.rev||!(v.step>=0&&v.step<8))return false;
+  if(v.vids&&!(v.vidsSrc==='default'&&v.vids===sdVids(v.sex,v.age||0)))return false;
+  const chart=String(v.chartNo||'').replace(/\D/g,''),name=String(v.name||'').trim();
+  return chart.length>=3||(name.length>=2&&!/^등록번호/.test(name));
+}
+async function autoVids(){
+  if(autoVids.busy||S.halt||!apiUrl()||!authToken())return;
+  const now=Date.now(),todo=list().filter(v=>needIntakeVids(v)&&!(VLK[v.id]&&now-VLK[v.id].t<180000)&&!(VLK[v.id]&&VLK[v.id].n>=30)).slice(0,4);
+  if(!todo.length)return;
+  autoVids.busy=true;
+  try{
+    for(const v0 of todo){
+      const k=VLK[v0.id]||(VLK[v0.id]={n:0,t:0});k.n++;k.t=Date.now();
+      const chart=String(v0.chartNo||'').replace(/\D/g,''),name=String(v0.name||'').trim();
+      let j;try{j=await api({action:'flowlookup',chartNo:chart,name:chart?'':name,phone:v0.phone||''})}catch(e){if(e&&(e.code==='AUTH_REQUIRED'||e.code==='HALT'))break;continue}
+      const mm=(j&&j.status==='ok'&&Array.isArray(j.matches))?j.matches.filter(m=>m&&/[1-7]/.test(String(m.vids||''))):[];
+      let m=null;
+      if(chart)m=mm.find(x=>String(x.chartNo||'').replace(/\D/g,'')===chart)||(mm.length===1?mm[0]:null);
+      else if(mm.length===1&&mm[0].name===name&&(!v0.sex||!mm[0].sex||mm[0].sex===v0.sex))m=mm[0];
+      const x=S.items.get(v0.id);
+      if(!m||!x||!needIntakeVids(x))continue;
+      x.vids=String(m.vids).replace(/[^1-7]/g,'').slice(0,7);x.vidsSrc='intake';
+      if(m.first){x.first=true;x.rev=false}
+      if(!x.chartNo&&m.chartNo)x.chartNo=m.chartNo;
+      if(!x.sex&&m.sex)x.sex=m.sex;
+      if((x.age===''||x.age==null)&&m.age!=null)x.age=m.age;
+      put(x,true);renderAll(false);
+      toast((x.name||'환자')+': 초진기록지 추천 영상 '+x.vids.split('').join('→')+'을(를) 넣었어요'+(x.card?' — 보호자 폰에 곧 떠요.':' — 카드를 연결하면 보호자 폰에 떠요.'));
+    }
+  }finally{autoVids.busy=false}
 }
 function patientVideos(v){
   const nos=String(v.vids||'').replace(/[^1-7]/g,'').split('').filter((n,i,a)=>a.indexOf(n)===i);
@@ -1386,12 +1424,12 @@ function xvPanel(v){
 }
 function kvRows(a,ranked){
   return a.map((x,i)=>{
-    const id=ytId(x.url),th=id?`<img src="https://i.ytimg.com/vi/${id}/mqdefault.jpg" alt="" loading="lazy">`:'<span class="kvph">▶</span>';
-    return `<div class="kvitem"><button type="button" class="kvrow" data-vsrc="${esc(x.url)}" aria-expanded="false"><span class="kvth">${th}<i>▶</i></span><span class="kvtx">${x.tag?'<em>'+esc(x.tag)+'</em>':ranked?'<em>'+(i+1)+'순위</em>':''}<b>${esc(x.title||'영상')}</b></span></button><div class="kvplay"></div></div>`}).join('');
+    const id=ytId(x.url),th=x.thumb?`<img src="${esc(x.thumb)}" alt="" loading="lazy">`:id?`<img src="https://i.ytimg.com/vi/${id}/mqdefault.jpg" alt="" loading="lazy">`:'<span class="kvph">▶</span>';
+    return `<div class="kvitem"><button type="button" class="kvrow" data-vsrc="${esc(x.url)}"${x.thumb?` data-vthumb="${esc(x.thumb)}"`:''} aria-expanded="false"><span class="kvth">${th}<i>▶</i></span><span class="kvtx">${x.tag?'<em>'+esc(x.tag)+'</em>':ranked?'<em>'+(i+1)+'순위</em>':''}<b>${esc(x.title||'영상')}</b></span></button><div class="kvplay"></div></div>`}).join('');
 }
 function kioskVideos(v){
   const mine=patientVideos(v),xv=xvList(v);
-  const a=mine.length?mine.map(x=>({title:x.title,url:x.src})):videosFor(v);
+  const a=mine.length?mine.map(x=>({title:x.title,url:x.play||x.src,thumb:x.thumb})):videosFor(v);
   let h='';
   if(xv.pick.length)h+=`<div class="kvbox kvpick"><b>선생님이 권해 드리는 영상</b><p class="meta" style="margin:2px 0 8px">오늘 검사·치료와 관련된 영상이에요. 누르면 바로 재생돼요.</p>${kvRows(xv.pick,false)}</div>`;
   if(a.length)h+=`<div class="kvbox"><b>기다리는 동안 보세요</b><p class="meta" style="margin:2px 0 8px">보고 싶은 영상을 누르면 바로 재생돼요.</p>${kvRows(a,!!mine.length)}</div>`;
@@ -1403,7 +1441,9 @@ function kvToggle(btn){
   box.querySelectorAll('.kvitem').forEach(it=>{it.querySelector('.kvrow').setAttribute('aria-expanded','false');it.querySelector('.kvplay').innerHTML='';it.classList.remove('on')});
   if(open)return;
   const u=btn.dataset.vsrc,id=ytId(u);
-  pl.innerHTML=(id?`<iframe class="kv" src="https://www.youtube.com/embed/${id}?autoplay=1&playsinline=1&rel=0" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>`:videoEmbed(u))+`<a class="kvopen" href="${esc(u)}" target="_blank" rel="noopener">유튜브 앱에서 크게 보기 ↗</a>`;
+  if(id)pl.innerHTML=`<iframe class="kv" src="https://www.youtube.com/embed/${id}?autoplay=1&playsinline=1&rel=0" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe><a class="kvopen" href="${esc(u)}" target="_blank" rel="noopener">유튜브 앱에서 크게 보기 ↗</a>`;
+  else if(/\.(mp4|webm)(\?|$)/i.test(u))pl.innerHTML=`<video class="kv" src="${esc(u)}"${btn.dataset.vthumb?` poster="${esc(btn.dataset.vthumb)}"`:''} controls playsinline autoplay preload="metadata"></video>`;
+  else pl.innerHTML=videoEmbed(u)+`<a class="kvopen" href="${esc(u)}" target="_blank" rel="noopener">크게 보기 ↗</a>`;
   btn.setAttribute('aria-expanded','true');item.classList.add('on');
   setTimeout(()=>item.scrollIntoView({behavior:'smooth',block:'start'}),50);
 }
@@ -1474,7 +1514,7 @@ async function sameDaySubmit(){
   if(!v){const dd=new Date();v=newVisit({appt:pad(dd.getHours())+':'+pad(dd.getMinutes())})}
   Object.assign(v,{name,dob,sex,age:age==null?'':age,first:true,rev:false,temp:true,sameDay:true,date:td});if(phone)v.phone=phone;
   if(chart)v.chartNo=chart;
-  if(!v.vids)v.vids=sdVids(sex,age||0);
+  if(!v.vids){v.vids=sdVids(sex,age||0);v.vidsSrc='default'}
   if(v.step<0||isNew){v.step=0;v.log=[{s:0,t:Date.now()}]}
   put(v,true);UI.adding=false;UI.sel=v.id;UI.viewStep=null;
   if(card&&!v.card)linkCard(v,nextCard());else renderAll(true);
@@ -2464,6 +2504,7 @@ setInterval(()=>{
 setInterval(()=>{tickClock();renderSummary();renderMain();renderDetail(false)},30000);
 initStore();
 setInterval(()=>resvSync(),30000);setTimeout(()=>resvSync(true),3000);
+setInterval(()=>autoVids(),60000);setTimeout(()=>autoVids(),8000);
 }
 </script>
 <script>
