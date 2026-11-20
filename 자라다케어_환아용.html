@@ -3061,7 +3061,7 @@ function cpState(){
   const ask = (CP.sent && CP.sent.ver===p.ver && CP.sent.kind==='ask') || mine.some(x=>x.t.kind==='ask');
   return { k: ask ? 'asked' : 'pick' };
 }
-function cpLineId(){ const v = String((CP.plan && CP.plan.line) || qs.get('line') || '').trim(); return /^@?[A-Za-z0-9._-]{3,30}$/.test(v) ? (v[0]==='@' ? v : '@' + v) : ''; }
+function cpLineId(){ const v = String((CP.plan && CP.plan.line) || qs.get('line') || (IS_OVERSEAS ? '@214wlixe' : '')).trim(); return /^@?[A-Za-z0-9._-]{3,30}$/.test(v) ? (v[0]==='@' ? v : '@' + v) : ''; }
 function cpLineHtml(){ const id = cpLineId(); return id ? `<a class="cp-line" href="https://line.me/R/ti/p/${encodeURIComponent(id)}" target="_blank" rel="noopener">${cpT('lineAdd')}</a><div class="cp-sub">${cpT('lineSub')}</div>` : ''; }
 function cpLink(){ return (CP.plan && /^https?:\/\//i.test(CP.plan.link||'') ? CP.plan.link : '') || (typeof ZOOM !== 'undefined' ? ZOOM : ''); }
 function cpInstallUrl(link){ if(/zoom\.us/i.test(link)) return 'https://zoom.us/download'; if(/meet\.google/i.test(link)) return 'https://support.google.com/meet/answer/9302870'; if(/voovmeeting|meeting\.tencent/i.test(link)) return 'https://voovmeeting.com/download-center.html'; if(/doxy\.me/i.test(link)) return ''; return ''; }

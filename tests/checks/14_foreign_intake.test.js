@@ -57,10 +57,11 @@ for (const [label, file, storage, by] of [
     assert.strictEqual(posts[0].pending.intl, true); assert.strictEqual(posts[0].pending.lang, 'zt'); assert.strictEqual(posts[0].pending.email, 'chen@example.com');
     assert.strictEqual(posts[0].pending.messenger, 'LINE, WhatsApp'); assert.strictEqual(posts[0].pending.by, by); assert.strictEqual(posts[0].pending.location, 'overseas');
     const share = await o.p.evaluate(() => [...document.querySelectorAll('#fs_intlShare button')].map(x => x.textContent.trim()));
-    assert.deepStrictEqual(share.slice(0, 2), ['⭐ LINE', '⭐ WhatsApp']); assert.ok(share.includes('✉️ 이메일')); assert.ok(share.includes('📋 문구 복사'));
+    assert.deepStrictEqual(share.slice(0, 2), ['⭐ LINE (병원 공식계정)', '⭐ WhatsApp']); assert.ok(share.includes('✉️ 이메일')); assert.ok(share.includes('📋 문구 복사'));
+    assert.match(pv.msg, /LINE @214wlixe: https:\/\/line\.me\/R\/ti\/p\/%40214wlixe/);                 // 병원 LINE 친구 추가 링크
     await o.p.evaluate(() => fvIntlGo(0)); await o.p.evaluate(() => fvIntlGo(1)); await o.p.waitForTimeout(200);
-    assert.match(opened[0], /^https:\/\/line\.me\/R\/share\?text=/); assert.match(decodeURIComponent(opened[0]), /初診室/);
-    assert.match(opened[1], /^https:\/\/wa\.me\/886912345678\?text=/);
+    assert.strictEqual(opened[0], 'https://manager.line.biz/');                                  // LINE: 문구 복사 + 공식계정 채팅
+    assert.match(opened[1], /^https:\/\/wa\.me\/886912345678\?text=/); assert.match(decodeURIComponent(opened[1]), /初診室/);
     const em = await o.p.evaluate(() => window.fvIntlState.targets.find(x => x.key === 'email').url);
     assert.match(em, /^mailto:chen@example\.com\?subject=/);
     assert.deepStrictEqual(o.errors, []); await o.ctx.close();
@@ -89,4 +90,18 @@ test('원장 앱: 해외 접수는 해외 환아(언어·이메일·메신저)�
   const p = await o.p.evaluate(() => { const x = patients.find(q => q.name === 'Chen Wei-Ting'); return x && { loc: x.location, lang: x.lang, email: x.email, m: x.messenger, id: x.messengerId, ac: x.accessCode }; });
   assert.deepStrictEqual(p, { loc: 'overseas', lang: 'zt', email: 'chen@example.com', m: 'LINE, WhatsApp', id: 'chenwt', ac: 'aaaabbbbccccddddeeee' });
   await o.ctx.close();
+});
+
+test('병원 LINE 공식계정(@214wlixe)이 기본값: 원장 앱 해외 환아 링크·보호자 화면 LINE 친구 추가', async () => {
+  const o = await open(b, page('index.html'), { storage: { jrd_api_url: API, jrd_site_url: 'https://example.test/', jrd_auth_token: doctorToken(), jrd_auth_mode: 'token', jrd_doctor_unlocked: '1' } });
+  const r = await o.p.evaluate(() => [vcLineId(), buildPatientLinkAndMsg({ name: 'Lin', accessCode: 'abcabcabcabcabcabc12', lang: 'zt', location: 'overseas', records: [] }).link,
+    buildPatientLinkAndMsg({ name: '김하늘', accessCode: 'abcabcabcabcabcabc34', lang: 'ko', location: 'domestic', records: [] }).link]);
+  assert.strictEqual(r[0], '@214wlixe'); assert.match(r[1], /line=%40214wlixe/); assert.doesNotMatch(r[2], /line=/);
+  await o.ctx.close();
+  const g = await open(b, page('자라다케어_환아용.html') + '?pid=abcabcabcabcabcabc12&lang=zt&loc=overseas', { phone: true });
+  assert.strictEqual(await g.p.evaluate(() => cpLineId()), '@214wlixe');
+  await g.ctx.close();
+  const d = await open(b, page('자라다케어_환아용.html') + '?pid=abcabcabcabcabcabc34&lang=ko&loc=domestic', { phone: true });
+  assert.strictEqual(await d.p.evaluate(() => cpLineId()), '');
+  await d.ctx.close();
 });

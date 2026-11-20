@@ -1662,7 +1662,7 @@
   </div>
 </div>
 
-<script src="shared/fv-common.js?v=20261120i"></script>
+<script src="shared/fv-common.js?v=20261120j"></script>
 <script src="shared/chart-common.js?v=20261111a"></script>
 <script>
 
@@ -7399,7 +7399,7 @@ function buildPatientLinkAndMsg(p){
   if(p.dob) params.set('dob', p.dob);
   if(p.sex) params.set('sex', p.sex);
   if(p.zoomLink) params.set('zoom', p.zoomLink);
-  try{ const lo = localStorage.getItem('jrd_line_oa'); if(lo) params.set('line', lo); }catch(e){}
+  try{ const lo = (typeof vcLineId==='function') ? vcLineId() : ''; if(lo && (p.location||'overseas')==='overseas') params.set('line', lo); }catch(e){}
   if(getApiUrl()) params.set('api', getApiUrl());
   if(getChatbotUrl() !== DEFAULT_CHATBOT_URL) params.set('bot', getChatbotUrl());
   const nextCall = nextCallInfo(p);
@@ -12041,7 +12041,8 @@ const VC_MSG = {
 let VC = { rows:null, at:0, draft:{} };
 /* 화상통화 설정(이 기기): 기본 통화 링크(Google Meet 고정 회의실) · 병원 LINE 공식계정 ID. 환아별 링크(p.vcLink)가 있으면 그게 먼저예요. */
 function vcDefLink(){ try{ return localStorage.getItem('jrd_call_link') || ''; }catch(e){ return ''; } }
-function vcLineId(){ try{ const v = (localStorage.getItem('jrd_line_oa') || '').trim(); return /^@?[A-Za-z0-9._-]{3,30}$/.test(v) ? (v[0]==='@' ? v : '@' + v) : ''; }catch(e){ return ''; } }
+const VC_LINE_DEFAULT = '@214wlixe';   // 병원 LINE 공식계정 (삼성자라다소아청소년과의원) — 설정에서 바꾸면 그 값이 먼저
+function vcLineId(){ try{ const v = (localStorage.getItem('jrd_line_oa') || VC_LINE_DEFAULT).trim(); return /^@?[A-Za-z0-9._-]{3,30}$/.test(v) ? (v[0]==='@' ? v : '@' + v) : ''; }catch(e){ return ''; } }
 function vcLinkOf(p){ return (p && p.vcLink) || vcDefLink() || (p && p.zoomLink) || ''; }
 function vcSaveSettings(id){
   const g = x => String((document.getElementById(x)||{}).value||'').trim();

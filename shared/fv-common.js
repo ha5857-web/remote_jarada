@@ -563,9 +563,11 @@ const FV_INTL_MSG = {
 };
 const FV_INTL_SUBJ = { en:'[Jarada Care] First-Visit Room link', zh:'[Jarada Care] 初诊室链接', zt:'[Jarada Care] 初診室連結', ja:'[Jarada Care] 初診ルームのご案内', vi:'[Jarada Care] Liên kết Phòng khám lần đầu', th:'[Jarada Care] ลิงก์ห้องตรวจครั้งแรก', id:'[Jarada Care] Tautan Ruang Kunjungan Pertama', es:'[Jarada Care] Enlace de la Sala de primera consulta', ar:'[Jarada Care] رابط غرفة الزيارة الأولى', mn:'[Jarada Care] Анхны үзлэгийн өрөөний холбоос' };
 function fvIntlVideoLink(nos, lang){ return JRDV.watchLink(nos) + '&lang=' + (lang==='zt' ? 'zh' : lang); }
+const FV_CLINIC_LINE = '@214wlixe';   // 병원 LINE 공식계정 (삼성자라다소아청소년과의원)
+const FV_CLINIC_LINE_URL = 'https://line.me/R/ti/p/' + encodeURIComponent(FV_CLINIC_LINE);
 function fvIntlInvite(lang, name, link, vlink){
   const t = FV_INTL_MSG[lang] || FV_INTL_MSG.en;
-  return t.replace('{name}', name).replace('{link}', link).replace('{vlink}', vlink);
+  return t.replace('{name}', name).replace('{link}', link).replace('{vlink}', vlink).replace('☎', '💬 LINE ' + FV_CLINIC_LINE + ': ' + FV_CLINIC_LINE_URL + '\n☎');
 }
 // 보낼 곳 버튼들 — 보호자가 기록지에서 고른 메신저가 앞에, 크게
 const FV_INTL_APPS = [
@@ -582,13 +584,13 @@ function fvIntlTargets(o, text, link){
   const enc = encodeURIComponent, digits = String(o.phone||'').replace(/\D/g,''), apps = String(o.apps||'');
   const url = {
     zalo: 'https://zalo.me/' + digits,
-    line: 'https://line.me/R/share?text=' + enc(text),
+    line: 'https://manager.line.biz/',          // 병원 LINE 공식계정 채팅에서 보냄 (보호자가 친구 추가한 뒤)
     whatsapp: 'https://wa.me/' + digits + '?text=' + enc(text),
     wechat: '', kakao: '', messenger: '',
     telegram: 'https://t.me/share/url?url=' + enc(link) + '&text=' + enc(text),
     viber: 'viber://forward?text=' + enc(text)
   };
-  const list = FV_INTL_APPS.map(a=>({ key:a.key, label:a.label, picked:a.re.test(apps), url:url[a.key], copy: !url[a.key] || a.key==='zalo' }))
+  const list = FV_INTL_APPS.map(a=>({ key:a.key, label: a.key==='line' ? 'LINE (병원 공식계정)' : a.label, picked:a.re.test(apps), url:url[a.key], copy: !url[a.key] || a.key==='zalo' || a.key==='line' }))
     .filter(a=> a.picked || ['line','whatsapp','zalo','wechat'].includes(a.key));
   list.sort((a,b)=> (b.picked?1:0) - (a.picked?1:0));
   if(o.email) list.push({ key:'email', label:'✉️ 이메일', picked:true,
@@ -604,7 +606,7 @@ function fvIntlPanelHtml(o, text, link){
   const who = [o.phone ? '📞 ' + esc(o.phone) : '', o.email ? '✉️ ' + esc(o.email) : '', o.apps ? '💬 ' + esc(o.apps) + (o.appId ? ' (ID: ' + esc(o.appId) + ')' : '') : ''].filter(Boolean).join(' · ');
   return `<div style="border:1.5px solid #2E8B57;border-radius:10px;padding:10px 12px;margin-top:10px;background:#F4FBF6;">
     <div style="font-size:12.5px;font-weight:800;color:#1F6B41;margin-bottom:4px;">🌏 초진방 링크가 등록됐어요 — 이제 보호자에게 직접 보내 주세요</div>
-    <div style="font-size:11.5px;color:var(--secondary);margin-bottom:8px;line-height:1.5;">${who || '연락처 정보 없음'}<br>⭐ = 보호자가 기록지에서 고른 메신저. Zalo·WeChat·KakaoTalk은 문구가 먼저 복사되니 채팅창에 붙여넣기만 하세요.</div>
+    <div style="font-size:11.5px;color:var(--secondary);margin-bottom:8px;line-height:1.5;">${who || '연락처 정보 없음'}<br>⭐ = 보호자가 기록지에서 고른 메신저. Zalo·WeChat·KakaoTalk·LINE은 문구가 먼저 복사되니 채팅창에 붙여넣기만 하세요.<br>LINE은 보호자가 병원 LINE(${FV_CLINIC_LINE})을 친구 추가해야 대화방이 생겨요 — 처음엔 ✉️ 이메일·WhatsApp으로 보내면 안내문 속 LINE 친구 추가 링크로 이어져요.</div>
     <div style="display:flex;flex-wrap:wrap;gap:6px;">${btns}</div>
     <div id="fvIntlNote" style="font-size:11.5px;margin-top:6px;color:var(--ok);"></div></div>`;
 }
