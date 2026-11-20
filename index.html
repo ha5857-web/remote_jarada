@@ -12156,11 +12156,12 @@ async function vcShare(id, kind, plan){
     <textarea id="vcShareText" style="width:100%;min-height:190px;font-size:13px;padding:10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;" dir="auto">${escapeHtml(msg)}</textarea>
     <div class="vc-row" style="margin-top:10px;">
       <button class="btn btn-primary" onclick="vcShareGo('copy')">📋 복사</button>
+      <button class="btn btn-outline" style="${p.lang==='zt'||p.lang==='th'||p.lang==='ja' ? 'border-color:#06C755;color:#06C755;font-weight:800;' : ''}" onclick="vcShareGo('line')">🟢 LINE</button>
       ${p.email ? `<button class="btn btn-outline" onclick="vcShareGo('mail','${escapeHtml(p.email)}','${subj}')">✉️ 이메일 (${escapeHtml(p.email)})</button>` : `<button class="btn btn-outline" onclick="vcShareGo('mail','','${subj}')">✉️ 이메일</button>`}
       ${digits ? `<button class="btn btn-outline" onclick="vcShareGo('wa','${digits}')">💬 WhatsApp</button><button class="btn btn-outline" onclick="vcShareGo('sms','${digits}')">📱 문자</button>` : ''}
       <button class="btn btn-outline" onclick="vcShareGo('tg')">✈️ 텔레그램</button>
     </div>
-    <div class="vc-dim" style="margin-top:8px;">위챗·라인·카카오톡 등은 「복사」 후 붙여넣으세요. 메신저가 없는 보호자는 이메일이 가장 확실해요${p.email ? '' : ' (환아 정보 「수정」에서 보호자 이메일을 넣어 두면 바로 열려요)'}.</div></div>`;
+    <div class="vc-dim" style="margin-top:8px;">대만·태국·일본 보호자는 LINE 버튼(보호자를 친구로 추가해 두면 바로 골라 보낼 수 있어요), 위챗·카카오톡 등은 「복사」 후 붙여넣으세요. 메신저가 없는 보호자는 이메일이 가장 확실해요${p.email ? '' : ' (환아 정보 「수정」에서 보호자 이메일을 넣어 두면 바로 열려요)'}.</div></div>`;
   ov.classList.add('open');
 }
 function vcShareGo(how, to, subj){
@@ -12169,6 +12170,7 @@ function vcShareGo(how, to, subj){
   if(how==='mail') window.location.href = 'mailto:' + (to||'') + '?subject=' + (subj||'') + '&body=' + encodeURIComponent(t);
   if(how==='wa') window.open('https://wa.me/' + to + '?text=' + encodeURIComponent(t), '_blank');
   if(how==='sms') window.open('sms:+' + to + '?body=' + encodeURIComponent(t), '_blank');
+  if(how==='line') window.open('https://line.me/R/share?text=' + encodeURIComponent(t), '_blank');   // 대만·태국·일본 보호자는 LINE이 기본 — 공유 화면에서 보호자를 고르면 돼요
   if(how==='tg') window.open('https://t.me/share/url?url=' + encodeURIComponent(' ') + '&text=' + encodeURIComponent(t), '_blank');
 }
 /* 📋 통화 전 한눈에 보기 — 지난 통화(또는 최근 진료 기록) 이후 보호자가 올린 것만 모아요 */

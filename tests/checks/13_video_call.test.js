@@ -41,6 +41,7 @@ test('원장 제안 → 보호자(뉴욕) 고름 → 원장 앱이 확정 → �
   const msg = await doc.p.evaluate(() => document.getElementById('vcShareText').value);
   assert.match(msg, /Dear guardian of 이하나/); assert.match(msg, /1\) .*KST\)/); assert.match(msg, /자라다케어_환아용\.html\?pid=vcpid/);
   assert.ok(await doc.p.evaluate(() => !!document.querySelector('#vcShareOv button[onclick*="mail"]')), '이메일 버튼');
+  assert.ok(await doc.p.evaluate(() => !!document.querySelector('#vcShareOv button[onclick*="line"]')), 'LINE 버튼');
 
   // 보호자: 뉴욕 시간대 휴대폰으로 열기 → 후보 2개가 현지 시각으로 → 첫 번째 고르기
   const ctxOpt = { timezoneId: 'America/New_York' };
