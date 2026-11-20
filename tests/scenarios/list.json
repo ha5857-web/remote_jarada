@@ -75,5 +75,9 @@
  {
   "file": "intakevids.js",
   "name": "초진기록지 추천 영상 자동 채우기"
+ },
+ {
+  "file": "onekid.js",
+  "name": "보호자 폰은 찍은 카드 아이만"
  }
 ]
