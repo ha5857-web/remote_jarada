@@ -450,6 +450,8 @@
 
 <!-- 대시보드 -->
 <div class="view active" id="view-dashboard">
+  <div class="section-title"><h2>📹 해외 환아 화상통화</h2><span class="count-badge" id="vcDashCount" style="display:none;"></span></div>
+  <div id="vcDashList" style="margin-bottom:16px;"></div>
   <div class="section-title collapsible" onclick="toggleDashSection('pendingReminder')">
     <h2>📅 진료 리마인더 승인 대기</h2>
     <span><span class="count-badge" id="pendingReminderCount" style="display:none;"></span><span class="chevron" id="pendingReminderChevron">▸</span></span>
@@ -2849,6 +2851,7 @@ async function dismissVisitReminderUI(id, btnEl){
 
 function renderDashboard(){
   try{ renderRecallDash(); }catch(e){}
+  try{ if(typeof vcDash==='function') vcDash(); }catch(e){}
   const list = document.getElementById('dashList');
   const items = patients.map(p=>({p, next: nextCallInfo(p)}))
     .sort((a,b)=> a.next < b.next ? -1 : 1);
@@ -4808,9 +4811,11 @@ function renderDetail(){
       <button class="btn btn-outline" onclick="sendGrowthChartToPatient('${p.id}')">📤 성장차트 보내기</button>
     </div>
     <div id="growthSendStatus_${p.id}" style="font-size:11px;color:var(--secondary);margin-top:4px;"></div>
+    <div id="vcBox"></div>
     ${linkSentMap[p.accessCode] ? `<div style="font-size:11px;color:var(--secondary);margin-top:4px;">✅ 마지막 링크 발송: ${new Date(linkSentMap[p.accessCode].timestamp).toLocaleString('ko-KR')} (${timeAgo(linkSentMap[p.accessCode].timestamp)})${linkSentMap[p.accessCode].method?' · '+escapeHtml(linkSentMap[p.accessCode].method):''}</div>` : ''}
   `;
   renderInbox(p);
+  try{ if(typeof vcRender==='function') vcRender(p); }catch(e){}
   renderChartCaptures(p);
   renderVideoRecs(p);
 
@@ -11969,6 +11974,273 @@ document.addEventListener('paste', ev=>{
 });
 
 setTimeout(()=>{ try{ if(localStorage.getItem("jrd_auth_token") && getApiUrl()) ucLoad(true); }catch(e){} }, 1500);
+</script>
+<script>
+/* ================================================================
+   📅 해외 환아 화상통화 일정 조율 (원장 앱)
+   · 원장님이 한국 시각으로 후보 시간을 고르면, 옆에 보호자 현지 시각이 같이 보여요(보호자 낮 시간은 초록).
+   · 「보호자에게 보내기」 → 서버에 type:'callplan' 행 하나(id cp_<연결코드>)를 저장하고, 보호자 언어로 쓴 안내 문구를
+     복사·이메일·WhatsApp·문자·텔레그램 중 골라 보냅니다(카카오톡·메신저가 없어도 이메일·문자로 충분).
+   · 보호자는 환아 앱 맨 위 카드에서 자기 나라 시각으로 보고 하나를 누르면 바로 예약돼요(type:'question' + [cp:v1|pick|…] 꼬리표).
+     이 앱이 그 선택을 읽으면 자동으로 「확정」으로 바꾸고 질문함에서도 답변 완료 처리합니다. 다른 아이와 겹치면 확정하지 않고 ⚠️로 알려요.
+   ================================================================ */
+const VC_TZ = [
+  ['America/New_York','미국 동부 (뉴욕·보스턴·애틀랜타)'],['America/Chicago','미국 중부 (시카고·댈러스·휴스턴)'],['America/Denver','미국 산악 (덴버)'],
+  ['America/Phoenix','미국 애리조나'],['America/Los_Angeles','미국 서부 (LA·샌프란·시애틀)'],['America/Anchorage','미국 알래스카'],['Pacific/Honolulu','미국 하와이'],
+  ['America/Toronto','캐나다 동부 (토론토·몬트리올)'],['America/Vancouver','캐나다 서부 (밴쿠버)'],['America/Mexico_City','멕시코'],['America/Bogota','콜롬비아'],
+  ['America/Lima','페루'],['America/Santiago','칠레'],['America/Argentina/Buenos_Aires','아르헨티나'],['America/Sao_Paulo','브라질'],
+  ['Europe/London','영국'],['Europe/Madrid','스페인'],['Europe/Paris','프랑스·독일·이탈리아 (중부 유럽)'],['Europe/Istanbul','튀르키예'],['Europe/Moscow','러시아 (모스크바)'],
+  ['Africa/Cairo','이집트'],['Asia/Riyadh','사우디·쿠웨이트·카타르·바레인'],['Asia/Dubai','UAE·오만'],['Asia/Tashkent','우즈베키스탄'],['Asia/Almaty','카자흐스탄'],
+  ['Asia/Kolkata','인도'],['Asia/Ulaanbaatar','몽골'],['Asia/Shanghai','중국'],['Asia/Hong_Kong','홍콩'],['Asia/Taipei','대만'],['Asia/Tokyo','일본'],
+  ['Asia/Ho_Chi_Minh','베트남'],['Asia/Bangkok','태국'],['Asia/Jakarta','인도네시아 (자카르타)'],['Asia/Makassar','인도네시아 (발리)'],['Asia/Singapore','싱가포르·말레이시아'],
+  ['Asia/Manila','필리핀'],['Australia/Perth','호주 서부 (퍼스)'],['Australia/Sydney','호주 동부 (시드니·멜버른)'],['Pacific/Auckland','뉴질랜드'],['Asia/Seoul','한국']
+];
+const VC_LANG_TZ = { zh:'Asia/Shanghai', zt:'Asia/Taipei', vi:'Asia/Ho_Chi_Minh', ja:'Asia/Tokyo', th:'Asia/Bangkok', id:'Asia/Jakarta', mn:'Asia/Ulaanbaatar', ar:'Asia/Dubai' };
+const VC_LOCALE = { ko:'ko-KR', en:'en-US', zh:'zh-CN', zt:'zh-TW', vi:'vi-VN', ja:'ja-JP', es:'es-ES', th:'th-TH', id:'id-ID', ar:'ar', mn:'mn-MN' };
+const VC_MSG = {
+  ko:{ propose:'[삼성자라다 소아청소년과] {name} 보호자님, 다음 화상통화 시간을 정하려고 해요. 아래 링크를 열면 계신 곳 시각으로 후보가 보여요. 편한 시간을 누르시면 바로 예약됩니다.\n{slots}\n{link}', confirm:'[삼성자라다 소아청소년과] {name} 화상통화가 {time}(현지 시각)으로 잡혔어요. 그 시간에 아래 링크를 열고 「화상통화 참여하기」를 눌러 주세요.\n{link}', remind:'[삼성자라다 소아청소년과] 알림: {name} 화상통화가 {time}(현지 시각)에 있어요. 10분 전에 아래 링크를 열어 주세요.\n{link}' },
+  en:{ propose:'[Samsung Jarada Pediatrics] Dear guardian of {name}, we would like to schedule the next video call. Open the link below to see the options in your local time and tap the one that suits you — it will be booked right away.\n{slots}\n{link}', confirm:'[Samsung Jarada Pediatrics] The video call for {name} is booked for {time} (your local time). At that time, open the link below and tap "Join video call".\n{link}', remind:'[Samsung Jarada Pediatrics] Reminder: the video call for {name} is at {time} (your local time). Please open the link below 10 minutes before.\n{link}' },
+  zh:{ propose:'[三星Jarada儿科] {name}的监护人您好，我们想安排下一次视频通话。打开下方链接即可按您当地时间查看候选时间，点选合适的时间即完成预约。\n{slots}\n{link}', confirm:'[三星Jarada儿科] {name}的视频通话已约在{time}（当地时间）。届时请打开下方链接并点击“参加视频通话”。\n{link}', remind:'[三星Jarada儿科] 提醒：{name}的视频通话在{time}（当地时间）。请提前10分钟打开下方链接。\n{link}' },
+  zt:{ propose:'[三星Jarada兒科] {name}的監護人您好，我們想安排下一次視訊通話。打開下方連結即可依您當地時間查看候選時間，點選合適的時間即完成預約。\n{slots}\n{link}', confirm:'[三星Jarada兒科] {name}的視訊通話已約在{time}（當地時間）。屆時請打開下方連結並點選「參加視訊通話」。\n{link}', remind:'[三星Jarada兒科] 提醒：{name}的視訊通話在{time}（當地時間）。請提前10分鐘打開下方連結。\n{link}' },
+  vi:{ propose:'[Nhi khoa Samsung Jarada] Kính gửi phụ huynh của {name}, chúng tôi muốn hẹn lịch gọi video tiếp theo. Mở liên kết bên dưới để xem các khung giờ theo giờ địa phương và chọn giờ phù hợp — lịch hẹn sẽ được đặt ngay.\n{slots}\n{link}', confirm:'[Nhi khoa Samsung Jarada] Cuộc gọi video của {name} đã được hẹn vào {time} (giờ địa phương). Đến giờ, hãy mở liên kết bên dưới và bấm "Tham gia gọi video".\n{link}', remind:'[Nhi khoa Samsung Jarada] Nhắc lịch: cuộc gọi video của {name} vào {time} (giờ địa phương). Vui lòng mở liên kết bên dưới trước 10 phút.\n{link}' },
+  ja:{ propose:'[サムスンジャラダ小児科] {name}様の保護者様、次回のビデオ通話の日時を決めたいと思います。下のリンクを開くと現地時間で候補が表示されます。ご都合のよい時間を押すとすぐに予約されます。\n{slots}\n{link}', confirm:'[サムスンジャラダ小児科] {name}様のビデオ通話は{time}（現地時間）に決まりました。その時間に下のリンクを開き「ビデオ通話に参加」を押してください。\n{link}', remind:'[サムスンジャラダ小児科] お知らせ：{name}様のビデオ通話は{time}（現地時間）です。10分前に下のリンクを開いてください。\n{link}' },
+  es:{ propose:'[Pediatría Samsung Jarada] Estimado/a tutor/a de {name}: queremos programar la próxima videollamada. Abra el enlace para ver las opciones en su hora local y toque la que le convenga; quedará reservada al instante.\n{slots}\n{link}', confirm:'[Pediatría Samsung Jarada] La videollamada de {name} quedó para el {time} (hora local). A esa hora, abra el enlace y toque «Unirse a la videollamada».\n{link}', remind:'[Pediatría Samsung Jarada] Recordatorio: la videollamada de {name} es el {time} (hora local). Abra el enlace 10 minutos antes.\n{link}' },
+  th:{ propose:'[กุมารเวชกรรมซัมซุงจาราดา] เรียนผู้ปกครองของ {name} เราต้องการนัดวิดีโอคอลครั้งถัดไป เปิดลิงก์ด้านล่างเพื่อดูเวลาที่เสนอตามเวลาท้องถิ่นของท่าน แล้วแตะเวลาที่สะดวก ระบบจะจองให้ทันที\n{slots}\n{link}', confirm:'[กุมารเวชกรรมซัมซุงจาราดา] วิดีโอคอลของ {name} นัดไว้เวลา {time} (เวลาท้องถิ่น) เมื่อถึงเวลา กรุณาเปิดลิงก์ด้านล่างและแตะ "เข้าร่วมวิดีโอคอล"\n{link}', remind:'[กุมารเวชกรรมซัมซุงจาราดา] แจ้งเตือน: วิดีโอคอลของ {name} เวลา {time} (เวลาท้องถิ่น) กรุณาเปิดลิงก์ด้านล่างก่อน 10 นาที\n{link}' },
+  id:{ propose:'[Pediatri Samsung Jarada] Yth. wali {name}, kami ingin menjadwalkan panggilan video berikutnya. Buka tautan di bawah untuk melihat pilihan waktu dalam waktu setempat Anda, lalu ketuk yang sesuai — jadwal langsung tercatat.\n{slots}\n{link}', confirm:'[Pediatri Samsung Jarada] Panggilan video {name} dijadwalkan pada {time} (waktu setempat). Pada waktu itu, buka tautan di bawah dan ketuk "Ikuti panggilan video".\n{link}', remind:'[Pediatri Samsung Jarada] Pengingat: panggilan video {name} pada {time} (waktu setempat). Mohon buka tautan di bawah 10 menit sebelumnya.\n{link}' },
+  ar:{ propose:'[عيادة سامسونغ جارادا للأطفال] ولي أمر {name} الكريم، نود تحديد موعد مكالمة الفيديو القادمة. افتحوا الرابط أدناه لرؤية المواعيد المقترحة بتوقيتكم المحلي، واضغطوا على الموعد المناسب ليتم الحجز فورًا.\n{slots}\n{link}', confirm:'[عيادة سامسونغ جارادا للأطفال] تم تحديد مكالمة الفيديو لـ{name} في {time} (بتوقيتكم المحلي). في ذلك الوقت افتحوا الرابط أدناه واضغطوا «الانضمام إلى مكالمة الفيديو».\n{link}', remind:'[عيادة سامسونغ جارادا للأطفال] تذكير: مكالمة الفيديو لـ{name} في {time} (بتوقيتكم المحلي). يُرجى فتح الرابط أدناه قبل 10 دقائق.\n{link}' },
+  mn:{ propose:'[Самсунг Жарада хүүхдийн эмнэлэг] {name}-ийн асран хамгаалагч танаа, дараагийн видео дуудлагын цагийг тохирох гэж байна. Доорх холбоосыг нээвэл таны орон нутгийн цагаар санал болгосон цагууд харагдана. Тохирох цагаа дарвал шууд захиалагдана.\n{slots}\n{link}', confirm:'[Самсунг Жарада хүүхдийн эмнэлэг] {name}-ийн видео дуудлага {time} (орон нутгийн цагаар) товлогдлоо. Тэр цагт доорх холбоосыг нээж «Видео дуудлагад нэгдэх»-ийг дарна уу.\n{link}', remind:'[Самсунг Жарада хүүхдийн эмнэлэг] Сануулга: {name}-ийн видео дуудлага {time} (орон нутгийн цагаар). 10 минутын өмнө доорх холбоосыг нээнэ үү.\n{link}' }
+};
+let VC = { rows:null, at:0, draft:{} };
+function vcLang(p){ const l = (p && p.lang) || 'ko'; return VC_MSG[l] ? l : 'en'; }
+function vcTzLabel(tz){ const x = VC_TZ.find(a=>a[0]===tz); return x ? x[1] : (tz || '시간대 모름'); }
+const VC_WD = { 'mn-MN':['Ня','Да','Мя','Лх','Пү','Ба','Бя'] };
+function vcFmt(iso, tz, loc, opt){
+  loc = loc || 'ko-KR'; const o = Object.assign({ timeZone: tz || 'Asia/Seoul', month:'numeric', day:'numeric', weekday:'short', hour:'2-digit', minute:'2-digit', hour12:false }, opt||{});
+  try{
+    let ok = true; try{ ok = Intl.DateTimeFormat.supportedLocalesOf([loc]).length > 0; }catch(e){}
+    if(ok) return new Date(iso).toLocaleString(loc, o);
+    const P = {}; new Intl.DateTimeFormat('en-US', { timeZone: o.timeZone, month:'numeric', day:'numeric', weekday:'short', hour:'2-digit', minute:'2-digit', hourCycle:'h23' }).formatToParts(new Date(iso)).forEach(x=>{ P[x.type] = x.value; });
+    const wi = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(P.weekday), wd = (VC_WD[loc] || [])[wi] || P.weekday;
+    return (o.month ? P.month + '/' + P.day + ' ' : '') + (o.weekday ? '(' + wd + ') ' : '') + (P.hour === '24' ? '00' : P.hour) + ':' + P.minute;
+  }catch(e){ return String(iso); }
+}
+function vcHourIn(iso, tz){ try{ const s = new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour:'2-digit', minute:'2-digit', hour12:false }).format(new Date(iso)); const m = s.match(/(\d{1,2}):(\d{2})/); return m ? (+m[1]%24) + (+m[2])/60 : null; }catch(e){ return null; } }
+function vcDay(iso, tz){ try{ return new Intl.DateTimeFormat('en-CA', { timeZone: tz, year:'numeric', month:'2-digit', day:'2-digit' }).format(new Date(iso)); }catch(e){ return ''; } }
+function vcKstIso(date, hm){ const d = String(date||'').match(/^(\d{4})-(\d{2})-(\d{2})$/), t = String(hm||'').match(/^(\d{1,2}):(\d{2})$/); if(!d || !t) return ''; return new Date(Date.UTC(+d[1], +d[2]-1, +d[3], +t[1]-9, +t[2])).toISOString(); }
+function vcTag(text){ const m = String(text||'').match(/\[cp:v1\|(pick|ask)\|([^|\]]*)\|([^|\]]*)\|([^|\]]*)\]/); return m ? { kind:m[1], iso:m[2], tz:m[3], ver:m[4] } : null; }
+function vcPlanOf(rows, pid){ const r = (rows||[]).filter(x=>x.type==='callplan' && x.pid===pid).sort((a,b)=>String(a.timestamp||'')<String(b.timestamp||'')?1:-1)[0]; if(!r) return null; try{ const o = JSON.parse(r.question||'{}'); return o && o.v ? Object.assign(o, { _rowId:r.id }) : null; }catch(e){ return null; } }
+function vcPicks(rows, pid, ver){ return (rows||[]).filter(r=>r.type==='question' && r.pid===pid).map(r=>({ r, t:vcTag(r.question) })).filter(x=>x.t && (!ver || x.t.ver===ver)).sort((a,b)=>String(a.r.timestamp||'')<String(b.r.timestamp||'')?1:-1); }
+function vcGuessTz(p, rows){ if(p.vcTz) return p.vcTz; const k = vcPicks(rows, p.accessCode).find(x=>x.t.tz); if(k) return k.t.tz; return VC_LANG_TZ[p.lang] || ''; }
+async function vcFetchRows(force){
+  if(!force && VC.rows && Date.now()-VC.at < 15000) return VC.rows;
+  const api = getApiUrl(); if(!api) throw new Error('연동 설정에서 백엔드 URL을 먼저 입력해 주세요');
+  const j = await (await fetch(api)).json(); if(!Array.isArray(j)) throw new Error((j && (j.message||j.code)) || '서버 목록을 못 읽었어요');
+  VC.rows = j; VC.at = Date.now(); return j;
+}
+async function vcPost(body){ const r = await fetch(getApiUrl(), { method:'POST', body: JSON.stringify(body) }); let j = null; try{ j = await r.json(); }catch(e){} if(j && j.code==='AUTH_REQUIRED'){ try{ handleAuthFailure(); }catch(e){} } return j; }
+async function vcSavePlan(p, plan){
+  if(!p.accessCode){ p.accessCode = genAccessCode(); savePatients(); }
+  const rowId = 'cp_' + p.accessCode, q = JSON.stringify(Object.assign({}, plan, { _rowId: undefined, updatedAt: new Date().toISOString() }));
+  let res = await vcPost({ action:'update', id: rowId, date: todayStr(), question: q });
+  if(!(res && res.status==='ok' && res.updated)) res = await vcPost({ id: rowId, pid: p.accessCode, type:'callplan', date: todayStr(), question: q });
+  if(!(res && res.status==='ok')) throw new Error((res && res.message) || '서버에 저장하지 못했어요');
+  VC.at = 0; return true;
+}
+/* 보호자가 고른 시간을 확정으로 (다른 아이와 겹치면 확정하지 않고 표시만) — 이 앱이 서버 목록을 읽을 때마다 조용히 돌아요 */
+async function vcSync(rows){
+  rows = rows || await vcFetchRows();
+  let changed = 0;
+  for(const p of patients){
+    if(!p.accessCode) continue;
+    const plan = vcPlanOf(rows, p.accessCode); if(!plan || plan.status !== 'proposed') continue;
+    const pick = vcPicks(rows, p.accessCode, plan.ver).find(x=>x.t.kind==='pick'); if(!pick) continue;
+    const t0 = Date.parse(pick.t.iso), dur = (plan.dur||20)*60000;
+    const clash = patients.find(o=>{ if(o===p || !o.accessCode) return false; const op = vcPlanOf(rows, o.accessCode); if(!op || op.status!=='confirmed' || !op.slot) return false; const t1 = Date.parse(op.slot); return Math.abs(t1 - t0) < Math.max(dur, (op.dur||20)*60000); });
+    if(clash){ if(plan.clash !== clash.name){ plan.clash = clash.name; try{ await vcSavePlan(p, plan); changed++; }catch(e){} } continue; }
+    Object.assign(plan, { status:'confirmed', slot: pick.t.iso, pickTz: pick.t.tz || '', pickedAt: pick.r.timestamp || new Date().toISOString(), clash: '' });
+    if(pick.t.tz && !p.vcTz){ p.vcTz = pick.t.tz; savePatients(); }
+    try{ await vcSavePlan(p, plan); await vcPost({ id: uid(), pid: p.accessCode, type:'answer', refId: pick.r.id, answer:'✅' }); changed++; }catch(e){}
+  }
+  if(changed) VC.at = 0;
+  return changed;
+}
+function vcStatusHtml(p, plan, rows, tz){
+  const L = 'ko-KR', both = iso => `<b>${vcFmt(iso,'Asia/Seoul')}</b> 서울 · 현지 ${vcFmt(iso, tz)}`;
+  if(!plan || plan.status==='cancelled') return '<div class="vc-st">아직 잡힌 화상통화가 없어요.</div>';
+  if(plan.status==='confirmed') return `<div class="vc-st ok">✅ 확정: ${both(plan.slot)} <span class="vc-dim">(${plan.dur||20}분)</span></div>`;
+  const asks = vcPicks(rows, p.accessCode, plan.ver).filter(x=>x.t.kind==='ask');
+  const pick = vcPicks(rows, p.accessCode, plan.ver).find(x=>x.t.kind==='pick');
+  let h = `<div class="vc-st wait">⏳ 보호자 선택 기다리는 중 — 보낸 후보 ${plan.slots.length}개</div>`;
+  if(pick && plan.clash) h += `<div class="vc-st bad">⚠️ 보호자가 ${both(pick.t.iso)}을 골랐는데 ${escapeHtml(plan.clash)} 통화와 겹쳐요. 후보를 다시 보내 주세요.</div>`;
+  asks.forEach(x=>{ const txt = String(x.r.question||'').split('\n').slice(1).filter(l=>!/^\[cp:/.test(l)).join(' ').trim(); h += `<div class="vc-st bad">💬 다른 시간 요청 (${escapeHtml(vcTzLabel(x.t.tz))}): ${escapeHtml(txt||'-')}</div>`; });
+  return h;
+}
+async function vcRender(p){
+  const box = document.getElementById('vcBox'); if(!box || !p) return;
+  if((p.location||'overseas') !== 'overseas'){ box.innerHTML = ''; return; }
+  box.innerHTML = '<div class="vc-card"><div class="vc-h">📅 화상통화 일정</div><div class="vc-dim">불러오는 중…</div></div>';
+  let rows = [];
+  try{ rows = await vcFetchRows(); if(await vcSync(rows)) rows = await vcFetchRows(true); }catch(e){ box.innerHTML = `<div class="vc-card"><div class="vc-h">📅 화상통화 일정</div><div class="vc-st bad">${escapeHtml(e.message||'서버 연결 오류')}</div></div>`; return; }
+  if(currentPatientId !== p.id) return;
+  const plan = vcPlanOf(rows, p.accessCode), tz = vcGuessTz(p, rows);
+  const d = VC.draft[p.id] || (VC.draft[p.id] = { date: '', slots: [], dur: (plan && plan.dur) || 20 });
+  if(!d.date){ const nx = nextCallInfo(p); d.date = nx && nx >= todayStr() ? nx : todayStr(); }
+  const nowLocal = tz ? vcFmt(new Date().toISOString(), tz, 'ko-KR', { month:undefined, day:undefined, weekday:'short' }) : '';
+  const opts = VC_TZ.map(([z,l])=>`<option value="${z}"${z===tz?' selected':''}>${escapeHtml(l)}</option>`).join('');
+  const chips = [];
+  for(let m = 7*60; m <= 23*60+30; m += 30){
+    const hm = String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0'), iso = vcKstIso(d.date, hm);
+    if(!iso || Date.parse(iso) < Date.now() + 30*60000) continue;
+    const lh = tz ? vcHourIn(iso, tz) : null, good = lh != null && lh >= 8 && lh < 21.5, ok = lh != null && (lh >= 7 && lh < 8 || lh >= 21.5 && lh < 23);
+    const on = d.slots.indexOf(iso) >= 0;
+    chips.push(`<button type="button" class="vc-chip ${on?'on':good?'good':ok?'okay':'night'}" onclick="vcToggle('${p.id}','${iso}')" title="${tz?'현지 '+escapeHtml(vcFmt(iso,tz)):''}">${hm}${tz?`<small>${escapeHtml(vcFmt(iso, tz, 'ko-KR', { month:undefined, day:undefined, weekday: vcDay(iso, tz) !== d.date ? 'short' : undefined }))}</small>`:''}</button>`);
+  }
+  const sel = d.slots.slice().sort().map(iso=>`<span class="vc-pick">${escapeHtml(vcFmt(iso,'Asia/Seoul'))} 서울${tz?` → 현지 ${escapeHtml(vcFmt(iso,tz))}`:''} <b onclick="vcToggle('${p.id}','${iso}')">✕</b></span>`).join('');
+  const link = p.zoomLink || '';
+  box.innerHTML = `<div class="vc-card">
+    <div class="vc-h">📅 화상통화 일정 <button class="btn btn-outline vc-sm" onclick="vcSummary('${p.id}')">📋 통화 전 한눈에 보기</button></div>
+    ${vcStatusHtml(p, plan, rows, tz)}
+    ${plan && plan.status==='confirmed' ? `<div class="vc-row"><button class="btn btn-primary vc-sm" onclick="vcShare('${p.id}','confirm')">✉️ 확정 안내 보내기</button><button class="btn btn-outline vc-sm" onclick="vcShare('${p.id}','remind')">🔔 알림 보내기</button>${/^https?:/.test(link)?`<a class="btn btn-outline vc-sm" href="${escapeHtml(link)}" target="_blank" rel="noopener">🎥 통화 열기</a>`:''}<button class="btn btn-outline vc-sm" onclick="vcCancel('${p.id}')">취소</button></div>` : ''}
+    <details class="vc-new"${!plan || plan.status!=='confirmed' ? ' open' : ''}><summary>${plan && plan.status!=='cancelled' ? '🔁 새 후보 시간 보내기' : '➕ 후보 시간 보내기'}</summary>
+      <div class="vc-row"><label class="vc-lab">보호자 시간대</label><select onchange="vcSetTz('${p.id}',this.value)"><option value="">— 골라 주세요 —</option>${opts}</select>${tz?`<span class="vc-dim">현지 지금 ${escapeHtml(nowLocal)}</span>`:'<span class="vc-st bad" style="padding:2px 8px;">시간대를 골라야 현지 시각이 보여요</span>'}</div>
+      <div class="vc-row"><label class="vc-lab">날짜 (한국)</label><input type="date" value="${d.date}" min="${todayStr()}" onchange="vcSetDate('${p.id}',this.value)"><label class="vc-lab">통화 길이</label><select onchange="VC.draft['${p.id}'].dur=+this.value">${[15,20,30,40].map(n=>`<option value="${n}"${n===d.dur?' selected':''}>${n}분</option>`).join('')}</select></div>
+      <div class="vc-legend"><span class="vc-chip good">보호자 낮</span><span class="vc-chip okay">이른 아침·늦은 밤</span><span class="vc-chip night">한밤중</span> — 한국 시각을 누르면 후보에 담겨요 (작은 글씨가 현지 시각)</div>
+      <div class="vc-chips">${chips.join('') || '<span class="vc-dim">이 날짜에는 고를 시간이 없어요.</span>'}</div>
+      ${sel ? `<div class="vc-sel">${sel}</div>` : '<div class="vc-dim">후보를 2~4개 고르시면 보호자가 그중 하나를 고릅니다. 다른 날짜로 바꿔 가며 더 담을 수 있어요.</div>'}
+      ${/^https?:/.test(link) ? `<div class="vc-dim">통화 링크: ${escapeHtml(link)} <span>(환아 정보 「수정」에서 바꿔요)</span></div>` : `<div class="vc-st bad">통화 링크가 없어요 — 환아 정보 「수정」의 화상통화 링크에 Zoom 회의실 주소를 넣어 주세요.</div>`}
+      <div class="vc-row"><button class="btn btn-primary" ${d.slots.length && tz ? '' : 'disabled'} onclick="vcPropose('${p.id}')">📨 보호자에게 후보 보내기 (${d.slots.length}개)</button><span class="vc-dim" id="vcMsg_${p.id}"></span></div>
+    </details>
+  </div>`;
+}
+function vcToggle(id, iso){ const d = VC.draft[id]; if(!d) return; const i = d.slots.indexOf(iso); if(i>=0) d.slots.splice(i,1); else if(d.slots.length < 6) d.slots.push(iso); vcRender(getPatient(id)); }
+function vcSetDate(id, v){ if(VC.draft[id] && v) VC.draft[id].date = v; vcRender(getPatient(id)); }
+function vcSetTz(id, v){ const p = getPatient(id); if(!p) return; p.vcTz = v || ''; savePatients(); vcRender(p); }
+async function vcPropose(id){
+  const p = getPatient(id), d = VC.draft[id]; if(!p || !d || !d.slots.length) return;
+  const tz = vcGuessTz(p, VC.rows||[]); if(!tz){ alert('보호자 시간대를 먼저 골라 주세요.'); return; }
+  const slots = d.slots.slice().sort(), plan = { v:1, ver: Date.now().toString(36), status:'proposed', slots, slot:null, dur:d.dur||20, link:p.zoomLink||'', tz, by:'의사' };
+  const m = document.getElementById('vcMsg_'+id); if(m) m.textContent = '저장 중…';
+  try{
+    const rows = await vcFetchRows(true);
+    await vcSavePlan(p, plan);
+    for(const x of vcPicks(rows, p.accessCode).filter(x=>x.t.kind==='ask')){ if(!rows.some(r=>r.type==='answer' && r.refId===x.r.id)) try{ await vcPost({ id: uid(), pid: p.accessCode, type:'answer', refId: x.r.id, answer:'📅' }); }catch(e){} }
+  }catch(e){ if(m) m.textContent = '❌ ' + (e.message||'저장 실패'); return; }
+  d.slots = [];
+  await vcRender(p);
+  vcShare(id, 'propose', plan);
+}
+async function vcCancel(id){
+  const p = getPatient(id); if(!p || !confirm(p.name + ' 화상통화 일정을 취소할까요? 보호자 화면에서도 사라져요.')) return;
+  try{ const rows = await vcFetchRows(true), plan = vcPlanOf(rows, p.accessCode); if(plan){ plan.status = 'cancelled'; await vcSavePlan(p, plan); } }catch(e){ alert('취소하지 못했어요: ' + (e.message||'')); }
+  vcRender(p);
+}
+function vcMessage(p, kind, plan){
+  const lang = vcLang(p), loc = VC_LOCALE[lang] || 'en-US', tz = (plan && plan.pickTz) || vcGuessTz(p, VC.rows||[]) || 'Asia/Seoul';
+  const link = buildPatientLinkAndMsg(p).link, nm = p.name || '';
+  const one = iso => vcFmt(iso, tz, loc, { year:undefined }) + (tz==='Asia/Seoul' ? '' : ' (' + vcFmt(iso, 'Asia/Seoul', loc, { weekday:undefined }) + ' KST)');
+  const tpl = VC_MSG[lang][kind];
+  const slots = kind==='propose' ? (plan.slots||[]).map((s,i)=>`${i+1}) ${one(s)}`).join('\n') : '';
+  return tpl.split('{name}').join(nm).split('{slots}').join(slots).split('{time}').join(plan && plan.slot ? vcFmt(plan.slot, tz, loc) : '').split('{link}').join(link);
+}
+async function vcShare(id, kind, plan){
+  const p = getPatient(id); if(!p) return;
+  if(!plan){ try{ plan = vcPlanOf(await vcFetchRows(), p.accessCode); }catch(e){} }
+  if(!plan){ alert('보낼 일정이 없어요.'); return; }
+  const msg = vcMessage(p, kind, plan), digits = String(p.phone||'').replace(/\D/g,'');
+  const subj = encodeURIComponent('[Samsung Jarada Pediatrics] ' + (kind==='propose' ? 'Video call scheduling' : kind==='confirm' ? 'Video call booked' : 'Video call reminder') + ' — ' + (p.name||''));
+  let ov = document.getElementById('vcShareOv');
+  if(!ov){ ov = document.createElement('div'); ov.id = 'vcShareOv'; ov.className = 'modal-ov'; ov.onclick = e=>{ if(e.target===ov) ov.classList.remove('open'); }; document.body.appendChild(ov); }
+  const title = kind==='propose' ? '📨 후보 시간 보내기' : kind==='confirm' ? '✉️ 확정 안내 보내기' : '🔔 알림 보내기';
+  ov.innerHTML = `<div class="modal"><div class="modal-head"><h3>${title} — ${escapeHtml(p.name||'')}</h3><button class="modal-close" onclick="document.getElementById('vcShareOv').classList.remove('open')">✕</button></div>
+    <div class="vc-dim" style="margin-bottom:6px;">${kind==='propose' ? '✅ 후보를 서버에 저장했어요. 보호자가 환아 앱을 열면 맨 위에 자기 나라 시각으로 보여요. 아래 안내를 보호자 언어로 만들었으니 편한 방법으로 보내 주세요.' : '보호자 언어로 만든 안내예요. 고쳐서 보내도 돼요.'}</div>
+    <textarea id="vcShareText" style="width:100%;min-height:190px;font-size:13px;padding:10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;" dir="auto">${escapeHtml(msg)}</textarea>
+    <div class="vc-row" style="margin-top:10px;">
+      <button class="btn btn-primary" onclick="vcShareGo('copy')">📋 복사</button>
+      ${p.email ? `<button class="btn btn-outline" onclick="vcShareGo('mail','${escapeHtml(p.email)}','${subj}')">✉️ 이메일 (${escapeHtml(p.email)})</button>` : `<button class="btn btn-outline" onclick="vcShareGo('mail','','${subj}')">✉️ 이메일</button>`}
+      ${digits ? `<button class="btn btn-outline" onclick="vcShareGo('wa','${digits}')">💬 WhatsApp</button><button class="btn btn-outline" onclick="vcShareGo('sms','${digits}')">📱 문자</button>` : ''}
+      <button class="btn btn-outline" onclick="vcShareGo('tg')">✈️ 텔레그램</button>
+    </div>
+    <div class="vc-dim" style="margin-top:8px;">위챗·라인·카카오톡 등은 「복사」 후 붙여넣으세요. 메신저가 없는 보호자는 이메일이 가장 확실해요${p.email ? '' : ' (환아 정보 「수정」에서 보호자 이메일을 넣어 두면 바로 열려요)'}.</div></div>`;
+  ov.classList.add('open');
+}
+function vcShareGo(how, to, subj){
+  const t = (document.getElementById('vcShareText')||{}).value || '';
+  if(how==='copy'){ (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(()=>{ const b = event && event.target; if(b) b.textContent = '✅ 복사됨'; }).catch(()=>prompt('복사하세요:', t)); return; }
+  if(how==='mail') window.location.href = 'mailto:' + (to||'') + '?subject=' + (subj||'') + '&body=' + encodeURIComponent(t);
+  if(how==='wa') window.open('https://wa.me/' + to + '?text=' + encodeURIComponent(t), '_blank');
+  if(how==='sms') window.open('sms:+' + to + '?body=' + encodeURIComponent(t), '_blank');
+  if(how==='tg') window.open('https://t.me/share/url?url=' + encodeURIComponent(' ') + '&text=' + encodeURIComponent(t), '_blank');
+}
+/* 📋 통화 전 한눈에 보기 — 지난 통화(또는 최근 진료 기록) 이후 보호자가 올린 것만 모아요 */
+async function vcSummary(id){
+  const p = getPatient(id); if(!p) return;
+  let rows; try{ rows = await vcFetchRows(true); }catch(e){ alert(e.message); return; }
+  const mine = rows.filter(r=>r.pid===p.accessCode);
+  const plan = vcPlanOf(rows, p.accessCode);
+  const recs = (p.records||[]).filter(r=>r.callDone || r.height).map(r=>r.date).sort();
+  let since = recs.length ? recs[recs.length-1] : '';
+  if(plan && plan.status==='confirmed' && plan.slot && Date.parse(plan.slot) < Date.now() - 3*3600e3){ const s = new Date(Date.parse(plan.slot)+9*3600e3).toISOString().slice(0,10); if(s > since) since = s; }
+  if(!since){ const d = new Date(Date.now() - 120*864e5); since = d.toISOString().slice(0,10); }
+  const after = r => String(r.date || String(r.timestamp||'').slice(0,10)) >= since;
+  const answered = new Set(mine.filter(r=>r.type==='answer').map(r=>r.refId));
+  const meas = mine.filter(r=>r.type==='measurement' && after(r)).sort((a,b)=>a.date<b.date?-1:1);
+  const files = mine.filter(r=>/^(bloodtest|xray|growthsheet)$/.test(r.type) && after(r));
+  const inj = mine.filter(r=>r.type==='injection' && after(r));
+  const qs = mine.filter(r=>r.type==='question' && after(r) && !vcTag(r.question) && !/귀국 진료 신청/.test(r.question||''));
+  const memos = mine.filter(r=>(r.type==='callmemo' || r.type==='lifestyleNote') && after(r));
+  const days = Math.max(1, Math.round((Date.now() - Date.parse(since+'T00:00:00+09:00'))/864e5));
+  const injDays = new Set(inj.map(r=>r.date)).size;
+  const sec = (t, body) => `<div class="vc-sum-sec"><div class="vc-sum-h">${t}</div>${body}</div>`;
+  const lastRec = (p.records||[]).filter(r=>r.height).sort((a,b)=>a.date<b.date?-1:1).pop();
+  let mh = meas.length ? meas.map(r=>`<div>${fmtDate(r.date)} · ${r.height?`키 <b>${r.height}</b>cm `:''}${r.weight?`몸무게 ${r.weight}kg`:''}${(p.appliedInboxIds||[]).includes(r.id)?' <span class="vc-dim">(차트 반영됨)</span>':''}</div>`).join('') : '<div class="vc-dim">새로 올린 키·몸무게 없음</div>';
+  const lastM = meas.filter(r=>r.height).pop();
+  if(lastM && lastRec && lastRec.height && lastRec.date < lastM.date){ const dd = (Date.parse(lastM.date) - Date.parse(lastRec.date))/864e5/365.25; const gv = dd > 0.15 ? ((lastM.height - lastRec.height)/dd).toFixed(1) : null; mh += `<div class="vc-dim">병원 기록 ${fmtDate(lastRec.date)} ${lastRec.height}cm → ${lastM.height}cm${gv?` · 연 ${gv}cm 속도(집 측정 기준 참고)`:''}</div>`; }
+  const fh = files.length ? `<div class="vc-files">${files.map(r=>{ const lab = r.type==='xray'?'엑스레이':r.type==='growthsheet'?'성장기록지':'혈액검사'; return r.fileId ? `<img src="${fileUrl(r.fileId,'w400')}" title="${lab} ${fmtDate(r.date)}" onclick="openLightbox('${fileUrl(r.fileId,'w2000')}')">` : `<span>${lab} ${fmtDate(r.date)}</span>`; }).join('')}</div>` : '<div class="vc-dim">새 사진 없음</div>';
+  const ih = inj.length ? `<div>${days}일 중 <b>${injDays}일</b> 기록 (${Math.round(injDays/days*100)}%)${inj.filter(r=>r.answer).slice(-3).map(r=>`<div class="vc-dim">${fmtDate(r.date)} ${escapeHtml(r.answer)}</div>`).join('')}</div>` : '<div class="vc-dim">주사 기록 없음</div>';
+  const qh = qs.length ? qs.map(r=>`<div>${answered.has(r.id)?'✅':'❓'} ${escapeHtml(r.question||'')}</div>`).join('') : '<div class="vc-dim">새 질문 없음</div>';
+  const memh = memos.length ? memos.map(r=>`<div>${fmtDate(r.date)} · ${escapeHtml(r.question||r.answer||'')}</div>`).join('') : '<div class="vc-dim">메모 없음</div>';
+  let ov = document.getElementById('vcSumOv');
+  if(!ov){ ov = document.createElement('div'); ov.id = 'vcSumOv'; ov.className = 'modal-ov'; ov.onclick = e=>{ if(e.target===ov) ov.classList.remove('open'); }; document.body.appendChild(ov); }
+  ov.innerHTML = `<div class="modal"><div class="modal-head"><h3>📋 ${escapeHtml(p.name||'')} — ${fmtDate(since)} 이후 올라온 것</h3><button class="modal-close" onclick="document.getElementById('vcSumOv').classList.remove('open')">✕</button></div>
+    <div class="vc-dim" style="margin-bottom:8px;">${escapeHtml(p.diagnosis||'')}${p.ghDrug?' · '+escapeHtml(p.ghDrug):''}${plan && plan.status==='confirmed' ? ' · 통화 ' + escapeHtml(vcFmt(plan.slot,'Asia/Seoul')) : ''}</div>
+    ${sec('📏 키·몸무게 ('+meas.length+')', mh)}${sec('🖼 검사·엑스레이·기록지 ('+files.length+')', fh)}${sec('💉 주사 기록', ih)}${sec('❓ 질문 ('+qs.length+')', qh)}${sec('📝 보호자 메모', memh)}
+    <div class="vc-row" style="margin-top:10px;"><button class="btn btn-outline" onclick="document.getElementById('vcSumOv').classList.remove('open');openDetail('${p.id}')">환아 화면으로</button></div></div>`;
+  ov.classList.add('open');
+}
+/* 대시보드: 다가오는 화상통화 · 보호자 답 기다리는 중 */
+async function vcDash(){
+  const box = document.getElementById('vcDashList'), cnt = document.getElementById('vcDashCount'); if(!box) return;
+  let rows; try{ rows = await vcFetchRows(); if(await vcSync(rows)) rows = await vcFetchRows(true); }catch(e){ box.innerHTML = `<div class="empty-note">${escapeHtml(e.message||'')}</div>`; return; }
+  const items = [];
+  patients.forEach(p=>{ if(!p.accessCode) return; const plan = vcPlanOf(rows, p.accessCode); if(!plan || plan.status==='cancelled') return;
+    if(plan.status==='confirmed' && plan.slot && Date.parse(plan.slot) > Date.now() - 2*3600e3) items.push({ p, plan, k:0, t:Date.parse(plan.slot) });
+    else if(plan.status==='proposed') items.push({ p, plan, k:1, t:Date.parse(plan.updatedAt||0) || 0, ask: vcPicks(rows, p.accessCode, plan.ver).some(x=>x.t.kind==='ask') }); });
+  items.sort((a,b)=>a.k-b.k || a.t-b.t);
+  if(cnt){ cnt.style.display = items.length ? '' : 'none'; cnt.textContent = items.length; }
+  if(!items.length){ box.innerHTML = '<div class="empty-note">잡힌 화상통화가 없어요. 환아 화면의 「📅 화상통화 일정」에서 후보 시간을 보내세요.</div>'; return; }
+  box.innerHTML = items.map(({p, plan, k, ask})=>{
+    const tz = plan.pickTz || plan.tz;
+    const right = k===0 ? (()=>{ const ms = Date.parse(plan.slot) - Date.now(); return ms < 0 ? '진행 중' : ms < 864e5 ? `${Math.floor(ms/3600e3)}시간 ${Math.floor(ms%3600e3/60000)}분 후` : `D-${Math.ceil(ms/864e5)}`; })() : (ask ? '💬 다른 시간 요청' : plan.clash ? '⚠️ 겹침' : '⏳ 선택 대기');
+    return `<div class="call-card ${k===0 && Date.parse(plan.slot)-Date.now() < 864e5 ? 'soon' : ''}" onclick="openDetail('${p.id}')"><div class="who"><div class="name">${escapeHtml(p.name)} <span style="font-weight:400;color:var(--secondary);font-size:11.5px;">${escapeHtml(vcTzLabel(tz))}</span></div>
+      <div class="meta">${k===0 ? `📹 ${escapeHtml(vcFmt(plan.slot,'Asia/Seoul'))} 서울 · 현지 ${escapeHtml(vcFmt(plan.slot, tz))}` : `후보 ${plan.slots.length}개 보냄 · ${escapeHtml(plan.slots.slice(0,3).map(s=>vcFmt(s,'Asia/Seoul')).join(', '))}`}</div></div><div class="badge">${right}</div></div>`;
+  }).join('');
+}
+(function vcStyle(){ const s = document.createElement('style'); s.textContent = `
+  .vc-card{margin-top:12px;padding:12px;border:1.5px solid #CFE3EA;border-radius:12px;background:#F7FBFC}
+  .vc-h{font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+  .vc-sm{font-size:11.5px!important;padding:6px 10px!important}
+  .vc-st{font-size:12.5px;padding:6px 9px;border-radius:8px;background:#EEF3F5;margin:4px 0;line-height:1.55}.vc-st.ok{background:#E7F6EC;color:#1E6B3A}.vc-st.wait{background:#FFF6E0;color:#7A5A00}.vc-st.bad{background:#FDECEA;color:#B3261E}
+  .vc-dim{font-size:11.5px;color:var(--secondary);line-height:1.6}
+  .vc-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0}.vc-row select,.vc-row input{padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;max-width:100%}
+  .vc-lab{font-size:11.5px;font-weight:700;color:var(--secondary)}
+  .vc-new summary{cursor:pointer;font-weight:700;font-size:13px;margin:8px 0 4px;color:var(--accent)}
+  .vc-chips{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0}.vc-chip{border:1px solid var(--border);border-radius:8px;background:#fff;padding:4px 7px;font-size:12px;font-weight:700;cursor:pointer;line-height:1.25;font-family:inherit;color:var(--primary)}
+  .vc-chip small{display:block;font-size:10px;font-weight:500;opacity:.85}.vc-chip.good{background:#E7F6EC;border-color:#9BD3AE}.vc-chip.okay{background:#FFF6E0;border-color:#EBCB7A}.vc-chip.night{background:#F1F1F1;color:#999}.vc-chip.on{background:#1B6F86;border-color:#1B6F86;color:#fff}
+  .vc-legend{font-size:11px;color:var(--secondary);display:flex;flex-wrap:wrap;gap:5px;align-items:center}.vc-legend .vc-chip{cursor:default;padding:1px 6px;font-size:10.5px}
+  .vc-sel{display:flex;flex-direction:column;gap:4px;margin:6px 0}.vc-pick{font-size:12.5px;background:#fff;border:1px solid #CFE3EA;border-radius:8px;padding:5px 8px}.vc-pick b{cursor:pointer;color:#B3261E;margin-left:6px}
+  .vc-sum-sec{border-top:1px solid var(--border);padding:8px 0;font-size:13px;line-height:1.6}.vc-sum-h{font-weight:800;margin-bottom:3px}
+  .vc-files{display:flex;flex-wrap:wrap;gap:6px}.vc-files img{width:84px;height:84px;object-fit:cover;border-radius:8px;border:1px solid var(--border);cursor:pointer}`; document.head.appendChild(s); })();
+setTimeout(()=>{ try{ vcDash(); }catch(e){} }, 2500);
 </script>
 </body>
 </html>

@@ -181,6 +181,7 @@
 </header>
 <main>
   <div class="emergency-banner" data-i18n="emergencyBanner">⚠️ 이 페이지는 응급 연락 수단이 아닙니다. 갑작스러운 건강 이상이 있으면 <b>거주 국가의 응급의료체계</b>로 바로 연락해주세요.</div>
+  <div class="card" id="cpCard" style="display:none;"></div>
   <div class="card" id="visitCard" style="display:none;cursor:pointer;" onclick="openNaverBooking()">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
       <div style="min-width:0;">
@@ -1026,6 +1027,7 @@ async function loadPastMeasurements(){
     if(!Array.isArray(rows)){ frDiag('❌ 서버가 목록 대신 오류를 보냈어요: ' + ((rows && (rows.message || rows.code)) || '알 수 없음')); try{ renderFirstRoom([]); }catch(e){} list.innerHTML = `<div class="empty">서버 응답 오류 — ${escapeHtml((rows && (rows.message || rows.code)) || '')}</div>`; return; }
     mfbAcks = {}; rows.filter(r=>r.pid===PID && r.type==='answer' && r.refId).forEach(r=>{ mfbAcks[r.refId] = r.answer; });
     vrRows = rows.filter(r=>r.pid===PID && (r.type==='question' || r.type==='answer'));
+    try{ if(typeof cpLoad==='function') cpLoad(rows); }catch(e){ console.error(e); }
     // 초진방은 그래프 그리기와 무관하게 먼저 그립니다 (그래프 오류가 초진방을 막지 않도록)
     try{ renderVisitGuide(rows.filter(r=>r.pid===PID && r.type==='visitGuide')); }catch(e){ console.error(e); }
     window._frRep = rows.filter(r=>r.pid===PID && r.type==='fvreport');
@@ -3005,6 +3007,131 @@ async function loadQA(){
 })();
 
 
+</script>
+<script>
+/* ================================================================
+   📅 화상통화 일정 (해외 보호자) — 원장 앱이 보낸 후보 시간(type:'callplan')을 지금 계신 곳 시각으로 보여 주고,
+   하나를 누르면 바로 예약돼요(질문함에 [cp:v1|pick|…] 꼬리표로 남김 → 원장 앱이 자동 확정).
+   확정되면 맨 위 카드에 현지 시각·남은 시간·참여 버튼·캘린더(.ics)·앱 설치 안내가 떠요. 메신저가 없어도 됩니다.
+   ================================================================ */
+const CP_TX = {
+  ko:{ pickTitle:'📅 화상통화 시간을 골라 주세요', pickSub:'아래는 지금 계신 곳 시각이에요 ({tz}). 편한 시간을 누르면 바로 예약돼요.', korea:'한국 {t}', other:'다른 시간이 좋아요', otherPh:'가능한 날짜와 시간을 적어 주세요 (예: 평일 저녁 7시 이후)', send:'보내기', cancel:'취소', confirmPick:'{t} 으로 예약할까요?', asked:'요청을 보냈어요. 병원에서 새 시간을 보내 드릴게요. 아래 시간 중 괜찮은 게 있으면 눌러도 돼요.', doneTitle:'✅ 화상통화가 잡혔어요', inDays:'{n}일 후', inHours:'{h}시간 {m}분 후', inMins:'{m}분 후', now:'지금 참여해 주세요', join:'🎥 화상통화 참여하기', cal:'📆 내 캘린더에 넣기', install:'처음이신가요? 앱 설치 안내', change:'시간 바꾸기 요청', noLink:'참여 링크는 병원에서 곧 보내 드려요.', fail:'보내지 못했어요. 인터넷을 확인하고 다시 눌러 주세요.', calTitle:'삼성자라다 소아청소년과 화상통화', qaPick:'📅 화상통화 시간 선택: {t}', qaAsk:'📅 화상통화 다른 시간 요청', tip:'통화 10분 전에 조용한 곳에서 인터넷과 카메라·마이크를 확인해 주세요. 최근 키·몸무게를 미리 기록해 두시면 좋아요.', dur:'약 {n}분', tzNow:'현지 시각 기준' },
+  en:{ pickTitle:'📅 Please choose a video call time', pickSub:'Times below are in your local time ({tz}). Tap one that suits you and it will be booked right away.', korea:'Korea {t}', other:'None of these work', otherPh:'Tell us the days and times that work for you (e.g., weekdays after 7 pm)', send:'Send', cancel:'Cancel', confirmPick:'Book the call for {t}?', asked:'Request sent. The clinic will send you new times. You can still tap one of the times below if it works.', doneTitle:'✅ Your video call is booked', inDays:'in {n} days', inHours:'in {h} h {m} min', inMins:'in {m} min', now:'Please join now', join:'🎥 Join video call', cal:'📆 Add to my calendar', install:'First time? How to install the app', change:'Ask for a different time', noLink:'The clinic will send the call link soon.', fail:'Could not send. Please check your internet connection and try again.', calTitle:'Samsung Jarada Pediatrics video call', qaPick:'📅 Video call time chosen: {t}', qaAsk:'📅 Asked for a different video call time', tip:'10 minutes before the call, please find a quiet place and check your internet, camera and microphone. It helps to log a recent height and weight beforehand.', dur:'about {n} min', tzNow:'your local time' },
+  zh:{ pickTitle:'📅 请选择视频通话时间', pickSub:'以下为您当地时间（{tz}）。点击合适的时间即可直接预约。', korea:'韩国 {t}', other:'以上时间都不方便', otherPh:'请写下您方便的日期和时间（例：工作日晚上7点以后）', send:'发送', cancel:'取消', confirmPick:'确定预约在 {t} 吗？', asked:'已发送请求，医院会再发新的时间给您。如果下方有合适的时间，也可以直接点击。', doneTitle:'✅ 视频通话已预约', inDays:'{n}天后', inHours:'{h}小时{m}分钟后', inMins:'{m}分钟后', now:'请现在加入', join:'🎥 参加视频通话', cal:'📆 添加到我的日历', install:'第一次使用？应用安装说明', change:'申请更改时间', noLink:'医院会尽快发送通话链接。', fail:'发送失败，请检查网络后重试。', calTitle:'三星Jarada儿科 视频通话', qaPick:'📅 已选择视频通话时间：{t}', qaAsk:'📅 申请其他视频通话时间', tip:'请在通话前10分钟到安静的地方，检查网络、摄像头和麦克风。提前记录最近的身高体重会更好。', dur:'约{n}分钟', tzNow:'当地时间' },
+  zt:{ pickTitle:'📅 請選擇視訊通話時間', pickSub:'以下為您當地時間（{tz}）。點選合適的時間即可直接預約。', korea:'韓國 {t}', other:'以上時間都不方便', otherPh:'請寫下您方便的日期和時間（例：平日晚上7點以後）', send:'送出', cancel:'取消', confirmPick:'確定預約在 {t} 嗎？', asked:'已送出請求，醫院會再傳新的時間給您。如果下方有合適的時間，也可以直接點選。', doneTitle:'✅ 視訊通話已預約', inDays:'{n}天後', inHours:'{h}小時{m}分鐘後', inMins:'{m}分鐘後', now:'請現在加入', join:'🎥 參加視訊通話', cal:'📆 加入我的行事曆', install:'第一次使用？App 安裝說明', change:'申請更改時間', noLink:'醫院會盡快傳送通話連結。', fail:'送出失敗，請檢查網路後再試。', calTitle:'三星Jarada兒科 視訊通話', qaPick:'📅 已選擇視訊通話時間：{t}', qaAsk:'📅 申請其他視訊通話時間', tip:'請在通話前10分鐘到安靜的地方，檢查網路、鏡頭和麥克風。事先記錄最近的身高體重會更好。', dur:'約{n}分鐘', tzNow:'當地時間' },
+  vi:{ pickTitle:'📅 Vui lòng chọn giờ gọi video', pickSub:'Các giờ dưới đây theo giờ địa phương của bạn ({tz}). Bấm vào giờ phù hợp là lịch được đặt ngay.', korea:'Hàn Quốc {t}', other:'Các giờ này đều không tiện', otherPh:'Hãy ghi ngày giờ bạn có thể (ví dụ: tối ngày thường sau 7 giờ)', send:'Gửi', cancel:'Hủy', confirmPick:'Đặt lịch gọi vào {t}?', asked:'Đã gửi yêu cầu. Phòng khám sẽ gửi giờ mới cho bạn. Nếu có giờ phù hợp bên dưới, bạn vẫn có thể bấm chọn.', doneTitle:'✅ Đã đặt lịch gọi video', inDays:'còn {n} ngày', inHours:'còn {h} giờ {m} phút', inMins:'còn {m} phút', now:'Vui lòng tham gia ngay', join:'🎥 Tham gia gọi video', cal:'📆 Thêm vào lịch của tôi', install:'Lần đầu? Hướng dẫn cài ứng dụng', change:'Yêu cầu đổi giờ', noLink:'Phòng khám sẽ sớm gửi liên kết cuộc gọi.', fail:'Không gửi được. Vui lòng kiểm tra kết nối mạng và thử lại.', calTitle:'Gọi video Nhi khoa Samsung Jarada', qaPick:'📅 Đã chọn giờ gọi video: {t}', qaAsk:'📅 Yêu cầu giờ gọi video khác', tip:'10 phút trước cuộc gọi, hãy tìm nơi yên tĩnh và kiểm tra mạng, camera, micro. Ghi lại chiều cao, cân nặng gần đây trước sẽ rất hữu ích.', dur:'khoảng {n} phút', tzNow:'giờ địa phương' },
+  ja:{ pickTitle:'📅 ビデオ通話の時間を選んでください', pickSub:'下の時間は現地時間（{tz}）です。ご都合のよい時間を押すとすぐに予約されます。', korea:'韓国 {t}', other:'どの時間も都合が悪い', otherPh:'ご都合のよい日時をご記入ください（例：平日19時以降）', send:'送信', cancel:'キャンセル', confirmPick:'{t} で予約しますか？', asked:'リクエストを送りました。病院から新しい時間をお送りします。下の時間で大丈夫なものがあれば押しても構いません。', doneTitle:'✅ ビデオ通話が決まりました', inDays:'あと{n}日', inHours:'あと{h}時間{m}分', inMins:'あと{m}分', now:'今すぐ参加してください', join:'🎥 ビデオ通話に参加', cal:'📆 カレンダーに追加', install:'初めてですか？アプリのインストール方法', change:'時間の変更をお願いする', noLink:'通話リンクは病院からまもなくお送りします。', fail:'送信できませんでした。インターネット接続を確認して、もう一度押してください。', calTitle:'サムスンジャラダ小児科 ビデオ通話', qaPick:'📅 ビデオ通話の時間を選択：{t}', qaAsk:'📅 ビデオ通話の別の時間をリクエスト', tip:'通話の10分前に静かな場所で、インターネット・カメラ・マイクを確認してください。最近の身長・体重を記録しておくと役立ちます。', dur:'約{n}分', tzNow:'現地時間' },
+  es:{ pickTitle:'📅 Elija la hora de la videollamada', pickSub:'Las horas están en su hora local ({tz}). Toque la que le convenga y quedará reservada al instante.', korea:'Corea {t}', other:'Ninguna me viene bien', otherPh:'Indíquenos los días y horas que le vienen bien (p. ej., entre semana después de las 19:00)', send:'Enviar', cancel:'Cancelar', confirmPick:'¿Reservar la llamada para el {t}?', asked:'Solicitud enviada. La clínica le enviará nuevas horas. Si alguna de las de abajo le sirve, también puede tocarla.', doneTitle:'✅ Su videollamada está reservada', inDays:'en {n} días', inHours:'en {h} h {m} min', inMins:'en {m} min', now:'Únase ahora, por favor', join:'🎥 Unirse a la videollamada', cal:'📆 Añadir a mi calendario', install:'¿Primera vez? Cómo instalar la app', change:'Pedir otra hora', noLink:'La clínica le enviará pronto el enlace de la llamada.', fail:'No se pudo enviar. Compruebe su conexión a internet e inténtelo de nuevo.', calTitle:'Videollamada Pediatría Samsung Jarada', qaPick:'📅 Hora de videollamada elegida: {t}', qaAsk:'📅 Pidió otra hora para la videollamada', tip:'10 minutos antes, busque un lugar tranquilo y compruebe internet, cámara y micrófono. Ayuda registrar antes una talla y peso recientes.', dur:'unos {n} min', tzNow:'hora local' },
+  th:{ pickTitle:'📅 กรุณาเลือกเวลาวิดีโอคอล', pickSub:'เวลาด้านล่างเป็นเวลาท้องถิ่นของท่าน ({tz}) แตะเวลาที่สะดวก ระบบจะจองให้ทันที', korea:'เกาหลี {t}', other:'ไม่สะดวกทุกเวลา', otherPh:'กรุณาระบุวันและเวลาที่สะดวก (เช่น วันธรรมดาหลัง 19:00 น.)', send:'ส่ง', cancel:'ยกเลิก', confirmPick:'จองวิดีโอคอลเวลา {t} หรือไม่?', asked:'ส่งคำขอแล้ว คลินิกจะส่งเวลาใหม่ให้ หากมีเวลาด้านล่างที่สะดวกก็แตะเลือกได้', doneTitle:'✅ จองวิดีโอคอลแล้ว', inDays:'อีก {n} วัน', inHours:'อีก {h} ชม. {m} นาที', inMins:'อีก {m} นาที', now:'กรุณาเข้าร่วมตอนนี้', join:'🎥 เข้าร่วมวิดีโอคอล', cal:'📆 เพิ่มลงในปฏิทินของฉัน', install:'ใช้ครั้งแรก? วิธีติดตั้งแอป', change:'ขอเปลี่ยนเวลา', noLink:'คลินิกจะส่งลิงก์วิดีโอคอลให้เร็ว ๆ นี้', fail:'ส่งไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองอีกครั้ง', calTitle:'วิดีโอคอล กุมารเวชกรรมซัมซุงจาราดา', qaPick:'📅 เลือกเวลาวิดีโอคอล: {t}', qaAsk:'📅 ขอเวลาวิดีโอคอลอื่น', tip:'ก่อนเวลา 10 นาที กรุณาอยู่ในที่เงียบและตรวจสอบอินเทอร์เน็ต กล้อง และไมโครโฟน การบันทึกส่วนสูงและน้ำหนักล่าสุดไว้ก่อนจะช่วยได้มาก', dur:'ประมาณ {n} นาที', tzNow:'เวลาท้องถิ่น' },
+  id:{ pickTitle:'📅 Silakan pilih waktu panggilan video', pickSub:'Waktu di bawah dalam waktu setempat Anda ({tz}). Ketuk waktu yang cocok dan jadwal langsung tercatat.', korea:'Korea {t}', other:'Tidak ada yang cocok', otherPh:'Tuliskan hari dan jam yang Anda bisa (mis. hari kerja setelah pukul 19.00)', send:'Kirim', cancel:'Batal', confirmPick:'Jadwalkan panggilan pada {t}?', asked:'Permintaan terkirim. Klinik akan mengirim waktu baru. Jika ada waktu di bawah yang cocok, Anda tetap bisa mengetuknya.', doneTitle:'✅ Panggilan video sudah dijadwalkan', inDays:'{n} hari lagi', inHours:'{h} jam {m} menit lagi', inMins:'{m} menit lagi', now:'Silakan bergabung sekarang', join:'🎥 Ikuti panggilan video', cal:'📆 Tambahkan ke kalender saya', install:'Pertama kali? Cara memasang aplikasi', change:'Minta ganti waktu', noLink:'Klinik akan segera mengirim tautan panggilan.', fail:'Gagal mengirim. Periksa koneksi internet lalu coba lagi.', calTitle:'Panggilan video Pediatri Samsung Jarada', qaPick:'📅 Waktu panggilan video dipilih: {t}', qaAsk:'📅 Meminta waktu panggilan video lain', tip:'10 menit sebelum panggilan, cari tempat yang tenang dan periksa internet, kamera, serta mikrofon. Sebaiknya catat tinggi dan berat badan terbaru terlebih dahulu.', dur:'sekitar {n} menit', tzNow:'waktu setempat' },
+  ar:{ pickTitle:'📅 يُرجى اختيار موعد مكالمة الفيديو', pickSub:'المواعيد أدناه بتوقيتكم المحلي ({tz}). اضغطوا على الموعد المناسب ليتم الحجز فورًا.', korea:'كوريا {t}', other:'لا يناسبني أي موعد', otherPh:'اكتبوا الأيام والأوقات المناسبة لكم (مثال: أيام الأسبوع بعد السابعة مساءً)', send:'إرسال', cancel:'إلغاء', confirmPick:'هل تريدون الحجز في {t}؟', asked:'تم إرسال الطلب. سترسل لكم العيادة مواعيد جديدة. ويمكنكم الضغط على أحد المواعيد أدناه إن كان مناسبًا.', doneTitle:'✅ تم حجز مكالمة الفيديو', inDays:'بعد {n} أيام', inHours:'بعد {h} ساعة و{m} دقيقة', inMins:'بعد {m} دقيقة', now:'يُرجى الانضمام الآن', join:'🎥 الانضمام إلى مكالمة الفيديو', cal:'📆 إضافة إلى التقويم', install:'أول مرة؟ طريقة تثبيت التطبيق', change:'طلب تغيير الموعد', noLink:'سترسل العيادة رابط المكالمة قريبًا.', fail:'تعذّر الإرسال. يُرجى التحقق من الاتصال بالإنترنت والمحاولة مرة أخرى.', calTitle:'مكالمة فيديو — عيادة سامسونغ جارادا للأطفال', qaPick:'📅 تم اختيار موعد مكالمة الفيديو: {t}', qaAsk:'📅 طلب موعد آخر لمكالمة الفيديو', tip:'قبل المكالمة بعشر دقائق، اختاروا مكانًا هادئًا وتحققوا من الإنترنت والكاميرا والميكروفون. ويُفضَّل تسجيل آخر طول ووزن مسبقًا.', dur:'نحو {n} دقيقة', tzNow:'بالتوقيت المحلي' },
+  mn:{ pickTitle:'📅 Видео дуудлагын цагаа сонгоно уу', pickSub:'Доорх цагууд таны орон нутгийн цагаар ({tz}). Тохирох цагаа дарвал шууд захиалагдана.', korea:'Солонгос {t}', other:'Аль нь ч тохирохгүй', otherPh:'Боломжтой өдөр, цагаа бичнэ үү (ж: ажлын өдрүүдэд оройн 7 цагаас хойш)', send:'Илгээх', cancel:'Болих', confirmPick:'{t}-д захиалах уу?', asked:'Хүсэлт илгээгдлээ. Эмнэлэг шинэ цаг илгээнэ. Доорх цагуудаас тохирох нь байвал дарж болно.', doneTitle:'✅ Видео дуудлага товлогдлоо', inDays:'{n} хоногийн дараа', inHours:'{h} цаг {m} минутын дараа', inMins:'{m} минутын дараа', now:'Одоо нэгдэнэ үү', join:'🎥 Видео дуудлагад нэгдэх', cal:'📆 Өөрийн хуанлид нэмэх', install:'Анх удаа юу? Апп суулгах заавар', change:'Цаг солих хүсэлт', noLink:'Эмнэлэг дуудлагын холбоосыг удахгүй илгээнэ.', fail:'Илгээж чадсангүй. Интернэтээ шалгаад дахин оролдоно уу.', calTitle:'Самсунг Жарада хүүхдийн эмнэлэг — видео дуудлага', qaPick:'📅 Видео дуудлагын цаг сонгосон: {t}', qaAsk:'📅 Видео дуудлагын өөр цаг хүссэн', tip:'Дуудлагаас 10 минутын өмнө чимээгүй газар интернэт, камер, микрофоноо шалгана уу. Сүүлийн өндөр, жингээ урьдчилан бүртгэвэл сайн.', dur:'ойролцоогоор {n} минут', tzNow:'орон нутгийн цаг' }
+};
+const CP_LOC = { ko:'ko-KR', en:'en-US', zh:'zh-CN', zt:'zh-TW', vi:'vi-VN', ja:'ja-JP', es:'es-ES', th:'th-TH', id:'id-ID', ar:'ar', mn:'mn-MN' };
+const CP_TZ = (()=>{ try{ return Intl.DateTimeFormat().resolvedOptions().timeZone || ''; }catch(e){ return ''; } })();
+let CP = { plan:null, rows:[], other:false, msg:'', busy:false, sent:null };
+function cpT(k, v){ const L = currentLang(); let s = (CP_TX[L] && CP_TX[L][k]) || CP_TX.en[k] || CP_TX.ko[k] || k; if(v) Object.keys(v).forEach(x=>{ s = s.split('{'+x+'}').join(v[x]); }); return s; }
+/* 휴대폰에 그 언어 날짜 이름이 없으면(몽골어 등) 숫자 + 요일 표로 씁니다 */
+const CP_WD = { mn:['Ня','Да','Мя','Лх','Пү','Ба','Бя'] };
+function cpLocOk(loc){ try{ return Intl.DateTimeFormat.supportedLocalesOf([loc]).length > 0; }catch(e){ return false; } }
+function cpFmt(iso, tz, opt){
+  const lang = currentLang(), loc = CP_LOC[lang] || 'en-US', o = Object.assign({ timeZone: tz || undefined, month:'short', day:'numeric', weekday:'short', hour:'2-digit', minute:'2-digit' }, opt||{});
+  try{
+    if(cpLocOk(loc)) return new Date(iso).toLocaleString(loc, o);
+    const P = {}; new Intl.DateTimeFormat('en-US', { timeZone: o.timeZone, month:'numeric', day:'numeric', weekday:'short', hour:'2-digit', minute:'2-digit', hourCycle:'h23' }).formatToParts(new Date(iso)).forEach(x=>{ P[x.type] = x.value; });
+    const wi = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(P.weekday), wd = (CP_WD[lang] || [])[wi] || P.weekday;
+    return (o.month ? P.month + '/' + P.day + ' ' : '') + (o.weekday ? '(' + wd + ') ' : '') + (P.hour === '24' ? '00' : P.hour) + ':' + P.minute;
+  }catch(e){ return new Date(iso).toLocaleString(); }
+}
+function cpTag(text){ const m = String(text||'').match(/\[cp:v1\|(pick|ask)\|([^|\]]*)\|([^|\]]*)\|([^|\]]*)\]/); return m ? { kind:m[1], iso:m[2], tz:m[3], ver:m[4] } : null; }
+function cpTzName(){ if(!cpLocOk(CP_LOC[currentLang()] || 'en-US')) return String(CP_TZ).split('/').pop().replace(/_/g,' '); try{ const p = new Intl.DateTimeFormat(CP_LOC[currentLang()] || 'en-US', { timeZoneName:'long' }).formatToParts(new Date()).find(x=>x.type==='timeZoneName'); return (p && p.value) || CP_TZ; }catch(e){ return CP_TZ; } }
+function cpLoad(rows){
+  CP.rows = (rows||[]).filter(r=>r.pid===PID && (r.type==='question' || r.type==='answer'));
+  const r = (rows||[]).filter(x=>x.pid===PID && x.type==='callplan').sort((a,b)=>String(a.timestamp||'')<String(b.timestamp||'')?1:-1)[0];
+  CP.plan = null; if(r){ try{ const o = JSON.parse(r.question||'{}'); if(o && o.v) CP.plan = o; }catch(e){} }
+  cpRender();
+}
+function cpState(){
+  const p = CP.plan; if(!p || p.status==='cancelled') return { k:'none' };
+  if(p.status==='confirmed' && p.slot) return { k:'booked', iso:p.slot };
+  const mine = CP.rows.filter(r=>r.type==='question').map(r=>({ r, t:cpTag(r.question) })).filter(x=>x.t && x.t.ver===p.ver).sort((a,b)=>String(a.r.timestamp||'')<String(b.r.timestamp||'')?1:-1);
+  const pick = (CP.sent && CP.sent.ver===p.ver && CP.sent.kind==='pick') ? { t:CP.sent } : mine.find(x=>x.t.kind==='pick');
+  if(pick) return { k:'booked', iso:pick.t.iso };
+  const ask = (CP.sent && CP.sent.ver===p.ver && CP.sent.kind==='ask') || mine.some(x=>x.t.kind==='ask');
+  return { k: ask ? 'asked' : 'pick' };
+}
+function cpLink(){ return (CP.plan && /^https?:\/\//i.test(CP.plan.link||'') ? CP.plan.link : '') || (typeof ZOOM !== 'undefined' ? ZOOM : ''); }
+function cpInstallUrl(link){ if(/zoom\.us/i.test(link)) return 'https://zoom.us/download'; if(/meet\.google/i.test(link)) return 'https://support.google.com/meet/answer/9302870'; if(/voovmeeting|meeting\.tencent/i.test(link)) return 'https://voovmeeting.com/download-center.html'; if(/doxy\.me/i.test(link)) return ''; return ''; }
+function cpLeft(iso){
+  const ms = Date.parse(iso) - Date.now();
+  if(ms <= 10*60000) return ms > -((CP.plan && CP.plan.dur) || 20)*60000 ? { t:cpT('now'), hot:true } : null;
+  if(ms < 864e5){ const h = Math.floor(ms/3600e3), m = Math.floor(ms%3600e3/60000); return { t: h ? cpT('inHours',{h,m}) : cpT('inMins',{m}) }; }
+  return { t: cpT('inDays', { n: Math.ceil(ms/864e5) }) };
+}
+function cpRender(){
+  const el = document.getElementById('cpCard'); if(!el) return;
+  const st = cpState(), p = CP.plan, rtl = currentLang()==='ar' ? ' dir="rtl"' : '';
+  const zb = document.getElementById('zoomBtn'); const lk = cpLink(); if(zb && lk) zb.href = lk;
+  if(st.k==='none' || (st.k==='booked' && Date.parse(st.iso) < Date.now() - (((p && p.dur) || 20) + 60)*60000)){ el.style.display = 'none'; el.innerHTML = ''; return; }
+  el.style.display = 'block';
+  if(st.k==='booked'){
+    const left = cpLeft(st.iso), link = cpLink(), inst = cpInstallUrl(link);
+    el.innerHTML = `<div class="cp-wrap"${rtl}><div class="cp-h">${cpT('doneTitle')}</div>
+      <div class="cp-big">${escapeHtml(cpFmt(st.iso, CP_TZ, { year:undefined }))}</div>
+      <div class="cp-sub">${escapeHtml(cpTzName())} · ${escapeHtml(cpT('korea', { t: cpFmt(st.iso, 'Asia/Seoul', { month:undefined, day:undefined, weekday:'short' }) }))} · ${escapeHtml(cpT('dur', { n: (p && p.dur) || 20 }))}</div>
+      ${left ? `<div class="cp-left${left.hot?' hot':''}">${escapeHtml(left.t)}</div>` : ''}
+      ${link ? `<a class="btn cp-join${left && left.hot ? ' hot' : ''}" href="${escapeHtml(link)}" target="_blank" rel="noopener">${cpT('join')}</a>` : `<div class="cp-sub">${cpT('noLink')}</div>`}
+      <div class="cp-row"><button type="button" class="cp-lite" onclick="cpIcs()">${cpT('cal')}</button>${inst ? `<a class="cp-lite" href="${inst}" target="_blank" rel="noopener">${cpT('install')}</a>` : ''}<button type="button" class="cp-lite" onclick="CP.other=true;cpRender()">${cpT('change')}</button></div>
+      ${CP.other ? cpOtherHtml() : ''}
+      <div class="cp-tip">${cpT('tip')}</div>${CP.msg ? `<div class="cp-msg">${escapeHtml(CP.msg)}</div>` : ''}</div>`;
+    return;
+  }
+  const slots = (p.slots||[]).filter(s=>Date.parse(s) > Date.now());
+  el.innerHTML = `<div class="cp-wrap"${rtl}><div class="cp-h">${cpT('pickTitle')}</div>
+    <div class="cp-sub">${escapeHtml(cpT('pickSub', { tz: cpTzName() }))}</div>
+    ${st.k==='asked' ? `<div class="cp-msg">${cpT('asked')}</div>` : ''}
+    <div class="cp-slots">${slots.map(s=>`<button type="button" class="cp-slot" ${CP.busy?'disabled':''} onclick="cpPick('${s}')"><b>${escapeHtml(cpFmt(s, CP_TZ))}</b><small>${escapeHtml(cpT('korea', { t: cpFmt(s, 'Asia/Seoul', { weekday:undefined }) }))}</small></button>`).join('')}</div>
+    ${CP.other ? cpOtherHtml() : `<button type="button" class="cp-lite" onclick="CP.other=true;cpRender()">${cpT('other')}</button>`}
+    ${CP.msg ? `<div class="cp-msg">${escapeHtml(CP.msg)}</div>` : ''}</div>`;
+}
+function cpOtherHtml(){ return `<div class="cp-other"><textarea id="cpOtherText" rows="3" placeholder="${escapeHtml(cpT('otherPh'))}"></textarea><div class="cp-row"><button type="button" class="btn" ${CP.busy?'disabled':''} onclick="cpAsk()">${cpT('send')}</button><button type="button" class="cp-lite" onclick="CP.other=false;cpRender()">${cpT('cancel')}</button></div></div>`; }
+async function cpPost(kind, iso, extra){
+  const p = CP.plan; if(!p || !PID || !API) return false;
+  const kst = iso ? new Date(iso).toLocaleString('ko-KR', { timeZone:'Asia/Seoul', month:'numeric', day:'numeric', weekday:'short', hour:'2-digit', minute:'2-digit', hour12:false }) : '';
+  const loc = iso ? new Date(iso).toLocaleString('ko-KR', { timeZone: CP_TZ || undefined, month:'numeric', day:'numeric', weekday:'short', hour:'2-digit', minute:'2-digit', hour12:false }) : '';
+  const text = (kind==='pick' ? `📅 화상통화 시간 선택: ${kst} (서울) · 현지 ${loc} (${CP_TZ})` : `📅 화상통화 다른 시간 요청 (${CP_TZ})\n${extra}`) + `\n[cp:v1|${kind}|${iso||''}|${CP_TZ}|${p.ver}]`;
+  CP.busy = true; CP.msg = ''; cpRender();
+  try{
+    const r = await fetch(API, { method:'POST', body: JSON.stringify({ id: uid(), pid: PID, type:'question', date: todayStr(), question: text }) });
+    let j = null; try{ j = await r.json(); }catch(e){}
+    if(!j || j.status !== 'ok') throw new Error((j && j.message) || 'fail');
+    CP.sent = { kind, iso, tz: CP_TZ, ver: p.ver }; CP.other = false; CP.busy = false; cpRender(); return true;
+  }catch(e){ CP.busy = false; CP.msg = cpT('fail'); cpRender(); return false; }
+}
+function cpPick(iso){ if(CP.busy) return; if(!confirm(cpT('confirmPick', { t: cpFmt(iso, CP_TZ) }))) return; cpPost('pick', iso); }
+function cpAsk(){ const t = String((document.getElementById('cpOtherText')||{}).value||'').trim().slice(0,300); if(!t){ const a = document.getElementById('cpOtherText'); if(a) a.focus(); return; } cpPost('ask', '', t); }
+function cpIcs(){
+  const st = cpState(); if(st.k!=='booked') return;
+  const dur = ((CP.plan && CP.plan.dur) || 20)*60000, link = cpLink(), z = d => new Date(d).toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');
+  const esc = s => String(s||'').replace(/[\\;,]/g, m=>'\\'+m).replace(/\n/g,'\\n');
+  const ics = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//JaradaCare//VideoCall//EN','CALSCALE:GREGORIAN','METHOD:PUBLISH','BEGIN:VEVENT',
+    'UID:cp-' + (CP.plan && CP.plan.ver || Date.now()) + '-' + PID.slice(-6) + '@jaradacare.com','DTSTAMP:' + z(Date.now()),'DTSTART:' + z(st.iso),'DTEND:' + z(Date.parse(st.iso)+dur),
+    'SUMMARY:' + esc(cpT('calTitle')),'DESCRIPTION:' + esc((link ? link + '\n' : '') + cpT('tip')), link ? 'URL:' + link : '','LOCATION:' + esc(link || 'Online'),
+    'BEGIN:VALARM','TRIGGER:-PT1H','ACTION:DISPLAY','DESCRIPTION:' + esc(cpT('calTitle')),'END:VALARM',
+    'BEGIN:VALARM','TRIGGER:-PT10M','ACTION:DISPLAY','DESCRIPTION:' + esc(cpT('calTitle')),'END:VALARM','END:VEVENT','END:VCALENDAR'].filter(Boolean).join('\r\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([ics], { type:'text/calendar;charset=utf-8' })); a.download = 'jarada-video-call.ics'; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+}
+/* 질문함에는 꼬리표 대신 보호자 언어로 */
+(function(){ if(typeof vrQaText !== 'function') return; const base = vrQaText; vrQaText = function(text){ const c = cpTag(text); if(c){ if(c.kind==='pick') return cpT('qaPick', { t: cpFmt(c.iso, CP_TZ) }); return cpT('qaAsk') + ' — ' + String(text||'').split('\n').slice(1).filter(l=>!/^\[cp:/.test(l)).join(' '); } return base(text); }; })();
+(function cpStyle(){ const s = document.createElement('style'); s.textContent = `
+  #cpCard{border:2px solid #1B6F86;background:#F4FAFC}.cp-h{font-size:17px;font-weight:800;color:#1B3A4B;margin-bottom:4px}.cp-sub{font-size:12.5px;color:var(--secondary,#5B7280);line-height:1.6}
+  .cp-big{font-size:24px;font-weight:800;color:#1B6F86;margin:6px 0 2px;line-height:1.25}.cp-left{display:inline-block;margin:6px 0;padding:3px 10px;border-radius:999px;background:#E3F1F5;color:#1B6F86;font-weight:800;font-size:13px}.cp-left.hot{background:#D7263D;color:#fff}
+  .cp-join{display:block;text-align:center;margin:10px 0 6px;font-size:17px!important;padding:14px!important}.cp-join.hot{background:#D7263D!important;animation:cpPulse 1.2s infinite}@keyframes cpPulse{50%{opacity:.75}}
+  .cp-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:6px 0}.cp-lite{background:none;border:1px solid #BCD6DE;border-radius:999px;padding:6px 11px;font-size:12.5px;color:#1B3A4B;cursor:pointer;text-decoration:none;font-family:inherit}
+  .cp-slots{display:flex;flex-direction:column;gap:8px;margin:10px 0}.cp-slot{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:start;border:1.5px solid #1B6F86;background:#fff;border-radius:12px;padding:12px 14px;cursor:pointer;font-family:inherit;color:#1B3A4B}.cp-slot b{font-size:17px}.cp-slot small{font-size:11.5px;color:var(--secondary,#5B7280)}.cp-slot:active{background:#E3F1F5}
+  .cp-other textarea{width:100%;box-sizing:border-box;border:1px solid #BCD6DE;border-radius:10px;padding:10px;font-size:14px;font-family:inherit;margin-top:8px}.cp-msg{margin-top:8px;font-size:13px;color:#1B6F86;font-weight:700;line-height:1.55}.cp-tip{margin-top:8px;font-size:12px;color:var(--secondary,#5B7280);line-height:1.6}`; document.head.appendChild(s); })();
+setInterval(()=>{ if(CP.plan && !CP.other){ const a = document.activeElement; if(!a || a.tagName !== 'TEXTAREA') cpRender(); } }, 30000);
+(function(){ if(typeof setLang !== 'function') return; const base = setLang; setLang = function(l){ const r = base.apply(this, arguments); try{ cpRender(); }catch(e){} return r; }; })();
 </script>
 </body>
 </html>
