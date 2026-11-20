@@ -1012,10 +1012,12 @@
       <div style="margin:0 0 8px;font-size:12px;line-height:1.5;">
         <label style="display:block;margin-bottom:5px;"><input type="radio" name="fs_method" value="kakao" checked onchange="fsMethodChanged()"> <b>카카오톡 알림톡</b> (권장) — 승인된 안내 문구로 발송돼요. 카카오톡을 쓰지 않는 번호는 문자로 자동 대체돼요.</label>
         <label style="display:block;"><input type="radio" name="fs_method" value="lms" onchange="fsMethodChanged()"> 문자(LMS) — 문구를 직접 고쳐서 보낼 수 있어요.</label>
+        <label id="fs_manualLabel" style="display:none;margin-top:5px;"><input type="radio" name="fs_method" value="manual" onchange="fsMethodChanged()"> <b>🌏 해외: 메신저·이메일로 직접 보내기</b> — 링크만 등록하고 LINE·WhatsApp·Zalo·이메일 버튼으로 보내요.</label>
       </div>
       <div id="fs_methodNote" style="font-size:11px;color:var(--secondary);margin-bottom:6px;line-height:1.5;"></div>
       <textarea id="fs_msg" rows="14" oninput="fsMsgEdited()" style="width:100%;font-family:monospace;font-size:12px;line-height:1.6;"></textarea>
       <button type="button" class="btn btn-primary btn-block" style="margin-top:8px;" id="fs_sendBtn" onclick="fsSend()">🚀 초진방 링크 발송</button>
+      <div id="fs_intlShare"></div>
     </div>
     <div id="fs_status" style="font-size:11.5px;margin-top:8px;"></div>
   </div>
@@ -1660,7 +1662,7 @@
   </div>
 </div>
 
-<script src="shared/fv-common.js?v=20261111a"></script>
+<script src="shared/fv-common.js?v=20261120i"></script>
 <script src="shared/chart-common.js?v=20261111a"></script>
 <script>
 
@@ -4801,6 +4803,7 @@ function renderDetail(){
       ${p.phone ? `<a class="btn btn-outline" href="tel:${escapeHtml(p.phone)}">📞 전화</a>` : ''}
       ${p.phone ? `<a class="btn btn-outline" href="https://wa.me/${escapeHtml(p.phone.replace(/[^0-9]/g,''))}" target="_blank" rel="noopener">💬 통화 연결</a>` : ''}
       ${p.email ? `<a class="btn btn-outline" href="mailto:${escapeHtml(p.email)}">✉️ 이메일</a>` : ''}
+      ${p.messenger ? `<span class="btn btn-outline" style="cursor:default;" title="보호자가 초진 기록지에 적은 메신저">💬 ${escapeHtml(p.messenger)}${p.messengerId ? ' · ID ' + escapeHtml(p.messengerId) : ''}</span>` : ''}
     </div>
     <div class="contact-row">
       ${/^https?:\/\//i.test(p.zoomLink||'') ? `<a class="btn btn-primary" href="${escapeHtml(p.zoomLink)}" target="_blank" rel="noopener">🎥 화상통화 시작</a>` : ''}
@@ -10056,6 +10059,10 @@ function fvImportOne(d){
     patients.push(p);
   }
   if(d.phone) p.phone = d.phone;
+  if(d.intl){                       // 🌏 외국어 기록지로 들어온 해외 환아
+    p.location = 'overseas'; if(d.lang) p.lang = d.lang;
+    if(d.email) p.email = d.email; if(d.messenger) p.messenger = d.messenger; if(d.messengerId) p.messengerId = d.messengerId;
+  }
   if(d.chartNo && !p.chartNo) p.chartNo = String(d.chartNo);
   if(d.sex) p.sex = d.sex;
   if(d.fh) p.fatherHeight = d.fh; if(d.mh) p.motherHeight = d.mh;
@@ -10491,8 +10498,8 @@ async function fsLoadList(){
     box.innerHTML = fsItems.map((it,i)=>{
       const o = parseFirstIntake(it.raw);
       return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);font-size:12.5px;">
-        <div style="flex:1;min-width:0;"><b>${escapeHtml(o.name||'(이름 미인식)')}</b>${o.dob?' · '+escapeHtml(o.dob.replace(/-/g,'.')):''}
-          <div style="font-size:11px;color:var(--secondary);">${escapeHtml(it.key)} 제출 · ${o.phone?'📞 연락처 있음':'⚠️ 연락처 없음'}</div></div>
+        <div style="flex:1;min-width:0;"><b>${escapeHtml(o.name||'(이름 미인식)')}</b>${o.intl?' <span style="font-size:10.5px;font-weight:700;color:#fff;background:#2E8B57;border-radius:5px;padding:1px 6px;">🌏 '+escapeHtml(FV_INTL_NAME[o.lang]||o.lang)+'</span>':''}${o.dob?' · '+escapeHtml(o.dob.replace(/-/g,'.')):''}
+          <div style="font-size:11px;color:var(--secondary);">${escapeHtml(it.key)} 제출 · ${o.intl ? '🌏 해외 · ' + escapeHtml([o.apps, o.email].filter(Boolean).join(' · ') || '연락처 확인 필요') : (o.phone?'📞 연락처 있음':'⚠️ 연락처 없음')}</div></div>
         <button type="button" class="btn btn-primary" style="padding:7px 12px;font-size:12px;" onclick="fsPick(${i})">접수</button></div>`;
     }).join('');
   }catch(e){ box.innerHTML = '<div class="empty-note" style="color:var(--danger);">❌ 불러오지 못했어요.</div>'; }
@@ -10539,7 +10546,8 @@ function fsParse(){
   const info = [];
   if(o.dob) info.push('생년월일 ' + o.dob.replace(/-/g,'.'));
   if(pre.o.age) info.push('만 ' + pre.o.age + '세');
-  info.push(o.phone ? '연락처 인식됨' : '⚠️ 연락처가 기록지에 없어요 — 아래에 직접 입력하세요');
+  info.push(o.intl ? ('🌏 해외 보호자(' + (FV_INTL_NAME[o.lang]||o.lang) + ' 기록지) — 카카오·문자 대신 보호자가 고른 메신저/이메일로 보내요' + (o.apps ? ' · 메신저 ' + o.apps + (o.appId ? '(' + o.appId + ')' : '') : '') + (o.email ? ' · ' + o.email : ''))
+    : (o.phone ? '연락처 인식됨' : '⚠️ 연락처가 기록지에 없어요 — 아래에 직접 입력하세요'));
   info.push('서버 …' + apiTail(getApiUrl()).slice(-6));
   if(o.dob){ const ag = (Date.now()-new Date(o.dob))/31557600000; if(ag<2 || ag>20) info.push('⚠️ 생년월일을 확인해 주세요(만 ' + ag.toFixed(1) + '세로 계산돼요)'); }
   if(pre.list.length) info.push('영상 선별 근거: ' + pre.list.map(r=>r.no + '번 ' + (r.why||'')).join(' / '));
@@ -10547,16 +10555,18 @@ function fsParse(){
   document.getElementById('fs_fields').style.display = 'block';
   document.getElementById('fs_previewBox').style.display = 'none';
   document.getElementById('fs_status').textContent = '';
+  fsIntlMode(!!o.intl);
   fsRenderVideos();
 }
 function fsLink(pid, o, visit){
   const site = (localStorage.getItem('jrd_site_url')||'').replace(/\/+$/,'');
-  const params = new URLSearchParams({ pid, lang:'ko' });
+  const intl = fvIntlOf(fsParsed);
+  const params = new URLSearchParams({ pid, lang: intl ? intl.lang : 'ko' });
   if(o.dob) params.set('dob', o.dob);
   if(o.sex) params.set('sex', o.sex);
   const api = getApiUrl(); if(api) params.set('api', api);
   if(visit) params.set('nextcall', visit);
-  params.set('loc', 'domestic'); params.set('first', '1');
+  params.set('loc', intl ? 'overseas' : 'domestic'); params.set('first', '1');
   return (site ? site + '/' : '') + '자라다케어_환아용.html?' + params.toString();
 }
 function fsCollect(){
@@ -10582,6 +10592,8 @@ async function fsPreview(){
   if(f.visit) msg += `\n📅 진료 예정일: ${formatDateKr(f.visit)}\n`;
   msg += `\n☎ 02-523-0111\n- 삼성자라다소아청소년과 -`;
   fsLms = msg; fsCurLink = link;
+  const intlP = fvIntlOf(fsParsed);
+  if(intlP){ fsLms = fvIntlInvite(intlP.lang, f.name, link, fvIntlVideoLink(fsVideos.map(v=>v.no), intlP.lang)); const rm = document.querySelector('input[name="fs_method"][value="manual"]'); if(rm) rm.checked = true; }
   const dKr = f.visit ? (()=>{ const p = f.visit.split('-'); return `${+p[1]}월 ${+p[2]}일`; })() : '미정';
   const vl = fsVideos.map(v=>`${v.no}. ${v.title}`);
   fsKakaoNew = `[삼성자라다소아청소년과] 초진 안내\n\n${f.name} 보호자님, 안녕하세요.\n초진 진료 안내입니다. 아래 전용 링크(초진방) 하나로 진료 전과 진료 후를 모두 확인하실 수 있어요.\n\n▶ 진료 전: 보시면 좋은 영상 시청, 성장기록지 올리기\n▶ 진료 후: 같은 링크를 다시 열면 진료 요약, 검사 결과 설명, 운동·영양·수면 안내를 확인하실 수 있어요\n\n■ 초진방 링크\n${link}\n\n■ 진료 전에 보실 영상\n${vl.join('\n')}\n영상 바로 보기: ${JRDV.watchLink(fsVideos.map(v=>v.no))}\n\n■ 진료 예정일\n${dKr}\n\n본 메시지는 초진 진료를 신청하신 ${f.name} 어린이 보호자님께 발송되는 안내입니다.\n문의: 02-523-0111`;
@@ -10595,6 +10607,11 @@ async function fsPreview(){
 function fsMethod(){ const r = document.querySelector('input[name="fs_method"]:checked'); return r ? r.value : 'kakao'; }
 function fsMethodChanged(){
   const m = fsMethod(), ta = document.getElementById('fs_msg'), note = document.getElementById('fs_methodNote'), btn = document.getElementById('fs_sendBtn');
+  if(m === 'manual'){
+    ta.value = fsLms; ta.readOnly = false; ta.style.background = '';
+    note.textContent = '※ 해외 보호자: 아래 버튼을 누르면 초진방이 등록되고, 보호자가 기록지에서 고른 메신저(⭐)·이메일로 보내는 버튼이 나와요. 문구는 보호자 언어로 되어 있고 고칠 수 있어요. (카카오·한국 문자는 보내지 않아요)';
+    btn.textContent = '🔗 해외 초진방 링크 등록 → 메신저로 보내기'; return;
+  }
   ta.value = m === 'kakao' ? fsKakao : fsLms;
   ta.readOnly = (m === 'kakao');
   ta.style.background = m === 'kakao' ? '#f4f4f4' : '';
@@ -10605,13 +10622,16 @@ function fsMethodChanged(){
     : '※ 일반 문자로 보내요. 문구를 직접 고칠 수 있고, 영상 목록과 영상 바로 보기 링크가 들어가요.';
   btn.textContent = m === 'kakao' ? '🚀 카카오톡으로 초진방 링크 발송' : '🚀 문자로 초진방 링크 발송';
 }
-function fsMsgEdited(){ if(fsMethod() === 'lms') fsLms = document.getElementById('fs_msg').value; }
+function fsMsgEdited(){ if(fsMethod() === 'lms' || fsMethod() === 'manual') fsLms = document.getElementById('fs_msg').value; }
 async function fsSend(){
   const api = getApiUrl(); if(!api){ openSettingsModal(); return; }
   const f = fsCollect(), st = document.getElementById('fs_status'), btn = document.getElementById('fs_sendBtn');
-  if(!f.phone){ st.textContent = '보호자 전화번호를 입력해 주세요.'; st.style.color='var(--danger)'; return; }
+  if(!f.phone && !(fvIntlOf(fsParsed) && fvIntlOf(fsParsed).email)){ st.textContent = '보호자 전화번호를 입력해 주세요.'; st.style.color='var(--danger)'; return; }
   const method = fsMethod();
-  const text = fsLms;                      // 카카오 요청이 실패했을 때 대신 보낼 문자 내용(항상 함께 전달)
+  const text = fsLms;
+  const intl = fvIntlOf(fsParsed);
+  if(method === 'manual' && window.fsAuto){ st.textContent = '⛔ 🌏 해외 보호자는 자동으로 보내지 않아요 — 「초진 기록지 접수」에서 메신저로 직접 보내 주세요.'; st.style.color = 'var(--danger)'; return; }
+  if(method !== 'manual' && /^\+(?!82)/.test(f.phone.replace(/\s/g,''))){ st.textContent = '🌏 해외 전화번호예요 — 카카오·문자로는 안 가요. 「해외: 메신저·이메일로 직접 보내기」를 골라 주세요.'; st.style.color = 'var(--danger)'; fsIntlMode(true); return; }                      // 카카오 요청이 실패했을 때 대신 보낼 문자 내용(항상 함께 전달)
   const o = fsParsed ? fsParsed.o : {};
   // 🔒 보내기 바로 전에 서버 발송 기록을 다시 확인 — 원장 화면·원무과 화면·flow 어디서 보냈든 이미 보냈으면 또 보내지 않아요
   //    (일괄·자동 발송은 조용히 건너뛰고, 사람이 직접 누른 1건만 「그래도 다시 보낼까요?」를 물어요. 「진료 후 단계 되돌리기」 재발송은 확인 생략)
@@ -10633,11 +10653,17 @@ async function fsSend(){
     intake: JRDV.sanitizeIntake(fsParsed ? fsParsed.raw : '').trim(), history:o.history||[], fh:o.fh||null, mh:o.mh||null,
     preVideos, prep:FV_DEFAULT_PREP, by:'의사', sentAt };
   window.fsLastPending = pending;
-  btn.disabled = true; btn.textContent = '📤 발송 중…'; st.textContent = ''; st.style.color = 'var(--secondary)';
+  if(intl) Object.assign(pending, { intl:true, lang:intl.lang, email:intl.email||'', messenger:intl.apps||'', messengerId:intl.appId||'', location:'overseas' });
+  btn.disabled = true; btn.textContent = method === 'manual' ? '🔗 등록 중…' : '📤 발송 중…'; st.textContent = ''; st.style.color = 'var(--secondary)';
   try{
-    const res = await fetch(api, { method:'POST', body: JSON.stringify({ action:'registerfirstvisit', pid, name:f.name, phone:f.phone, text, method, link: fsCurLink, videoLink: JRDV.watchLink(fsVideos.map(v=>v.no)), visitDate:f.visit||'', payload, pending, intakeKey: fsKey, force: !!window.fsForce }) });
+    const res = await fetch(api, { method:'POST', body: JSON.stringify({ action:'registerfirstvisit', pid, name:f.name, phone:f.phone || (intl && intl.email) || '-', text, method, channel: method === 'manual' ? ((intl && intl.apps) ? String(intl.apps).split(',')[0].trim().slice(0,20) : 'manual') : undefined, link: fsCurLink, videoLink: JRDV.watchLink(fsVideos.map(v=>v.no)), visitDate:f.visit||'', payload, pending, intakeKey: fsKey, force: !!window.fsForce }) });
     const data = await res.json();
-    if(data.status==='ok'){
+    if(data.status==='ok' && method === 'manual'){
+      st.textContent = `✅ 해외 초진방 링크를 등록했어요 [연결 …${pid.slice(-6)}] — 아래 버튼으로 보호자에게 보내 주세요. 의사 앱 초진 탭에도 자동으로 올라가요.`; st.style.color = 'var(--ok)';
+      btn.textContent = '✅ 링크 등록됨 (아래에서 보내기)';
+      const sh = document.getElementById('fs_intlShare'); if(sh){ sh.innerHTML = fvIntlPanelHtml(intl || { phone:f.phone, lang:'en' }, document.getElementById('fs_msg').value, fsCurLink); try{ sh.scrollIntoView({ behavior:'smooth', block:'center' }); }catch(e){} }
+      fsItems = fsItems.filter(it=>it.key!==fsKey);
+    }else if(data.status==='ok'){
       let via = data.channel === 'kakao' ? '카카오톡 알림톡으로 발송 요청했어요(카카오톡이 없는 번호는 문자로 자동 대체)' : data.channel === 'sms' ? '문자로 발송했어요' : '발송했어요(서버 Code.gs가 예전 버전이면 문자로 갈 수 있어요)';
       if(data.channel === 'sms' && method === 'kakao' && data.kakaoError){ via = '⚠️ 카카오 알림톡 요청이 실패해서 문자로 보냈어요 — 이유: ' + data.kakaoError; }
       st.textContent = `✅ ${via} [연결 …${pid.slice(-6)} · 서버 …${apiTail(api).slice(-6)}] — 의사 앱 초진 탭에 자동으로 등록됩니다.`; st.style.color = 'var(--ok)';
@@ -11513,6 +11539,7 @@ async function ucInvite(r, interactive){
     if(name && phone && !dob){ const v = prompt(name + ' 생년월일을 입력해 주세요 (예: 2018-04-21)', ''); if(v && /^\d{4}-\d{1,2}-\d{1,2}$/.test(v.trim())){ const p = v.trim().split('-'); dob = p[0]+'-'+p[1].padStart(2,'0')+'-'+p[2].padStart(2,'0'); } }
     if(name && phone && !sex){ const v = prompt(name + ' 성별을 입력해 주세요 (남 / 여)', ''); sex = ucSex(v); }
   }
+  if(o.intl) return { ok:false, msg:'🌏 해외 보호자 — 「초진 기록지 접수」 목록에서 메신저·이메일로 직접 보내 주세요' };
   const miss = []; if(!name) miss.push('이름'); if(!phone) miss.push('연락처'); if(!dob) miss.push('생년월일'); if(!sex) miss.push('성별');
   if(miss.length) return { ok:false, msg:miss.join('·') + ' 없음 — 채워야 보낼 수 있어요' };
   const pre = JRDV.preVideos(raw, sex);

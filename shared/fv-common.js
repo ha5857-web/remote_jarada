@@ -509,5 +509,120 @@ function parseFirstIntake(raw){
   out.history.sort((a,b)=> a.date<b.date ? -1 : 1);
   const tg = flat.match(/목표\s*키\s*[:：(]?\s*(\d{3}(?:\.\d)?)/); if(tg) out.target = parseFloat(tg[1]);
   else{ for(const c of cols){ const m = c.match(/^(1[5-9]\d)\s*cm$/i); if(m){ out.target = parseFloat(m[1]); break; } } }
+  // 🌏 외국어 기록지: 서버가 끝에 붙여 준 ⟦해외 EN | 이름: … | 전화: … | 이메일: … | 메신저: … | ID: …⟧ 를 읽습니다
+  const mk = fvIntlMark(raw);
+  if(mk){
+    out.intl = true; out.lang = mk.lang;
+    if(mk.name) out.name = mk.name;
+    out.phone = mk.phone; out.email = mk.email; out.apps = mk.apps; out.appId = mk.appId;
+  }
   return out;
+}
+
+/* =====================================================================
+ * 🌏 해외(외국어) 초진 기록지 — 9개 외국어판 + 대만 번체판 (2026-11-20)
+ *  - 서버(ForeignIntake.gs)가 외국어 기록지 행 끝에 ⟦해외 XX | 이름 | 전화 | 이메일 | 메신저 | ID⟧ 한 칸을 붙여 줍니다.
+ *  - 해외 보호자는 카카오 알림톡·한국 문자를 못 받으니, 링크만 등록(method:'manual')하고
+ *    보호자가 기록지에 고른 메신저(Zalo·LINE·WhatsApp…)나 이메일로 직원이 직접 보냅니다.
+ * ===================================================================== */
+const FV_INTL_LANGS = ['en','zh','zt','ja','vi','th','id','es','ar','mn'];
+const FV_INTL_NAME = { en:'영어', zh:'중국어(간체)', zt:'대만(번체)', ja:'일본어', vi:'베트남어', th:'태국어', id:'인도네시아어', es:'스페인어', ar:'아랍어', mn:'몽골어' };
+function fvIntlMark(raw){
+  const m = String(raw||'').match(/⟦해외\s+([A-Za-z]{2})\s*\|([^⟧]*)⟧/);
+  if(!m) return null;
+  const lang = m[1].toLowerCase(), f = {};
+  m[2].split('|').forEach(part=>{
+    const i = part.indexOf(':'); if(i<0) return;
+    const k = part.slice(0,i).trim(), v = part.slice(i+1).trim();
+    if(k==='이름') f.name = v; else if(k==='전화') f.phone = v; else if(k==='이메일') f.email = v;
+    else if(k==='메신저') f.apps = v; else if(k==='ID') f.appId = v;
+  });
+  return { lang: FV_INTL_LANGS.includes(lang) ? lang : 'en', name:f.name||'', phone:fvIntlPhone(f.phone), email:(f.email||'').trim(), apps:f.apps||'', appId:f.appId||'' };
+}
+// 국제 전화번호: +국가번호와 숫자만 남겨 보기 좋게 (+886 912345678)
+function fvIntlPhone(v){
+  let s = String(v||'').trim(); if(!s) return '';
+  const plus = /^\s*(\+|00)/.test(s);
+  let d = s.replace(/\D/g,''); if(/^00/.test(s.trim())) d = d.replace(/^00/,'');
+  if(!d) return '';
+  return plus ? '+' + d : d;
+}
+function fvIntlOf(parsed){ const o = parsed && (parsed.o || parsed); return (o && o.intl) ? o : null; }
+// 해외 보호자에게 보낼 초진방 안내 (보호자 언어로)
+const FV_INTL_MSG = {
+  en: "[Jarada Care · Samsung Jarada Pediatrics, Seoul]\nDear guardian of {name},\nThank you for filling in the first-visit form. Below is your child's own \"First-Visit Room\" link. Before the visit you can watch the recommended videos and upload growth records or previous test results. After the visit, the same link shows the visit summary, test results and exercise/nutrition/sleep guidance. Please keep this link.\n\n👉 First-Visit Room: {link}\n\n📺 Recommended videos: {vlink}\n\nWe will also arrange a video-call time with you through this link.\n☎ +82-2-523-0111",
+  zh: "【Jarada Care · 首尔 Samsung Jarada 小儿青少年科】\n{name}的监护人您好，\n感谢您填写初诊记录表。下面是您孩子专属的「初诊室」链接。就诊前可以观看推荐视频、上传身高体重记录或以往检查结果；就诊后同一链接会显示诊疗摘要、检查结果说明以及运动/营养/睡眠指导。请保存此链接。\n\n👉 初诊室：{link}\n\n📺 推荐视频：{vlink}\n\n视频通话时间也会通过此链接与您确认。\n☎ +82-2-523-0111",
+  zt: "【Jarada Care · 首爾 Samsung Jarada 小兒青少年科】\n{name}的監護人您好，\n感謝您填寫初診紀錄表。以下是您孩子專屬的「初診室」連結。看診前可以觀看推薦影片、上傳身高體重紀錄或過去的檢查結果；看診後同一個連結會顯示看診摘要、檢查結果說明，以及運動／營養／睡眠指導。請保存此連結。\n\n👉 初診室：{link}\n\n📺 推薦影片：{vlink}\n\n視訊通話時間也會透過此連結與您確認。\n☎ +82-2-523-0111",
+  ja: "【Jarada Care · ソウル Samsung Jarada 小児青少年科】\n{name}さんの保護者様\n初診記録票のご記入ありがとうございます。お子さま専用の「初診ルーム」のリンクをお送りします。受診前はおすすめ動画の視聴や、身長・体重の記録、以前の検査結果のアップロードができます。受診後は同じリンクで診察のまとめ、検査結果の説明、運動・栄養・睡眠のご案内をご覧いただけます。このリンクを保存してください。\n\n👉 初診ルーム：{link}\n\n📺 おすすめ動画：{vlink}\n\nビデオ通話の日時もこのリンクでご相談します。\n☎ +82-2-523-0111",
+  vi: "[Jarada Care · Phòng khám Nhi Samsung Jarada, Seoul]\nKính gửi phụ huynh của bé {name},\nCảm ơn anh/chị đã điền phiếu khám lần đầu. Dưới đây là liên kết \"Phòng khám lần đầu\" riêng của bé. Trước buổi khám, anh/chị có thể xem các video được gợi ý và tải lên số đo chiều cao/cân nặng hoặc kết quả xét nghiệm trước đây. Sau buổi khám, cùng liên kết này sẽ hiển thị tóm tắt buổi khám, giải thích kết quả xét nghiệm và hướng dẫn vận động/dinh dưỡng/giấc ngủ. Vui lòng lưu lại liên kết này.\n\n👉 Phòng khám lần đầu: {link}\n\n📺 Video gợi ý: {vlink}\n\nChúng tôi cũng sẽ hẹn giờ gọi video với anh/chị qua liên kết này.\n☎ +82-2-523-0111",
+  th: "[Jarada Care · Samsung Jarada Pediatrics, Seoul]\nเรียนผู้ปกครองของ {name}\nขอบคุณที่กรอกแบบบันทึกการตรวจครั้งแรก ด้านล่างคือลิงก์ \"ห้องตรวจครั้งแรก\" เฉพาะของบุตรหลานท่าน ก่อนพบแพทย์ท่านสามารถดูวิดีโอแนะนำ และอัปโหลดบันทึกส่วนสูง/น้ำหนักหรือผลตรวจเดิมได้ หลังพบแพทย์ ลิงก์เดียวกันนี้จะแสดงสรุปการตรวจ คำอธิบายผลตรวจ และคำแนะนำเรื่องการออกกำลังกาย/โภชนาการ/การนอน กรุณาเก็บลิงก์นี้ไว้\n\n👉 ห้องตรวจครั้งแรก: {link}\n\n📺 วิดีโอแนะนำ: {vlink}\n\nเราจะนัดเวลาวิดีโอคอลกับท่านผ่านลิงก์นี้ด้วย\n☎ +82-2-523-0111",
+  id: "[Jarada Care · Klinik Anak Samsung Jarada, Seoul]\nKepada wali {name},\nTerima kasih telah mengisi formulir kunjungan pertama. Berikut tautan \"Ruang Kunjungan Pertama\" khusus untuk anak Anda. Sebelum kunjungan, Anda dapat menonton video yang direkomendasikan serta mengunggah catatan tinggi/berat badan atau hasil pemeriksaan sebelumnya. Setelah kunjungan, tautan yang sama akan menampilkan ringkasan pemeriksaan, penjelasan hasil tes, serta panduan olahraga/gizi/tidur. Mohon simpan tautan ini.\n\n👉 Ruang Kunjungan Pertama: {link}\n\n📺 Video rekomendasi: {vlink}\n\nKami juga akan mengatur jadwal panggilan video dengan Anda melalui tautan ini.\n☎ +82-2-523-0111",
+  es: "[Jarada Care · Clínica Pediátrica Samsung Jarada, Seúl]\nEstimado tutor de {name}:\nGracias por completar el formulario de primera consulta. Este es el enlace a la \"Sala de primera consulta\" de su hijo/a. Antes de la consulta puede ver los videos recomendados y subir registros de talla/peso o resultados de pruebas anteriores. Después de la consulta, el mismo enlace mostrará el resumen, la explicación de los resultados y las indicaciones de ejercicio, nutrición y sueño. Guarde este enlace.\n\n👉 Sala de primera consulta: {link}\n\n📺 Videos recomendados: {vlink}\n\nTambién acordaremos con usted la hora de la videollamada a través de este enlace.\n☎ +82-2-523-0111",
+  ar: "[Jarada Care · Samsung Jarada Pediatrics, Seoul]\nعزيزي ولي أمر {name}،\nشكرًا لتعبئة استمارة الزيارة الأولى. فيما يلي رابط «غرفة الزيارة الأولى» الخاص بطفلكم. قبل الزيارة يمكنكم مشاهدة الفيديوهات المقترحة ورفع سجلات الطول والوزن أو نتائج الفحوصات السابقة. وبعد الزيارة يعرض الرابط نفسه ملخص الزيارة وشرح نتائج الفحوصات وإرشادات الرياضة والتغذية والنوم. يرجى الاحتفاظ بهذا الرابط.\n\n👉 غرفة الزيارة الأولى: {link}\n\n📺 فيديوهات مقترحة: {vlink}\n\nسنحدد معكم موعد مكالمة الفيديو عبر هذا الرابط أيضًا.\n☎ +82-2-523-0111",
+  mn: "[Jarada Care · Samsung Jarada Pediatrics, Seoul]\n{name}-ийн асран хамгаалагч танаа,\nАнхны үзлэгийн хуудсыг бөглөсөнд баярлалаа. Доорх нь таны хүүхдийн «Анхны үзлэгийн өрөө» холбоос юм. Үзлэгээс өмнө санал болгосон видеог үзэж, өндөр/жингийн бүртгэл эсвэл өмнөх шинжилгээний хариугаа оруулах боломжтой. Үзлэгийн дараа мөн энэ холбоосоор үзлэгийн хураангуй, шинжилгээний тайлбар, дасгал/хоол тэжээл/нойрны зөвлөмжийг харна. Энэ холбоосыг хадгална уу.\n\n👉 Анхны үзлэгийн өрөө: {link}\n\n📺 Санал болгох видео: {vlink}\n\nВидео дуудлагын цагийг мөн энэ холбоосоор тохиролцоно.\n☎ +82-2-523-0111"
+};
+const FV_INTL_SUBJ = { en:'[Jarada Care] First-Visit Room link', zh:'[Jarada Care] 初诊室链接', zt:'[Jarada Care] 初診室連結', ja:'[Jarada Care] 初診ルームのご案内', vi:'[Jarada Care] Liên kết Phòng khám lần đầu', th:'[Jarada Care] ลิงก์ห้องตรวจครั้งแรก', id:'[Jarada Care] Tautan Ruang Kunjungan Pertama', es:'[Jarada Care] Enlace de la Sala de primera consulta', ar:'[Jarada Care] رابط غرفة الزيارة الأولى', mn:'[Jarada Care] Анхны үзлэгийн өрөөний холбоос' };
+function fvIntlVideoLink(nos, lang){ return JRDV.watchLink(nos) + '&lang=' + (lang==='zt' ? 'zh' : lang); }
+function fvIntlInvite(lang, name, link, vlink){
+  const t = FV_INTL_MSG[lang] || FV_INTL_MSG.en;
+  return t.replace('{name}', name).replace('{link}', link).replace('{vlink}', vlink);
+}
+// 보낼 곳 버튼들 — 보호자가 기록지에서 고른 메신저가 앞에, 크게
+const FV_INTL_APPS = [
+  { key:'zalo', label:'Zalo', re:/zalo/i },
+  { key:'line', label:'LINE', re:/\bline\b/i },
+  { key:'whatsapp', label:'WhatsApp', re:/whats\s*app/i },
+  { key:'wechat', label:'WeChat', re:/wechat|微信/i },
+  { key:'kakao', label:'KakaoTalk', re:/kakao/i },
+  { key:'telegram', label:'Telegram', re:/telegram/i },
+  { key:'viber', label:'Viber', re:/viber/i },
+  { key:'messenger', label:'Messenger', re:/messenger|facebook/i }
+];
+function fvIntlTargets(o, text, link){
+  const enc = encodeURIComponent, digits = String(o.phone||'').replace(/\D/g,''), apps = String(o.apps||'');
+  const url = {
+    zalo: 'https://zalo.me/' + digits,
+    line: 'https://line.me/R/share?text=' + enc(text),
+    whatsapp: 'https://wa.me/' + digits + '?text=' + enc(text),
+    wechat: '', kakao: '', messenger: '',
+    telegram: 'https://t.me/share/url?url=' + enc(link) + '&text=' + enc(text),
+    viber: 'viber://forward?text=' + enc(text)
+  };
+  const list = FV_INTL_APPS.map(a=>({ key:a.key, label:a.label, picked:a.re.test(apps), url:url[a.key], copy: !url[a.key] || a.key==='zalo' }))
+    .filter(a=> a.picked || ['line','whatsapp','zalo','wechat'].includes(a.key));
+  list.sort((a,b)=> (b.picked?1:0) - (a.picked?1:0));
+  if(o.email) list.push({ key:'email', label:'✉️ 이메일', picked:true,
+    url:'mailto:' + o.email + '?subject=' + enc(FV_INTL_SUBJ[o.lang]||FV_INTL_SUBJ.en) + '&body=' + enc(text), copy:false });
+  list.push({ key:'copy', label:'📋 문구 복사', picked:false, url:'', copy:true });
+  return list;
+}
+// 직원 화면: 링크 등록 뒤 보낼 곳 버튼 (onclick → fvIntlGo(i))
+function fvIntlPanelHtml(o, text, link){
+  window.fvIntlState = { o, text, link, targets: fvIntlTargets(o, text, link) };
+  const esc = s => String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const btns = window.fvIntlState.targets.map((t,i)=>`<button type="button" class="btn ${t.picked?'btn-primary':'btn-outline'}" style="padding:7px 12px;font-size:12.5px;" onclick="fvIntlGo(${i})">${t.picked && t.key!=='email' ? '⭐ ' : ''}${esc(t.label)}</button>`).join(' ');
+  const who = [o.phone ? '📞 ' + esc(o.phone) : '', o.email ? '✉️ ' + esc(o.email) : '', o.apps ? '💬 ' + esc(o.apps) + (o.appId ? ' (ID: ' + esc(o.appId) + ')' : '') : ''].filter(Boolean).join(' · ');
+  return `<div style="border:1.5px solid #2E8B57;border-radius:10px;padding:10px 12px;margin-top:10px;background:#F4FBF6;">
+    <div style="font-size:12.5px;font-weight:800;color:#1F6B41;margin-bottom:4px;">🌏 초진방 링크가 등록됐어요 — 이제 보호자에게 직접 보내 주세요</div>
+    <div style="font-size:11.5px;color:var(--secondary);margin-bottom:8px;line-height:1.5;">${who || '연락처 정보 없음'}<br>⭐ = 보호자가 기록지에서 고른 메신저. Zalo·WeChat·KakaoTalk은 문구가 먼저 복사되니 채팅창에 붙여넣기만 하세요.</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;">${btns}</div>
+    <div id="fvIntlNote" style="font-size:11.5px;margin-top:6px;color:var(--ok);"></div></div>`;
+}
+async function fvIntlCopy(text){
+  try{ await navigator.clipboard.writeText(text); return true; }
+  catch(e){ try{ const ta = document.createElement('textarea'); ta.value = text; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); const ok = document.execCommand('copy'); ta.remove(); return ok; }catch(e2){ return false; } }
+}
+async function fvIntlGo(i){
+  const s = window.fvIntlState; if(!s) return; const t = s.targets[i]; if(!t) return;
+  const note = document.getElementById('fvIntlNote');
+  if(t.copy){ const ok = await fvIntlCopy(s.text); if(note) note.textContent = ok ? '📋 문구를 복사했어요' + (t.url ? ' — 열리는 ' + t.label + ' 대화창에 붙여넣어 보내 주세요.' : ' — ' + (t.key==='copy' ? '원하는 곳' : t.label) + '에 붙여넣어 보내 주세요.') : '⚠️ 복사가 막혔어요. 위 문구 칸에서 직접 복사해 주세요.'; }
+  if(t.url){ if(/^mailto:|^viber:/.test(t.url)) location.href = t.url; else window.open(t.url, '_blank', 'noopener'); if(note && !t.copy) note.textContent = '↗ ' + t.label + ' 창을 열었어요. 보내기를 눌러 마무리해 주세요.'; }
+}
+// 직원·원장 화면의 「초진 기록지 접수」 칸: 해외 기록지면 「🌏 해외: 메신저·이메일로 직접 보내기」를 보이고 골라 둡니다
+function fsIntlMode(on){
+  const lab = document.getElementById('fs_manualLabel'), rm = document.querySelector('input[name="fs_method"][value="manual"]');
+  if(lab) lab.style.display = on ? 'block' : 'none';
+  if(on && rm) rm.checked = true;
+  else if(!on && rm && rm.checked){ const k = document.querySelector('input[name="fs_method"][value="kakao"]'); if(k) k.checked = true; }
+  const sh = document.getElementById('fs_intlShare'); if(sh) sh.innerHTML = '';
 }
