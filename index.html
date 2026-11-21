@@ -841,6 +841,7 @@
 .uc-b{font-size:10.5px;font-weight:700;border-radius:6px;padding:1px 6px;background:#EEF2F0;color:#355}
 .uc-act{flex:none;font-size:12px;padding:7px 10px;border-radius:8px;border:none;font-weight:700;cursor:pointer;font-family:inherit;color:#fff;background:var(--c,#1B3A4B)}
 .uc-act.o{background:#fff;color:var(--primary);border:1px solid var(--border)}
+.uc-act.np-pick{display:inline-flex;align-items:center;gap:4px;padding:9px 12px;font-size:12.5px}
 .uc-act[disabled]{opacity:.5}
 .uc-bar{position:sticky;bottom:8px;margin-top:10px;background:#fff;border:1px solid var(--border);border-radius:12px;padding:8px 10px;box-shadow:0 2px 10px rgba(0,0,0,.12);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 </style>
@@ -849,6 +850,12 @@
   <div id="nu_box"></div>
   <div style="font-size:12px;color:var(--secondary);line-height:1.6;margin-bottom:8px;">EMR 표를 <b>드래그해서 복사(Ctrl+C) → 아래 칸에 붙여넣기(Ctrl+V)</b> 하세요. 엑셀 파일을 <b>끌어다 놓기</b>만 해도 돼요. <b>오늘 이후 예약된 환자</b> 중 <b>구글 초진기록지를 쓴 아이</b>만 골라줘요. 예약 날짜가 언제든 보내고, 이미 보낸 분은 기록이 남아 다음에 새 예약 파일을 올려도 자동으로 빠져요.</div>
   <textarea id="np_text" rows="4" placeholder="📋 EMR 표 또는 네이버 예약 화면(캡처 사진·드래그한 글자)을 붙여넣거나 끌어다 놓으세요" style="width:100%;box-sizing:border-box;font-size:13px;padding:12px;border:2px dashed #7B4FA3;border-radius:12px;resize:vertical;font-family:inherit;background:#FAF7FD;"></textarea>
+  <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">
+    <label class="uc-act np-pick" style="--c:#03A94D;" title="휴대폰 사진첩에서 네이버 예약 캡처를 골라요 (여러 장 가능)">📷 캡처 사진 올리기<input type="file" id="np_img" accept="image/*" multiple hidden></label>
+    <label class="uc-act o np-pick" title="EMR·네이버 예약 엑셀 파일을 골라요">📎 엑셀 파일<input type="file" id="np_xls" accept=".xlsx,.xls,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" hidden></label>
+    <button type="button" class="uc-act o np-pick" id="np_paste" title="복사해 둔 캡처나 글자를 바로 붙여넣어요">📋 붙여넣기</button>
+  </div>
+  <div style="font-size:11px;color:var(--secondary);margin-top:4px;line-height:1.5;">📱 휴대폰에서는 네이버 예약 화면을 <b>캡처한 뒤 「📷 캡처 사진 올리기」</b>로 고르세요. 여러 장을 한 번에 골라도 돼요.</div>
   <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">
     <button type="button" class="uc-act" style="--c:#7B4FA3;padding:9px 14px;" id="np_go">🔍 초진 찾기</button>
     <button type="button" class="uc-act o" id="np_clear">지우기</button>
@@ -11081,7 +11088,11 @@ async function bqImgChunks(file){
   try{
     const img = await new Promise((ok, no) => { const im = new Image(); im.onload = () => ok(im); im.onerror = () => no(new Error('이미지를 열지 못했어요')); im.src = url; });
     const W = img.naturalWidth, H = img.naturalHeight, scale = Math.min(1, 1400 / W);
-    const sliceH = H > W * 2.2 ? Math.round(W * 1.7) : H, step = sliceH === H ? H : Math.round(sliceH * 0.88);   // 긴 화면은 12% 겹치게 자름
+    // 긴 화면은 겹쳐 잘라요. PC 캡처는 글자가 작아 짧게(폭의 1.7배, 12% 겹침),
+    // 휴대폰 스크롤 캡처는 글자가 커서 길게(폭의 2.4배, 폭의 0.8배 간격) → 네이버 앱 예약 카드 하나가 어느 한 조각에 통째로 들어가요
+    const phone = W <= 1600 && !!(window.matchMedia && matchMedia('(pointer:coarse)').matches);
+    const sliceH = phone ? (H > W * 2.6 ? Math.round(W * 2.4) : H) : (H > W * 2.2 ? Math.round(W * 1.7) : H);
+    const step = sliceH === H ? H : phone ? Math.round(W * 0.8) : Math.round(sliceH * 0.88);
     const out = [];
     for(let y = 0; y < H && out.length < 12; y += step){
       const h = Math.min(sliceH, H - y); if(h < 120) break;
@@ -11101,9 +11112,16 @@ async function bqAiImage(file){
     const d = await bqPost({ action: 'readbookingimage', image: chunks[i], mediaType: 'image/jpeg' });
     if(d.status !== 'ok'){ if(d.code === 'nokey' || i === 0) return { fail: d.message || '실패' }; bqSay('일부 조각은 읽지 못했어요: ' + (d.message || ''), true); continue; }
     cancelled += d.cancelled || 0; (d.cancelledNos || []).forEach(n => bqCancelNos.push(String(n)));
-    (d.rows || []).forEach(r => { const k = r.bookingNo || [r.name, r.visitor, r.date, r.time].join('|'); if(seen[k]) return; seen[k] = 1; rows.push(r); });
+    (d.rows || []).forEach(r => {   // 겹친 조각에서 같은 예약이 또 나오면 빈 칸만 채워요
+      const k = r.bookingNo ? 'b' + r.bookingNo : [r.name, r.visitor, r.date, r.time].join('|'), o = seen[k];
+      if(o){ Object.keys(r).forEach(f => { if((o[f] === undefined || o[f] === null || o[f] === '') && r[f]) o[f] = r[f]; }); return; }
+      seen[k] = r; rows.push(r);
+    });
   }
-  return { rows: rows, cancelled: cancelled };
+  // 조각 경계에서 잘려 예약번호 없이 읽힌 카드는, 같은 사람의 온전한 예약이 있으면 버려요
+  const dg = x => String(x || '').replace(/\D/g, ''), full = rows.filter(r => r.bookingNo);
+  const same = (a, b) => (dg(a.phone).length >= 8 && dg(a.phone) === dg(b.phone)) || (a.name && (a.name === b.name || a.name === b.visitor)) || (a.visitor && (a.visitor === b.visitor || a.visitor === b.name));
+  return { rows: rows.filter(r => r.bookingNo || !full.some(o => same(r, o))), cancelled: cancelled };
 }
 async function bqFileText(f){
   const n = (f.name || '').toLowerCase();
@@ -11989,6 +12007,37 @@ async function npFile(f){
     await npGo();
   }catch(e){ npSay('❌ 엑셀을 읽지 못했어요: ' + (e.message||e), true); }
 }
+// 📱 휴대폰: Ctrl+V·끌어다 놓기가 없으니 사진첩·파일에서 고르거나 「붙여넣기」 단추로 클립보드를 읽어요
+function npPickFiles(fl){
+  fl = Array.from(fl || []); if(!fl.length) return;
+  const im = fl.filter(x=>/^image\//.test(x.type) || /\.(png|jpe?g|webp|heic|heif|gif|bmp)$/i.test(x.name||''));
+  if(im.length) npNaver(im); else npFile(fl[0]);
+}
+document.addEventListener('change', ev=>{
+  const t = ev.target; if(!t || (t.id!=='np_img' && t.id!=='np_xls')) return;
+  const fl = Array.from(t.files || []); t.value = ''; npPickFiles(fl);
+});
+async function npPasteBtn(){
+  const ta = document.getElementById('np_text');
+  try{
+    if(navigator.clipboard && navigator.clipboard.read){
+      const items = await navigator.clipboard.read(), imgs = []; let txt = '';
+      for(const it of items){
+        const ty = it.types.find(x=>/^image\//.test(x));
+        if(ty){ const b = await it.getType(ty); imgs.push(new File([b], 'clip.' + (ty.split('/')[1] || 'png'), { type: ty })); }
+        else if(!txt && it.types.indexOf('text/plain')>=0) txt = await (await it.getType('text/plain')).text();
+      }
+      if(txt.trim()){ ta.value = txt; return npGo(); }   // 표 글자가 같이 있으면 글자가 더 정확해요
+      if(imgs.length) return npNaver(imgs);
+    } else if(navigator.clipboard && navigator.clipboard.readText){
+      const txt = await navigator.clipboard.readText(); if(txt.trim()){ ta.value = txt; return npGo(); }
+    } else throw new Error('no clipboard');
+    npSay('복사해 둔 내용이 없어요. 네이버 예약 화면을 캡처했다면 「📷 캡처 사진 올리기」로 골라 주세요.', true);
+  }catch(e){
+    npSay('이 브라우저에서는 「붙여넣기」 단추를 쓸 수 없어요.\n· 캡처 사진: 「📷 캡처 사진 올리기」로 고르기\n· 글자: 위 칸을 길게 눌러 「붙여넣기」', true);
+  }
+}
+document.addEventListener('click', ev=>{ const t = ev.target.closest && ev.target.closest('#np_paste'); if(t) npPasteBtn(); });
 document.addEventListener('dragover', ev=>{ if(ev.target && ev.target.closest && ev.target.closest('#np_card')) ev.preventDefault(); });
 document.addEventListener('drop', ev=>{ if(ev.target && ev.target.closest && ev.target.closest('#np_card') && ev.dataTransfer && ev.dataTransfer.files.length){ ev.preventDefault(); const fl = Array.from(ev.dataTransfer.files), im = fl.filter(x=>/^image\//.test(x.type)); if(im.length) npNaver(im); else npFile(fl[0]); } });
 document.addEventListener('paste', ev=>{
