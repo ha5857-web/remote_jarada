@@ -33,7 +33,7 @@ const setPath = (o, k, val) => { if (val === null) delete o[k]; else o[k] = val;
   const page = await ctx.newPage(); const errs = []; page.on('pageerror', e => errs.push(String(e)));
   await page.goto('file://' + FLOW); await page.waitForFunction(() => typeof S !== 'undefined' && S.loaded); await page.waitForTimeout(1800);
   console.log('server after sweep:', ['a', 'b', 'c'].map(i => i + ':' + JSON.stringify(DB.get(i).card) + '/was ' + (DB.get(i).cardWas || '-')).join('  '));
-  console.log('next card:', await page.evaluate(() => nextCard()), '(C002 진행 중 → 이어서 C003 기대)');
+  console.log('next card:', await page.evaluate(() => nextCard()), '(C002 진행 중, C001·C003은 돌려받음 → 가장 작은 빈 번호 C001 기대)');
   // 진행 중 아이를 귀가 처리
   await page.evaluate(() => { const v = S.items.get('b'); v.step = 9; put(v, true); }); await page.waitForTimeout(600);
   console.log('귀가 처리 후 b:', JSON.stringify(DB.get('b').card), 'was', DB.get('b').cardWas);

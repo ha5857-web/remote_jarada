@@ -1870,7 +1870,7 @@ function quickDone(v){
   v.log.push({s:10,t:now});
   v.step=10;v.report.sent=true;v.report.sentAt=now;
   UI.msg='';UI.force=null;UI.viewStep=null;
-  put(v,true);renderAll(true);toast((v.name||'환자')+': 바로 완료 처리했습니다.');
+  put(v,true);renderAll(true);toast((v.name||'환자')+': 바로 완료 처리했습니다.'+(v.cardWas&&!v.card?' 카드 '+v.cardWas+'는 다음 아이에게 다시 줄 수 있어요.':''));
 }
 function rewind(v){
   if(v.step===10&&v.quickFrom!=null){
@@ -1971,14 +1971,14 @@ function scanMsg(t,bad){
 /* 카드는 재사용하므로 오늘 방문에만 유효합니다 (지난 방문에 남은 연결은 무시) */
 const isTodayV=v=>{const d=v.date||(v.createdAt?(()=>{const t=new Date(v.createdAt);return t.getFullYear()+'-'+pad(t.getMonth()+1)+'-'+pad(t.getDate())})():'');return d===todayYmd()};
 function cardCode(raw){let c=String(raw||'').trim();const m=c.match(/[?&]c=([^&#\s]+)/);if(m){try{c=decodeURIComponent(m[1])}catch(e){c=m[1]}}c=c.trim();if(/^\d{1,4}$/.test(c))c=(UI.cprefix||'C')+String(+c).padStart(3,'0');return c.toUpperCase()}
-/* 미리 뽑아 둔 카드(C001~C400)를 순서대로 나눠 줍니다: 오늘 마지막으로 준 카드 다음 번호, 지금 쓰는 카드는 건너뜀 */
+/* 미리 뽑아 둔 카드(C001~C400): 지금 아무도 쓰고 있지 않은 가장 작은 번호를 줍니다.
+   귀가·완료하면 카드 연결이 풀리므로(releaseCard) 돌려받은 C001을 바로 다음 아이에게 다시 줄 수 있어요.
+   (먼저 카드를 찍어 둔 보호자 폰은 그 뒤에 같은 카드를 받은 아이 화면을 보지 못합니다 — 카드 조회가 찍은 시각 이후 연결은 무시) */
 const CARD_MAX=400;
 function cardNum(c){const m=String(c||'').match(/^[A-Za-z]*0*(\d+)$/);return m?+m[1]:0}
 function nextCard(){
-  const today=list().filter(isTodayV),used=new Set(today.filter(v=>v.card&&v.step<10).map(v=>cardNum(v.card)));
-  const last=today.filter(v=>v.card||v.cardWas).sort((a,b)=>(b.cardAt||0)-(a.cardAt||0))[0];
-  let n=last?cardNum(last.card||last.cardWas)+1:1;
-  for(let i=0;i<CARD_MAX;i++){if(n>CARD_MAX||n<1)n=1;if(!used.has(n))break;n++}
+  const used=new Set(list().filter(v=>isTodayV(v)&&v.card&&v.step<10&&!v.hide).map(v=>cardNum(v.card)));
+  let n=1;while(n<CARD_MAX&&used.has(n))n++;
   return (UI.cprefix||'C')+String(n).padStart(3,'0');
 }
 /* 카드 연결: 같은 카드가 지난 방문에 남아 있으면 풀고, 도착 전이면 도착 처리까지 */
@@ -2466,7 +2466,7 @@ function pmRender(force,ui){
   el.dataset.k=key;
   let h='';
   if(d)h=pmLiveHtml(c,k,d,now);
-  else if(k.st==='old')h='<h2>삼성자라다 소아청소년과</h2><p class="kbig">지난 진료 때 받으신 카드예요.<br><span style="font-size:16px">이 카드는 다음 내원 때 반납해 주세요. 오늘 받은 카드인데 이 화면이 보이면 접수 데스크에 보여 주세요.</span></p>'+pmReceiptHtml();
+  else if(k.st==='old')h='<h2>삼성자라다 소아청소년과</h2><p class="kbig">지난 진료 때 받으신 카드예요.<br><span style="font-size:16px">이 카드는 다음 내원 때 반납해 주세요. 오늘 받은 카드라면 아래 단추를 눌러 주세요.</span></p><button class="btn primary pm-wide" id="pm-today">오늘 받은 카드예요</button>'+pmReceiptHtml();
   else if(k.st==='done')h=`<div class="pm-hero"><small>삼성자라다 소아청소년과</small><h2>${esc(k.nm||'')} 어린이</h2><div class="pm-now"><b>오늘 진료가 끝났어요</b><span>수고 많으셨어요. 조심히 들어가세요.</span></div></div>`+pmRateHtml(c,k);
   else if(!PM.loaded)h='<p class="kbig">불러오는 중…</p>';
   else h='<h2>삼성자라다 소아청소년과</h2><p class="kbig">'+(PM.fail?'대기 현황을 불러오지 못했습니다. 자동으로 다시 시도합니다.<br><span style="font-size:15px">계속 안 되면 접수 데스크에 카드를 보여 주세요.</span>':'지금 확인되는 접수 정보가 없습니다. 접수 후 다시 카드를 찍어 주세요.')+'</p>'+pmReceiptHtml();
@@ -2478,6 +2478,7 @@ function pmClick(e){
   const t=e.target.closest('button');if(!t)return;
   const c=PM.cur;
   if(t.id==='pm-alarm'){pmEnableAlarm();return}
+  if(t.id==='pm-today'){const h=pmHist();delete h[c];try{localStorage.setItem(PM_HIST,JSON.stringify(h))}catch(x){}const st=pmStore();if(st.kids[c]){st.kids[c].st='new';delete st.kids[c].nm;pmSave(st)}PM.busy=false;pmLoad();return}
   if(t.dataset.pmstar){PM.rateSel[c]=Number(t.dataset.pmstar);pmRender(true,true);const ta=$('#pm-rate-t');if(ta&&PM.rateSel[c]<=3)ta.focus();return}
   if(t.hasAttribute('data-pmrate-edit')){const k=pmStore().kids[c];if(k&&k.rate){PM.rateSel[c]=k.rate.s;PM.draft['r'+c]=k.rate.t||''}pmRender(true,true);return}
   if(t.id==='pm-ask-send'){pmAskSend();return}
