@@ -74,6 +74,9 @@ function handle(b) {
   const vid = await page.evaluate(() => { const v = document.querySelector('#kiosk video.kv'); return v && { src: v.getAttribute('src'), poster: v.getAttribute('poster'), auto: v.autoplay }; });
   console.log('누르면 재생:', JSON.stringify(vid));
   if (!vid || !/G1\.mp4$/.test(vid.src) || !/G1\.jpg$/.test(vid.poster)) console.log('FAIL 눌렀을 때 새 영상 파일이 재생되지 않음');
+  const xk = await page.evaluate(() => kioskVideos({ vids: '', xv: '2', first: false, lab: { proto: 'gnrh' } }));
+  if (!/v\/ko\/X2\.mp4/.test(xk) || !/v\/ko\/X2\.jpg/.test(xk)) console.log('FAIL 추가 영상(확진검사)이 새 재구성판 파일로 연결되지 않음');
+  if (![6, 7, 8].every(n => new RegExp('v/ko/X' + n + '\\.mp4').test(xk))) console.log('FAIL 생활습관 영상 6~8이 새 재구성판 파일로 연결되지 않음');
   await page.screenshot({ path: OUT + '/iv_kiosk.png' });
   console.log('errors', JSON.stringify(errs));
   await browser.close();

@@ -507,6 +507,7 @@ body.mrep .tabs button{flex:none}
 .fr-chgb{align-self:flex-start;display:inline-block;font-size:10.5px;font-weight:700;color:#fff;background:#2B7A4B;border-radius:6px;padding:0 6px;margin-left:6px}
 .fr-old{margin:-4px 0 8px;font-size:12px;color:#5a6b73}.fr-old summary{cursor:pointer}.fr-old div{white-space:pre-wrap;background:#f5f7f8;border-radius:8px;padding:6px 8px;margin-top:4px}
 @media (max-width:760px){.grq{grid-template-columns:1fr}}
+.sexsw{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;vertical-align:1px;background:var(--surface)}.sexsw button{border:0;background:none;padding:0 10px;font:inherit;line-height:1.6;cursor:pointer;color:var(--muted)}.sexsw button+button{border-left:1px solid var(--line)}.sexsw button.on{background:var(--accent);color:#fff;font-weight:700}
 .cno{cursor:copy;border-bottom:1px dashed currentColor;padding:0 1px;border-radius:3px}.cno:hover{background:var(--accent-soft);color:var(--accent)}.cno:hover::after{content:' 📋';font-size:.9em}
 .card{position:relative}.card.hasx .nm{padding-right:20px}
 .card .cx{position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;color:var(--muted);cursor:pointer}
@@ -619,6 +620,8 @@ const $=(s,r=document)=>r.querySelector(s);
 function copyText(t){t=String(t||'').trim();if(!t)return;
   const fb=()=>{const a=document.createElement('textarea');a.value=t;a.style.cssText='position:fixed;left:-9999px';document.body.appendChild(a);a.select();let ok=false;try{ok=document.execCommand('copy')}catch(e){}a.remove();toast(ok?'등록번호 '+t+' 복사했어요':'복사하지 못했어요')};
   try{if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(t).then(()=>toast('등록번호 '+t+' 복사했어요'),fb);return}}catch(e){}fb()}
+/* 환자 상세 머리줄의 남/여 단추 — 눌러서 성별을 바로 고칩니다 */
+const sexSw=v=>`<span class="sexsw" role="group" aria-label="성별 (눌러서 바꾸기)" title="성별이 틀렸으면 눌러서 바꾸세요">${['남','여'].map(x=>`<button type="button" data-act="sex" data-s="${x}" class="${v.sex===x?'on':''}" aria-pressed="${v.sex===x}">${x}</button>`).join('')}</span>`;
 const cnoHtml=(c,pre)=>c?`<span class="cno" role="button" tabindex="0" data-act="copy-chart" data-c="${esc(c)}" title="눌러서 등록번호 복사">${pre||''}${esc(c)}</span>`:'';
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const clone=o=>JSON.parse(JSON.stringify(o));
@@ -1396,7 +1399,9 @@ function patientVideos(v){
   return nos.map(n=>JRD_VIDEOS.find(x=>x.no===+n)).filter(Boolean);
 }
 function videosFor(v){const pr=(v.lab&&v.lab.proto)||'single';return VIDEOS.filter(x=>x.for==='all'||x.for===pr)}
-/* 유튜브 추가 영상 8편 (검사 안내 5 + 생활습관 3). url에 유튜브 주소를 넣으면 환자 화면에 나타납니다. 주소가 비어 있으면 환자에게 보이지 않습니다. */
+/* 추가 영상 8편 (검사 안내 5 + 생활습관 3). url: 유튜브 원본 주소(비어 있으면 환자에게 보이지 않음).
+   play·thumb: 2026-11-21 재구성판(jaradacare.com/v/ko/X1~X8) — 환자 폰·대기 화면에서는 이 파일을 재생합니다. */
+const XV_BASE='https://jaradacare.com/v/ko/X';
 const XVIDEOS=[
  {no:1,tag:'기본 채혈',title:'기본 채혈, 무엇을 보나요',url:'https://youtu.be/1e3s3qdJucU',proto:''},
  {no:2,tag:'성조숙증 확진검사',title:'성조숙증 확진검사 원리와 채혈 방법',url:'https://youtu.be/24LP8yoiLIc',proto:'gnrh'},
@@ -1405,7 +1410,7 @@ const XVIDEOS=[
  {no:5,tag:'성장호르몬 자극검사',title:'성장호르몬 자극검사 안내',url:'https://youtu.be/PiRuoL_xoj8',proto:'gh'},
  {no:6,tag:'영양',title:'생활습관 ① 영양',url:'https://youtu.be/SYpwq8TUdvY',always:1},
  {no:7,tag:'운동',title:'생활습관 ② 운동',url:'https://youtu.be/5WLZPNcSZmw',always:1},
- {no:8,tag:'수면',title:'생활습관 ③ 수면',url:'https://youtu.be/UbREQz30qMs',always:1}];
+ {no:8,tag:'수면',title:'생활습관 ③ 수면',url:'https://youtu.be/UbREQz30qMs',always:1}].map(x=>Object.assign(x,{play:XV_BASE+x.no+'.mp4',thumb:XV_BASE+x.no+'.jpg'}));
 const xvList=v=>{const sel=String(v.xv||'').replace(/[^1-5]/g,'').split('').filter((n,i,a)=>a.indexOf(n)===i).map(n=>XVIDEOS.find(x=>x.no===+n));return {pick:sel.filter(x=>x&&x.url),always:XVIDEOS.filter(x=>x.always&&x.url)}};
 function ytId(u){const m=String(u||'').match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{6,})/);return m?m[1]:''}
 function xvPanel(v){
@@ -1417,7 +1422,7 @@ function xvPanel(v){
 function kvRows(a,ranked){
   return a.map((x,i)=>{
     const id=ytId(x.url),th=x.thumb?`<img src="${esc(x.thumb)}" alt="" loading="lazy">`:id?`<img src="https://i.ytimg.com/vi/${id}/mqdefault.jpg" alt="" loading="lazy">`:'<span class="kvph">▶</span>';
-    return `<div class="kvitem"><button type="button" class="kvrow" data-vsrc="${esc(x.url)}"${x.thumb?` data-vthumb="${esc(x.thumb)}"`:''} aria-expanded="false"><span class="kvth">${th}<i>▶</i></span><span class="kvtx">${x.tag?'<em>'+esc(x.tag)+'</em>':ranked?'<em>'+(i+1)+'순위</em>':''}<b>${esc(x.title||'영상')}</b></span></button><div class="kvplay"></div></div>`}).join('');
+    return `<div class="kvitem"><button type="button" class="kvrow" data-vsrc="${esc(x.play||x.url)}"${x.thumb?` data-vthumb="${esc(x.thumb)}"`:''} aria-expanded="false"><span class="kvth">${th}<i>▶</i></span><span class="kvtx">${x.tag?'<em>'+esc(x.tag)+'</em>':ranked?'<em>'+(i+1)+'순위</em>':''}<b>${esc(x.title||'영상')}</b></span></button><div class="kvplay"></div></div>`}).join('');
 }
 function kioskVideos(v){
   const mine=patientVideos(v),xv=xvList(v);
@@ -1770,7 +1775,7 @@ function detailHtml(){
     stepper+=`<button class="${cls}" data-view-step="${i}"${skipStep(v,i)?' style="opacity:.45;text-decoration:line-through" title="재진 환자는 건너뜁니다"':''}><b>${i+1}</b>${STEPS[i].short}</button>`;
   }
   let head=`<div class="dh"><div><h2>${esc(v.name||'이름 없음')}${exTag(v)}</h2>
-    <div class="sub">${esc(age(v))}${v.sex?' · '+esc(v.sex):''}${v.chartNo?' · '+cnoHtml(v.chartNo,'등록번호 '):''}${v.appt?' · 예약 '+esc(v.appt):''}</div></div>
+    <div class="sub">${esc(age(v))}${age(v)?' · ':''}${sexSw(v)}${v.chartNo?' · '+cnoHtml(v.chartNo,'등록번호 '):''}${v.appt?' · 예약 '+esc(v.appt):''}</div></div>
     <button class="btn sm ghost" data-act="close">닫기</button></div>${txLineHtml(v)}${askBoxHtml(v)}
     <button class="btn primary" data-act="gr-open" style="width:100%;margin-top:8px;font-size:15px">📄 성장 리포트 ${v.gr&&v.gr.ready?(v.gr.reviewed?'보기 ✓':(v.gr.src&&v.gr.src!=='today'?'열기 (가안)':'열어서 확인')):'만들기'}</button>
     <details class="more" style="margin-top:8px"><summary>초진·대기 영상 설정${v.first?' (초진)':''}${v.rev?' (재진)':''}${v.vids?' · 영상 '+esc(v.vids):''}</summary>
@@ -1889,6 +1894,11 @@ function onAction(act,el){
     case 'reset-flow':{applyFlow(DEF);saveFlow(DEF);$('#main-view').innerHTML='';renderAll(true);toast('기본값으로 되돌렸습니다.');break}
     case 'cancel-add':UI.adding=false;renderDetail(true);break;
     case 'close':UI.sel=null;renderAll(true);break;
+    case 'sex':if(v){const nx=el.dataset.s;if(nx!=='남'&&nx!=='여'||v.sex===nx)break;const old=v.sex;
+      if(v.vids&&v.vidsSrc==='default'&&v.vids===sdVids(old,v.age||0))v.vids=sdVids(nx,v.age||0);   // 당일 접수 기본 영상은 성별 기준이라 함께 바꿈
+      v.sex=nx;if(v.gr&&v.gr.sex)v.gr=Object.assign({},v.gr,{sex:nx==='남'?'M':'F'});   // 성장 리포트도 새 성별 기준으로
+      put(v,true);renderAll(true);toast((v.name||'환자')+': 성별을 '+nx+'(으)로 바꿨어요.')}break;
+
     case 'arrive':if(v){v.step=0;v.log=[{s:0,t:Date.now()}];put(v,true);renderAll(true)}break;
     case 'next':if(v)advance(v);break;
     case 'next-force':if(v)advance(v,true);break;
