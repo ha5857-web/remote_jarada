@@ -3692,7 +3692,7 @@ async function fvGuideBuild(p, chartText, baseline){
     if(vids.length < 3 && !vids.some(v=>v.no===2) && !preNos.includes(2)) vids.push(JRDV.vid(2));
     post.videos = vids.slice(0,3);
   }catch(e){}
-  return { kind, post, count: add.count, ai: !!ai, warn: [note, warn].filter(Boolean).join(' · ') };
+  return { kind, post, count: add.count, ai: !!ai, warn: [note, warn].filter(Boolean).join(' · '), added: String(add.text||'').slice(0, 4000) };
 }
 let guideRunning = false, guideQueue = [];
 async function fvGuideGenerateAll(targets){
@@ -3712,7 +3712,7 @@ async function fvGuideGenerateAll(targets){
       if(p.guideDraft && p.guideDraft.date === todayStr() && p.guideDraft.edited && !p.guideDraft.sentAt){ continue; }   // 직접 고친 초안은 덮어쓰지 않아요
       const r = await fvGuideBuild(p, t.chart, t.base);
       if(r.skip){ skipped.push(p.name); continue; }
-      p.guideDraft = { date: todayStr(), kind: r.kind, post: r.post, count: r.count, ai: r.ai, warn: r.warn, generatedAt: new Date().toISOString(), sentAt: '' };
+      p.guideDraft = { date: todayStr(), kind: r.kind, post: r.post, count: r.count, ai: r.ai, warn: r.warn, added: r.added || '', generatedAt: new Date().toISOString(), sentAt: '' };
       p.pendingGuideSend = true; p.updatedAt = new Date().toISOString();
       try{ rvAdoptDraft(p); }catch(e){}
       try{ if(fvGuideIsFirst(p)) rvPushFlow(p, { draft:true, reset:true }); }catch(e){}
@@ -3809,15 +3809,22 @@ let guideEditId = null;
    처음엔 지난 차트와 비교해 「오늘 새로 쓴 줄」만, 「전체」를 누르면 차트 전체(새 줄은 노란색). 펼쳐 두면 위에 고정돼서 보면서 아래 칸을 고칠 수 있어요. */
 const GE_EMR = { open:false, all:false };
 function emrNorm(l){ return String(l||'').replace(/\s+/g,' ').trim(); }
+function emrFromNotes(notes){ const t = String(notes||''), M = '— 원본 메모 —', i = t.indexOf(M); return i >= 0 ? t.slice(i + M.length).replace(/^\s*\n/, '').trim() : ''; }
 function emrHtml(chart, base, date, opt){
   opt = opt || {};
-  if(!String(chart||'').trim()) return '<div class="emr-none">📋 이 아이의 오늘 EMR 차트가 아직 없어요. 진료실에서 EMR을 올리면 여기서 보여요.</div>';
+  if(!String(chart||'').trim()) return '<div class="emr-none">📋 이 아이의 EMR 차트가 아직 없어요. 진료실에서 EMR(엑셀)을 올리면 여기서 보여요.</div>';
+  // 새로 쓴 줄 표시: 초안을 만들 때 AI가 근거로 쓴 줄(opt.added)이 있으면 그것으로, 없으면 지난 차트(base)와 비교
+  const ADDED = String(opt.added||'').trim(), key = l => emrNorm(String(l||'').replace(/^\s*[#＃]\s*(Plan|Lab)\s*[:：]?\s*/i,''));
+  const addedSet = {}; ADDED.split('\n').forEach(l=>{ if(/^\[[^\]]+\]$/.test(l.trim())) return; const n = key(l); if(n) addedSet[n] = 1; });
   const old = {}; String(base||'').split('\n').forEach(l=>{ const n = emrNorm(l); if(n) old[n] = 1; });
-  const hasBase = !!String(base||'').trim(); let nNew = 0;
-  const rows = String(chart).replace(/\r/g,'').split('\n').map(l=>{ const n = emrNorm(l), nw = !!n && (!hasBase || !old[n]); if(nw) nNew++; return { l, n, nw }; });
+  const hasBase = !!ADDED || !!String(base||'').trim(); let nNew = 0;
+  const rows = String(chart).replace(/\r/g,'').split('\n').map(l=>{ const n = emrNorm(l), nw = !!n && (ADDED ? !!addedSet[key(l)] : (!hasBase || !old[n])); if(nw) nNew++; return { l, n, nw }; });
+  if(ADDED) nNew = Object.keys(addedSet).length;
   const show = opt.all || !hasBase ? rows.filter((r,i)=> r.n || (i>0 && rows[i-1].n)) : rows.filter(r=>r.nw);
-  const body = show.map(r=>`<div class="emr-l${r.nw && hasBase ? ' nw' : ''}">${escapeHtml(r.l) || '&nbsp;'}</div>`).join('') || '<div class="emr-l">(지난 차트와 달라진 줄이 없어요)</div>';
-  return `<button type="button" class="emr-tog" data-emr="tog">📋 EMR 차트 ${escapeHtml(String(date||'').replace(/-/g,'.'))} · ${hasBase ? '오늘 새로 쓴 ' + nNew + '줄' : '전체 ' + rows.filter(r=>r.n).length + '줄'} <span>${opt.open ? '접기 ▴' : '펼치기 ▾'}</span></button>` +
+  const body = (!opt.all && ADDED)
+    ? ADDED.split('\n').map(l=> /^\[[^\]]+\]$/.test(l.trim()) ? `<div class="emr-l" style="font-weight:800;margin-top:4px;">${escapeHtml(l)}</div>` : `<div class="emr-l nw">${escapeHtml(l) || '&nbsp;'}</div>`).join('')
+    : (show.map(r=>`<div class="emr-l${r.nw && hasBase ? ' nw' : ''}">${escapeHtml(r.l) || '&nbsp;'}</div>`).join('') || '<div class="emr-l">(지난 차트와 달라진 줄이 없어요)</div>');
+  return `<button type="button" class="emr-tog" data-emr="tog">📋 EMR 차트 ${escapeHtml(String(date||'').replace(/-/g,'.'))} · ${hasBase ? '새로 쓴 ' + nNew + '줄' : '전체 ' + rows.filter(r=>r.n).length + '줄'} <span>${opt.open ? '접기 ▴' : '펼치기 ▾'}</span></button>` +
     (opt.open ? `<div class="emr-body">${hasBase ? `<div class="emr-opts"><button type="button" data-emr="new" class="${opt.all?'':'on'}">새로 쓴 줄</button><button type="button" data-emr="all" class="${opt.all?'on':''}">전체 차트</button></div>` : ''}<div class="emr-txt">${body}</div></div>` : '');
 }
 function geEmrRender(){
@@ -3825,9 +3832,17 @@ function geEmrRender(){
   if(!p){ el.innerHTML = ''; return; }
   const recs = (p.records||[]).filter(r=>r && r.date && String(r.chartNoteRaw||'').trim()).sort((a,b)=> a.date < b.date ? -1 : 1);
   const td = todayStr(), cur = recs.filter(r=>r.date===td).pop() || recs[recs.length-1] || null;
-  const prev = cur ? recs.filter(r=>r.date < cur.date).pop() : null;
-  const base = (p.guideBase && p.guideBase.date===td && p.guideBase.text) || (prev && prev.chartNoteRaw) || '';
-  el.innerHTML = emrHtml(cur ? cur.chartNoteRaw : '', base, cur ? cur.date : '', GE_EMR);
+  if(cur){
+    const prev = recs.filter(r=>r.date < cur.date).pop();
+    const base = (p.guideBase && p.guideBase.date===td && p.guideBase.text) || (prev && prev.chartNoteRaw) || '';
+    el.innerHTML = emrHtml(cur.chartNoteRaw, base, cur.date, GE_EMR); return;
+  }
+  // EMR 엑셀로 올린 차트는 환아 메모의 「— 원본 메모 —」 아래에 들어 있어요 (진료 다음 날 확인해도 그대로 보여요)
+  const g = p.guideDraft || {}, chart = emrFromNotes(p.notes);
+  const lastRec = (p.records||[]).reduce((m,r)=> r && r.date && r.date > m ? r.date : m, '');
+  const date = g.date || lastRec;
+  const base = (p.guideBase && p.guideBase.date === date && p.guideBase.text) || '';
+  el.innerHTML = emrHtml(chart, base, date, Object.assign({}, GE_EMR, { added: g.added || '' }));
 }
 function guideQueueIds(){ return patients.filter(p=>p.pendingGuideSend && p.guideDraft && !p.guideDraft.sentAt).map(p=>p.id); }
 let guideEditTimer = null;

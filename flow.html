@@ -3711,6 +3711,10 @@ function mbEmrRender(){
     var recs=(p.records||[]).filter(function(r){return r&&r.date&&String(r.chartNoteRaw||'').trim()}).sort(function(a,b){return a.date<b.date?-1:1});
     var cur=recs.filter(function(r){return r.date===want}).pop()||recs.filter(function(r){return r.date<=want}).pop()||recs[recs.length-1]||null;
     var prev=cur?recs.filter(function(r){return r.date<cur.date}).pop():null;
+    if(!cur){   // 의사 앱에 EMR 엑셀로 올린 차트는 환아 메모의 「— 원본 메모 —」 아래에 있어요
+      var nt=String(p.notes||''),M='— 원본 메모 —',k=nt.indexOf(M),ch=k>=0?nt.slice(k+M.length).replace(/^\s*\n/,'').trim():'';
+      if(ch){var ld=(p.records||[]).reduce(function(m,r){return r&&r.date&&r.date<=want&&r.date>m?r.date:m},'')||(p.guideDraft&&p.guideDraft.date)||'';cur={date:ld||want,chartNoteRaw:ch}}
+    }
     el.innerHTML=emrHtml(cur?cur.chartNoteRaw:'',prev?prev.chartNoteRaw:'',cur?cur.date:'',EMRV,want);
     var go=document.getElementById('grov');if(go)go.classList.toggle('emr-open',!!EMRV.open&&!!cur);
   };
