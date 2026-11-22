@@ -12177,8 +12177,10 @@ function vcGuessTz(p, rows){ if(p.vcTz) return p.vcTz; const k = vcPicks(rows, p
 async function vcFetchRows(force){
   if(!force && VC.rows && Date.now()-VC.at < 15000) return VC.rows;
   const api = getApiUrl(); if(!api) throw new Error('연동 설정에서 백엔드 URL을 먼저 입력해 주세요');
-  const j = await (await fetch(api)).json(); if(!Array.isArray(j)) throw new Error((j && (j.message||j.code)) || '서버 목록을 못 읽었어요');
-  VC.rows = j; VC.at = Date.now(); return j;
+  // 다른 목록(리마인더 등)과 같은 인증 경로(apiAllRows)로 읽음 — 예전엔 열쇠 없이 읽어서 「불러오는 중…」에서 멈췄음
+  const got = await Promise.race([apiAllRows(), new Promise(r=>setTimeout(()=>r({ rows:null, err:'서버가 너무 오래 걸려요(30초). 잠시 뒤 다시 열어 주세요' }), 30000))]);
+  if(!got || !Array.isArray(got.rows)) throw new Error((got && got.err) || '서버 목록을 못 읽었어요');
+  VC.rows = got.rows; VC.at = Date.now(); return got.rows;
 }
 async function vcPost(body){ const r = await fetch(getApiUrl(), { method:'POST', body: JSON.stringify(body) }); let j = null; try{ j = await r.json(); }catch(e){} if(j && j.code==='AUTH_REQUIRED'){ try{ handleAuthFailure(); }catch(e){} } return j; }
 async function vcSavePlan(p, plan){
