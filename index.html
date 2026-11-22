@@ -4596,7 +4596,7 @@ function guideBadgeHtml(p){
   const g = p.guideDraft; if(!g || g.date !== todayStr()) return '';
   const dt = iso => { const t = new Date(iso); return isNaN(t) ? '' : ' ' + (t.getMonth()+1) + '/' + t.getDate(); };
   const b = (txt, bg, color) => `<span style="font-size:10px;font-weight:700;white-space:nowrap;padding:2px 6px;border-radius:8px;background:${bg};color:${color};">${txt}</span>`;
-  const inner = g.sentAt ? b('📋 진료 후 안내' + dt(g.sentAt), '#E6F4EA', '#1E7B3A') : (p.pendingGuideSend ? b('📋 안내 초안 대기', '#E8F0FE', '#1A4FA0') : '');
+  const inner = (p.flowRpt && p.flowRpt.date===todayStr()) ? b('📄 성장리포트 발송' + (p.flowRpt.printed?' · 인쇄':''), '#E6F4EA', '#1E7B3A') : g.sentAt ? b('📋 진료 후 안내' + dt(g.sentAt), '#E6F4EA', '#1E7B3A') : (p.pendingGuideSend ? b('📋 안내 초안 대기', '#E8F0FE', '#1A4FA0') : '');
   return inner ? `<div style="align-self:flex-start;display:flex;flex-direction:column;align-items:flex-end;gap:3px;margin-left:6px;flex-shrink:0;">${inner}</div>` : '';
 }
 function fvBadgesHtml(p){
@@ -4610,7 +4610,8 @@ function fvBadgesHtml(p){
   else if(fv) room = b('🔗 링크 미발송', '#FDECEA', '#B3261E');
   else room = b('🌱 초진방 없음', '#FDECEA', '#B3261E') + `<span role="button" title="초진 목록에서 빼기" onclick="event.stopPropagation();fvDropFlag('${p.id}')" style="font-size:11px;color:var(--secondary);cursor:pointer;padding:0 2px;">✕</span>`;
   let post;
-  if(po && po.sentAt) post = b('📋 진료 후 안내' + dt(po.sentAt), '#E6F4EA', '#1E7B3A');
+  if(p.flowRpt && p.flowRpt.date===todayStr()) post = b('📄 성장리포트 발송' + (p.flowRpt.printed?' · 인쇄':''), '#E6F4EA', '#1E7B3A');
+  else if(po && po.sentAt) post = b('📋 진료 후 안내' + dt(po.sentAt), '#E6F4EA', '#1E7B3A');
   else if(p.pendingGuideSend && p.guideDraft) post = b('📋 안내 초안 대기', '#E8F0FE', '#1A4FA0');
   else if(fv && (fv.status==='post' || (po && (po.summary || po.xray || po.direction)))) post = b('📋 진료 후 작성중', '#FFF4D6', '#8A5A00');
   else post = b('📋 진료 후 안내 전', '#EEEEEE', '#666666');
@@ -9013,7 +9014,8 @@ function rvRender(p){
   const n = p.rvNote || {}, po = n.post || {};
   const f = (id, label, val, rows)=> `<div class="field"><label>${label}</label><textarea id="${id}" rows="${rows||3}" oninput="rvSave()">${escapeHtml(val||'')}</textarea></div>`;
   box.style.display = 'block';
-  box.innerHTML = `
+  const fr = (p.flowRpt && p.flowRpt.date===todayStr()) ? '<div style="margin:0 0 8px;padding:8px 10px;border-radius:8px;background:#E6F4EA;color:#1E7B3A;font-size:12px;font-weight:700;">📄 flow에서 성장리포트를 완성했어요' + (p.flowRpt.printed ? ' · 인쇄 완료' : ' · 인쇄 대기') + ' — AI 초안 작성은 건너뛰어도 돼요.</div>' : '';
+  box.innerHTML = fr + `
     <div class="section-title" style="margin:0 0 4px;"><h2 style="font-size:13px;">📄 오늘 경과 기록 · 기록지 PDF <span style="font-size:11px;font-weight:700;color:#fff;background:#C2751A;border-radius:5px;padding:1px 7px;margin-left:4px;">재진</span></h2></div>
     ${(()=>{ const q = p.rvQ && (p.rvQ.date===todayStr() || p.rvQ.st==='wait') ? p.rvQ : null, on = (v)=> v ? 'background:var(--primary);color:#fff;border-color:var(--primary);' : '';
       return `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:0 0 8px;padding:8px;background:#FFF8EC;border:1px solid #EBD9BE;border-radius:10px;"><span style="font-size:11.5px;font-weight:800;color:#8A5A00;">오늘 검사</span>
@@ -9323,11 +9325,32 @@ function rvPullFlow(visits){
   }
   return ch;
 }
+/* flow에서 원장이 확인(리포트 완성)한 성장 리포트 → 이 환자는 「AI 초안 작성하기」 단계를 건너뛰고 「성장리포트 발송」으로 표시 */
+function rvFlowSentSync(visits){
+  let ch = false; const today = todayStr();
+  patients.forEach(p=>{
+    if(!p) return;
+    const v = fvFlowFindVisit(p, visits); if(!v) return;
+    const g = v.gr; if(!g || !g.ready || !g.reviewed || g.from!=='flow' || !rvHasContent(g.post)) return;
+    const at = new Date(g.printedAt || g.reviewedAt || g.at || Date.now()).toISOString();
+    if(p.flowRpt && p.flowRpt.date===today && p.flowRpt.at===at) return;
+    p.flowRpt = { date: today, at, printed: !!g.printedAt };
+    p.pendingGuideSend = false;
+    const gd = p.guideDraft && p.guideDraft.date===today ? p.guideDraft : { date: today };
+    gd.sentAt = gd.sentAt || at; gd.from = 'flow'; gd.edited = true;
+    gd.post = Object.assign({}, gd.post || {}, g.post);
+    p.guideDraft = gd;
+    if(p.rvQ && p.rvQ.st==='wait'){ p.rvQ.st = 'sent'; p.rvQ.sentAt = new Date(at).getTime(); }
+    p.updatedAt = new Date().toISOString(); ch = true;
+  });
+  return ch;
+}
 function rvSyncFlow(visits){
   try{
     if(!Array.isArray(visits)) return; let ch = false;
     try{ if(rvPullFlow(visits)) ch = true; }catch(e){}
     try{ if(rvAutoFromFlow(visits)) ch = true; }catch(e){}
+    try{ if(rvFlowSentSync(visits)) ch = true; }catch(e){}
     patients.forEach(p=>{
       const q = p.rvQ; if(!q || q.st!=='wait') return;
       /* 대기에 올린 그날의 flow 방문을 찾습니다(어제 이전에 올린 아이도 — 오늘 날짜로만 찾으면 어제 flow에서 리포트를 끝낸 아이가 계속 「작성 대기」로 남음) */
