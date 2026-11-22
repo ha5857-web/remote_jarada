@@ -4555,7 +4555,7 @@ function copyCurrentPatientList(){
   const filtered = patients
     .filter(p => patientInTab(p, patientCategoryTab))
     .filter(p => !q || (p.name||'').toLowerCase().includes(q) || (p.diagnosis||'').toLowerCase().includes(q))
-    .sort((a,b)=> (a.name||'').localeCompare(b.name||'', 'ko'));
+    .sort((a,b)=> (patientCategoryTab==='report' ? ((b.rvQ&&b.rvQ.t)||0)-((a.rvQ&&a.rvQ.t)||0) : 0) || (a.name||'').localeCompare(b.name||'', 'ko'));   // 리포트 대기 탭은 최신 작성(표시)순
   if(!filtered.length){ alert('명단에 해당하는 환아가 없습니다.'); return; }
   const label = CATEGORY_TAG_LABELS[patientCategoryTab] || patientCategoryTab;
 
@@ -4663,7 +4663,7 @@ function renderPatientList(){
   const filtered = patients
     .filter(p => patientInTab(p, patientCategoryTab))
     .filter(p => !q || (p.name||'').toLowerCase().includes(q) || (p.diagnosis||'').toLowerCase().includes(q))
-    .sort((a,b)=> (a.name||'').localeCompare(b.name||'', 'ko'));
+    .sort((a,b)=> (patientCategoryTab==='report' ? ((b.rvQ&&b.rvQ.t)||0)-((a.rvQ&&a.rvQ.t)||0) : 0) || (a.name||'').localeCompare(b.name||'', 'ko'));   // 리포트 대기 탭은 최신 작성(표시)순
   if(!filtered.length){
     list.innerHTML = `<div class="empty-note">${patients.length? '해당 조건의 환아가 없습니다.' : '등록된 환아가 없습니다.'}</div>`;
     return;
