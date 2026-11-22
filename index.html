@@ -7952,7 +7952,7 @@ function renderBatchSendBar(){
   const fvRow = document.getElementById('batchFvRow'), fvAdd = document.getElementById('batchFvAddRow');
   if(fvRow) fvRow.style.display = fvQueued.length ? 'flex' : 'none';
   if(fvAdd) fvAdd.style.display = fvMissing.length ? 'block' : 'none';
-  if(!chartQueued.length && !linkQueued.length && !fvQueued.length && !fvMissing.length && !guideQueued.length && !guideRunning){ bar.style.display='none'; return; }
+  if(!chartQueued.length && !linkQueued.length && !fvQueued.length && !fvMissing.length && !guideQueued.length && !guideRunning && !(((document.getElementById('batchGuideStatus')||{}).textContent||'').trim())){ bar.style.display='none'; return; }   // 초안 결과 안내문(제외·건너뜀 이유)이 있으면 대기가 비어도 바는 보여 줍니다
   bar.style.display='block';
   if(chartRow) chartRow.style.display = chartQueued.length ? 'flex' : 'none';
   if(linkRow) linkRow.style.display = linkQueued.length ? 'flex' : 'none';
