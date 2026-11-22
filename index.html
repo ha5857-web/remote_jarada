@@ -4623,6 +4623,21 @@ function fvDropFlag(id){
   p.firstFlag.done = true; p.pendingFvLinkSend = false; p.updatedAt = new Date().toISOString();
   savePatients(); renderBatchSendBar(); renderPatientList();
 }
+/* 마지막 진료(방문·화상통화 기록)로부터 3개월·6개월 지난 환아는 목록에서 눈에 띄게 */
+function lastSeenInfo(p){
+  const ds = (p.records||[]).map(r=>r && r.date).filter(Boolean).sort();
+  const last = ds.length ? ds[ds.length-1] : '';
+  if(!last) return null;
+  const a = new Date(last+'T00:00:00'), b = new Date(todayStr()+'T00:00:00');
+  let m = (b.getFullYear()-a.getFullYear())*12 + (b.getMonth()-a.getMonth()); if(b.getDate() < a.getDate()) m--;
+  return { last, months: Math.max(0, m) };
+}
+function lastSeenBadge(p){
+  const i = lastSeenInfo(p); if(!i || i.months < 3) return { html:'', border:'' };
+  const six = i.months >= 6;
+  return { border: six ? '#C0392B' : '#E08A00',
+    html: `<div class="sub"><span style="display:inline-block;padding:2px 8px;border-radius:999px;font-weight:800;font-size:12px;${six?'background:#FBE4E1;color:#B3261E;':'background:#FFF0D0;color:#A15C00;'}">${six?'🔴':'🟠'} 마지막 진료 ${i.months}개월 경과</span> <span style="font-size:11px;color:var(--secondary);">${fmtDate(i.last)}</span></div>` };
+}
 function renderPatientList(){
   try{ rvApplyMarks(); }catch(e){}
   renderBatchSendBar();
@@ -4654,13 +4669,14 @@ function renderPatientList(){
     const checkbox = selectDeleteMode
       ? `<input type="checkbox" class="patientDeleteCheck" data-id="${p.id}" ${checked?'checked':''} onclick="event.stopPropagation(); toggleSelectedPatient('${p.id}')" style="margin-right:10px;flex-shrink:0;">`
       : '';
-    const isLastViewed = p.id === lastViewedPatientId;
-    return `<div class="patient-card" style="align-items:center;${isLastViewed?'background:#FFF6E0;border-color:var(--accent);':''}" onclick="${selectDeleteMode ? `toggleSelectedPatient('${p.id}')` : `openDetail('${p.id}')`}">
+    const isLastViewed = p.id === lastViewedPatientId, ls = lastSeenBadge(p);
+    return `<div class="patient-card" style="align-items:center;${ls.border?'border-left:6px solid '+ls.border+';':''}${isLastViewed?'background:#FFF6E0;border-color:var(--accent);':''}" onclick="${selectDeleteMode ? `toggleSelectedPatient('${p.id}')` : `openDetail('${p.id}')`}">
       ${checkbox}
       <div style="flex:1;min-width:0;">
         <div class="name-row"><span class="name"${isLastViewed?' style="font-weight:800;"':''}>${isLastViewed?'📍 ':''}${escapeHtml(p.name)}</span><span class="sex-tag">${p.sex==='M'?'남':'여'}</span>${p.chartNo?`<span class="chart-tag" title="누르면 차트번호가 복사돼요" data-chart="${escapeHtml(String(p.chartNo))}" onclick="event.stopPropagation();copyChartNo(this.dataset.chart,this)">${escapeHtml(String(p.chartNo))}</span>`:''}<span id="qbadge_list_${p.id}"></span></div>
         <div class="sub">${p.firstVisit&&p.firstVisit.status!=='done' ? `<b style="color:#7B4FA3;">초진 · ${FV_STATUS_LABEL[p.firstVisit.status]||''}</b> · ` : ''}${calcAge(p.dob)} · ${escapeHtml(p.diagnosis||'진단명 미입력')}</div>
         <div class="sub">${visitLabel(p)} 예정일 ${fmtDate(next)} · <span style="color:${badgeColor};font-weight:700;">${badgeText}</span></div>
+        ${ls.html}
         ${rvQBadge(p)}
         ${linkSentMap[p.accessCode] ? `<div class="sub" style="font-size:11px;">🔗 링크 발송 ${timeAgo(linkSentMap[p.accessCode].timestamp)}</div>` : ''}
       </div>

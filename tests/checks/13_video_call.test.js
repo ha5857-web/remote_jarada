@@ -59,6 +59,8 @@ test('원장 제안 → 보호자(뉴욕) 고름 → 원장 앱이 확정 → �
   await pp.click('#cpCard .cp-slot'); await pp.waitForTimeout(800);
   card = await pp.evaluate(() => document.getElementById('cpCard').innerText);
   assert.match(card, /Your video call is booked/); assert.match(card, /Join video call/); assert.match(card, /Add to my calendar/); assert.match(card, /How to install the app/);
+  assert.match(card, /Before the call/); assert.match(card, /Upload test results \/ X-ray/);   // 통화 전 검사 결과·엑스레이 올리기 안내
+  await pp.click('#cpCard .cp-prep button'); await pp.waitForTimeout(300); assert.ok(await pp.evaluate(() => document.getElementById('v-files').classList.contains('active') || getComputedStyle(document.getElementById('v-files')).display !== 'none'), '검사/엑스레이 탭으로 이동');
   const pick = S.rows.find(r => r.type === 'question' && /\[cp:v1\|pick\|/.test(r.question));
   assert.ok(pick, '서버에 선택이 남음'); assert.match(pick.question, /America\/New_York/); assert.match(pick.question, new RegExp(plan0.ver));
   const dl = pp.waitForEvent('download'); await pp.click('#cpCard button.cp-lite'); const f = await dl; const ics = require('fs').readFileSync(await f.path(), 'utf8');
