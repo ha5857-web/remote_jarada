@@ -497,8 +497,11 @@
   </div>
   <div id="recallList" class="collapsible-body" style="display:none;margin-bottom:16px;"></div>
 
-  <div class="section-title"><h2>다음 일정</h2><span id="dashCount"></span></div>
-  <div id="dashList"></div>
+  <div class="section-title collapsible" onclick="toggleDashSection('dash')">
+    <h2>다음 일정</h2>
+    <span><span id="dashCount"></span> <span class="chevron" id="dashChevron">▸</span></span>
+  </div>
+  <div id="dashList" class="collapsible-body" style="display:none;margin-bottom:16px;"></div>
 
   <div class="section-title"><h2>최근 등록 기록</h2></div>
   <div id="recentList"></div>
