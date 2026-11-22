@@ -3645,7 +3645,11 @@ function chartAlreadySentToday(p){
 function fvGuideReason(p){
   if(fvGuideIsFirst(p)) return '초진';
   const k = txKind(txKey(p.chartNo,p.name), txTextsOf(p));
-  return k==='GH' ? 'GH 시작' : k==='GnRH' ? 'GnRH 시작' : '';
+  if(k==='GH') return 'GH 시작'; if(k==='GnRH') return 'GnRH 시작';
+  // 오늘 혈액검사·엑스레이를 한 아이(성장 리포트 대상)도 일괄 발송 대기에 올립니다 — 아이 창을 일일이 열지 않고 한꺼번에 확인·발송
+  try{ if(p.rvQ && p.rvQ.date===todayStr() && (p.rvQ.blood || p.rvQ.xray)) return '검사 리포트'; }catch(e){}
+  try{ const c = String(p.chartNo||'').trim(), m = rvMarksLoad()[c]; if(c && m && (m.b || m.x)) return '검사 리포트'; }catch(e){}
+  return '';
 }
 function fvGuideIsFirst(p){ return isFirstPatient(p) || !!(p.firstVisit && p.firstVisit.status && p.firstVisit.status !== 'done'); }
 function fvGuideCompare(p){
@@ -3711,7 +3715,7 @@ async function fvGuideGenerateAll(targets){
   while(guideQueue.length){
     const t = guideQueue.shift(); i++;
     const p = getPatient(t.id); if(!p) continue;
-    // 진료 후 안내는 「초진」이거나 「오늘 치료(GH·GnRH) 시작」인 아이만 — 나머지 재진은 만들지 않아요
+    // 진료 후 안내는 「초진」·「오늘 치료(GH·GnRH) 시작」·「오늘 혈액/엑스레이 검사」 아이만 — 나머지 재진은 만들지 않아요
     if(!fvGuideReason(p) && !(p.guideDraft && p.guideDraft.manual)){ notTarget++; continue; }
     const st = status(); if(st){ st.style.color = 'var(--secondary)'; st.textContent = `📋 진료 후 안내 초안 만드는 중… (${i}/${i+guideQueue.length}) — ${p.name||''}`; }
     try{
