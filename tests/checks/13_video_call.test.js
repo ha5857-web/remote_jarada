@@ -20,7 +20,7 @@ const tomorrowKst = () => { const d = new Date(Date.now() + 9 * 3600e3 + 2 * 864
 
 test('원장 제안 → 보호자(뉴욕) 고름 → 원장 앱이 확정 → 보호자 확정 카드·캘린더', async () => {
   const S = server(), other = patient({ id: 'pt2', name: '박둘', accessCode: 'otherpid0123456789x', lang: 'zh' });
-  const doc = await open(b, page('index.html'), { storage: { jrd_api_url: API, jrd_auth_token: doctorToken(), jrd_auth_mode: 'token', jrd_doctor_unlocked: '1', jrd_remote_gh_patients_v1: JSON.stringify([patient(), other]) }, api: S.api, wait: 2000 });
+  const doc = await open(b, page('index.html'), { storage: { jrd_api_url: API, jrd_auth_token: doctorToken(), jrd_auth_mode: 'token', jrd_doctor_unlocked: '1', jrd_call_link: '', jrd_remote_gh_patients_v1: JSON.stringify([patient(), other]) }, api: S.api, wait: 2000 });
   doc.p.on('dialog', d => d.accept());
   const day = tomorrowKst();
   // 원장: 환아 화면 → 시간대(뉴욕) → 날짜 → 한국 21:00·22:00 고르기 → 보내기
@@ -110,7 +110,7 @@ test('겹치면 확정하지 않음 · 다른 시간 요청은 원장 화면에 
 
 test('대만: 기본 Google Meet 링크·병원 LINE 공식계정 → 후보·안내 문구·보호자 화면(번체)에 반영', async () => {
   const S = server(), TPID = 'twpid0123456789abcde';
-  const doc = await open(b, page('index.html'), { storage: { jrd_api_url: API, jrd_auth_token: doctorToken(), jrd_auth_mode: 'token', jrd_doctor_unlocked: '1', jrd_remote_gh_patients_v1: JSON.stringify([patient({ id: 'tw', name: '陳小美', lang: 'zt', accessCode: TPID, phone: '' })]) }, api: S.api, wait: 1500 });
+  const doc = await open(b, page('index.html'), { storage: { jrd_api_url: API, jrd_auth_token: doctorToken(), jrd_auth_mode: 'token', jrd_doctor_unlocked: '1', jrd_call_link: '', jrd_remote_gh_patients_v1: JSON.stringify([patient({ id: 'tw', name: '陳小美', lang: 'zt', accessCode: TPID, phone: '' })]) }, api: S.api, wait: 1500 });
   const dialogs = []; doc.p.on('dialog', d => { dialogs.push(d.message()); d.accept(); });
   await doc.p.evaluate(() => openDetail('tw')); await doc.p.waitForTimeout(1000);
   assert.match(await doc.p.evaluate(() => document.getElementById('vcBox').innerText), /화상통화 설정 \(처음 한 번\)/);

@@ -12141,7 +12141,7 @@ const VC_MSG = {
 let VC = { rows:null, at:0, draft:{} };
 /* 화상통화 설정(이 기기): 기본 통화 링크(Google Meet 고정 회의실) · 병원 LINE 공식계정 ID. 환아별 링크(p.vcLink)가 있으면 그게 먼저예요. */
 const VC_LINK_DEFAULT = 'https://meet.google.com/tha-jydb-smf';   // 병원 Google Meet 고정 회의실(ha5857@gmail.com) — 설정에서 바꾸면 그 값이 먼저
-function vcDefLink(){ try{ return localStorage.getItem('jrd_call_link') || VC_LINK_DEFAULT; }catch(e){ return VC_LINK_DEFAULT; } }
+function vcDefLink(){ try{ const v = localStorage.getItem('jrd_call_link'); return v === null ? VC_LINK_DEFAULT : v; }catch(e){ return VC_LINK_DEFAULT; } }
 const VC_LINE_DEFAULT = '@214wlixe';   // 병원 LINE 공식계정 (삼성자라다소아청소년과의원) — 설정에서 바꾸면 그 값이 먼저
 function vcLineId(){ try{ const v = (localStorage.getItem('jrd_line_oa') || VC_LINE_DEFAULT).trim(); return /^@?[A-Za-z0-9._-]{3,30}$/.test(v) ? (v[0]==='@' ? v : '@' + v) : ''; }catch(e){ return ''; } }
 function vcLinkOf(p){ return (p && p.vcLink) || vcDefLink() || (p && p.zoomLink) || ''; }
