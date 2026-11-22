@@ -345,7 +345,7 @@
       <p class="notice" data-i18n="xrayNotice">골연령 등 엑스레이 사진을 새로 찍거나, 이미 있는 사진(앨범)에서 여러 장 골라 올릴 수 있어요.</p>
       <div style="height:10px;"></div>
       <div class="field"><label data-i18n="labelDate">날짜</label><input type="date" id="xr_date"></div>
-      <div class="field"><input type="file" id="xr_file" accept="image/*" multiple></div>
+      <div class="field"><input type="file" id="xr_file" accept="image/*,application/pdf" multiple></div>
       <div class="upreview-grid" id="xr_preview"></div>
       <button class="btn" id="xrUploadBtn" data-i18n="btnUpload" onclick="return guardOverseasOnly(event) && uploadFile('xray')">업로드</button>
       <div class="msg" id="xr_msg"></div>
@@ -944,10 +944,12 @@ async function uploadFile(kind){
     for(const file of files){
       msg.textContent = t('msgUploading', {n:done+1, total:files.length}); msg.style.color='var(--secondary)';
       const dataUrl = await fileToDataUrl(file);
-      await fetch(API, { method:'POST', body: JSON.stringify({ id: uid(), pid: PID, type: kind, date, dataUrl, fileName: file.name }) });
-      done++;
+      const up = await fetch(API, { method:'POST', body: JSON.stringify({ id: uid(), pid: PID, type: kind, date, dataUrl, fileName: file.name }) });
+      let uj = null; try{ uj = await up.json(); }catch(e){}
+      if(!uj || uj.status !== 'ok') throw new Error((uj && (uj.message||uj.code)) || 'upload fail');   // 서버가 받지 못했는데 「올렸어요」가 뜨던 문제
+      done++; try{ const k = 'jrd_upl_'+PID, o = JSON.parse(localStorage.getItem(k)||'[]'); o.push({ t: Date.now(), kind }); localStorage.setItem(k, JSON.stringify(o.slice(-60))); }catch(e){}
     }
-    msg.textContent = t('msgUploaded', {n:done}); msg.style.color='var(--ok)';
+    msg.textContent = t('msgUploaded', {n:done}); msg.style.color='var(--ok)'; try{ cpRender(); }catch(e){}
     fileInput.value = '';
     document.getElementById(isBT ? 'bt_preview' : 'xr_preview').innerHTML = '';
   }catch(err){ msg.textContent = t('msgUploadFail', {n:done, total:files.length}); msg.style.color='var(--accent)'; }
@@ -3031,6 +3033,18 @@ const CP_TX = {
 const CP_LOC = { ko:'ko-KR', en:'en-US', zh:'zh-CN', zt:'zh-TW', vi:'vi-VN', ja:'ja-JP', es:'es-ES', th:'th-TH', id:'id-ID', ar:'ar', mn:'mn-MN' };
 const CP_TZ = (()=>{ try{ return Intl.DateTimeFormat().resolvedOptions().timeZone || ''; }catch(e){ return ''; } })();
 let CP = { plan:null, rows:[], other:false, msg:'', busy:false, sent:null };
+(function(){const X={
+ ko:{prepTitle:'📎 통화 전에 준비해 주세요',prepSub:'혈액검사 결과지나 엑스레이가 있으면 통화 전에 미리 올려 주세요. 원장님이 통화 전에 보고 더 정확히 상담해 드려요.',prepBtn:'📤 검사 결과·엑스레이 올리기',prepDone:'✅ 최근 {n}장 올려 주셨어요. 더 있으면 추가로 올려 주세요.'},
+ en:{prepTitle:'📎 Before the call',prepSub:'If you have blood test results or X-rays, please upload them before the call so the doctor can review them in advance.',prepBtn:'📤 Upload test results / X-ray',prepDone:'✅ You uploaded {n} file(s) recently. Add more if you have them.'},
+ zt:{prepTitle:'📎 通話前請先準備',prepSub:'若有抽血檢查報告或X光片，請在通話前先上傳，醫師會事先查看，讓諮詢更準確。',prepBtn:'📤 上傳檢查報告／X光片',prepDone:'✅ 您最近已上傳 {n} 個檔案，若還有請繼續上傳。'},
+ zh:{prepTitle:'📎 通话前请先准备',prepSub:'如有血液检查报告或X光片，请在通话前先上传，医生会提前查看，让咨询更准确。',prepBtn:'📤 上传检查报告／X光片',prepDone:'✅ 您最近已上传 {n} 个文件，若还有请继续上传。'},
+ ja:{prepTitle:'📎 通話前にご準備ください',prepSub:'血液検査の結果やレントゲンがあれば、通話前にアップロードしてください。医師が事前に確認します。',prepBtn:'📤 検査結果・レントゲンをアップロード',prepDone:'✅ 最近 {n} 件アップロードされました。他にもあれば追加してください。'},
+ vi:{prepTitle:'📎 Chuẩn bị trước cuộc gọi',prepSub:'Nếu có kết quả xét nghiệm máu hoặc phim X-quang, vui lòng tải lên trước cuộc gọi để bác sĩ xem trước.',prepBtn:'📤 Tải lên kết quả xét nghiệm / X-quang',prepDone:'✅ Gần đây bạn đã tải lên {n} tệp. Nếu còn, hãy tải thêm.'},
+ th:{prepTitle:'📎 เตรียมก่อนการโทร',prepSub:'หากมีผลตรวจเลือดหรือฟิล์มเอกซเรย์ กรุณาอัปโหลดก่อนโทร เพื่อให้แพทย์ดูล่วงหน้า',prepBtn:'📤 อัปโหลดผลตรวจ/เอกซเรย์',prepDone:'✅ คุณอัปโหลดไว้ {n} ไฟล์ล่าสุด หากมีเพิ่มสามารถอัปโหลดต่อได้'}
+};Object.keys(X).forEach(l=>{CP_TX[l]=Object.assign(CP_TX[l]||{},X[l])})})();
+function cpUplCount(){ try{ const o = JSON.parse(localStorage.getItem('jrd_upl_'+PID)||'[]'); return o.filter(x=>Date.now()-x.t < 30*864e5).length; }catch(e){ return 0; } }
+function cpGoUpload(){ try{ switchTab('files'); window.scrollTo({ top:0, behavior:'smooth' }); }catch(e){} }
+function cpPrepHtml(){ const n = cpUplCount(); return `<div class="cp-prep" style="margin:12px 0;padding:12px;border-radius:12px;background:#FFF8E8;border:1.5px solid #E8C97A;"><div style="font-weight:800;margin-bottom:4px;">${cpT('prepTitle')}</div><div class="cp-sub" style="margin-bottom:8px;">${escapeHtml(cpT('prepSub'))}</div><button type="button" class="btn" style="width:100%;" onclick="cpGoUpload()">${cpT('prepBtn')}</button>${n ? `<div class="cp-sub" style="margin-top:8px;color:#1E7B3A;font-weight:700;">${escapeHtml(cpT('prepDone',{n}))}</div>` : ''}</div>`; }
 function cpT(k, v){ const L = currentLang(); let s = (CP_TX[L] && CP_TX[L][k]) || CP_TX.en[k] || CP_TX.ko[k] || k; if(v) Object.keys(v).forEach(x=>{ s = s.split('{'+x+'}').join(v[x]); }); return s; }
 /* 휴대폰에 그 언어 날짜 이름이 없으면(몽골어 등) 숫자 + 요일 표로 씁니다 */
 const CP_WD = { mn:['Ня','Да','Мя','Лх','Пү','Ба','Бя'] };
@@ -3089,6 +3103,7 @@ function cpRender(){
       ${link ? `<a class="btn cp-join${left && left.hot ? ' hot' : ''}" href="${escapeHtml(link)}" target="_blank" rel="noopener">${cpT('join')}</a>` : `<div class="cp-sub">${cpT('noLink')}</div>`}
       <div class="cp-row"><button type="button" class="cp-lite" onclick="cpIcs()">${cpT('cal')}</button>${inst ? `<a class="cp-lite" href="${inst}" target="_blank" rel="noopener">${cpT('install')}</a>` : ''}<button type="button" class="cp-lite" onclick="CP.other=true;cpRender()">${cpT('change')}</button></div>
       ${CP.other ? cpOtherHtml() : ''}
+      ${cpPrepHtml()}
       ${cpLineHtml()}<div class="cp-tip">${cpT('tip')}</div>${CP.msg ? `<div class="cp-msg">${escapeHtml(CP.msg)}</div>` : ''}</div>`;
     return;
   }
