@@ -47,6 +47,15 @@ function handle(b) {
   await page.mouse.up(); await page.waitForTimeout(800);
   console.log('드래그 후 단계:', DB.get('a').step, '(진료=7)');
   if (DB.get('a').step !== 7) console.log('FAIL 진료실에 놓으면 7단계여야 함');
+  await page.waitForFunction(() => !M3.avs.get('a').queue.length, null, { timeout: 60000 }); await page.waitForTimeout(300);
+  const p2 = await page.evaluate(([x, y]) => { const av = M3.avs.get('a'), b = M3.canvas.getBoundingClientRect();
+    const sp = pt => { const v = pt.clone().project(M3.cam); return { x: b.left + (v.x + 1) / 2 * b.width, y: b.top + (1 - v.y) / 2 * b.height } };
+    return { from: sp(new THREE.Vector3(av.g.position.x, 2, av.g.position.z)), to: sp(new THREE.Vector3((x - 380) / 10, 0, (y - 245) / 10)) }; }, [100, 90]);
+  await page.mouse.move(p2.from.x, p2.from.y); await page.mouse.down();
+  await page.mouse.move((p2.from.x + p2.to.x) / 2, (p2.from.y + p2.to.y) / 2, { steps: 6 }); await page.mouse.move(p2.to.x, p2.to.y, { steps: 6 });
+  await page.mouse.up(); await page.waitForTimeout(800);
+  const a2 = DB.get('a'); console.log('수액실 이동:', a2.step, a2.loc);
+  if (a2.step !== 7 || a2.loc !== 'fluid') console.log('FAIL 수액실: 단계 유지 + loc=fluid');
   console.log('errors', JSON.stringify(errs));
   await browser.close();
 })().catch(e => { console.error('FAIL', e); process.exit(1); });

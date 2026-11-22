@@ -638,6 +638,7 @@ function toastUndo(t,fn){const el=$('#undo');el.textContent=t;const b=document.c
 function roomOf(v){
   if(v.step<0)return 'booked';
   if(v.step>=9)return 'exit';
+  if(v.loc&&v.locStep===v.step&&ROOMS[v.loc])return v.loc;   // 수액실 등 「단계 없이 머무는 방」 — 단계가 바뀌면 자동으로 풀림
   return STEPS[v.step].room;
 }
 function stepStart(v,i){const e=(v.log||[]).find(l=>l.s===i);return e?e.t:null}
@@ -2057,6 +2058,7 @@ function handleScan(raw){
     const d=pendDraws(v)[0];
     if(d){d.done=now;put(v,true);renderAlarm();scanMsg(v.name+' '+d.off+'분 채혈 기록'+(pendDraws(v).length?'':' · 마지막 채혈입니다.'));return}
   }
+  if(st==='fluid'){if(moveToRoom(v,'fluid'))scanMsg(v.name+' · 수액실');else scanMsg(v.name+': 이미 수액실이에요.',true);return}
   let target=-1;
   if(st==='exit'&&v.step===8)target=9;
   else if(STEPS[v.step].room===st){
@@ -2860,7 +2862,7 @@ function m3Pick(ev){
   for(const h of hit){let o=h.object;while(o&&!(o.userData&&o.userData.id))o=o.parent;if(o)return o.userData.id}
   return null;
 }
-/* 🖱 3D 지도에서 환자를 끌어 다른 방에 놓으면 그 방의 단계로 옮깁니다 (수액실·임상병리실은 단계가 없어 놓을 수 없음) */
+/* 🖱 3D 지도에서 환자를 끌어 다른 방에 놓으면 그 방의 단계로 옮깁니다 (수액실은 단계 없이 머무는 방, 임상병리실은 놓을 수 없음) */
 function roomAtPlan(x,y){for(const k of Object.keys(ROOMS)){const r=ROOMS[k];if(x>=r.x&&x<=r.x+r.w&&y>=r.y&&y<=r.y+r.h)return k}return null}
 function stepForRoom(v,room){
   const idx=[];STEPS.forEach((st,i)=>{if(st.room===room&&i<=9)idx.push(i)});
@@ -2871,7 +2873,12 @@ function stepForRoom(v,room){
 }
 function moveToRoom(v,room){
   if(!v||v.step<0||v.step>=10)return false;
+  if(room==='fluid'){
+    if(roomOf(v)==='fluid')return false;
+    v.loc='fluid';v.locStep=v.step;put(v,true);renderAll(true);toast((v.name||'환자')+': 수액실로 옮겼어요 (진행 단계는 그대로).');return true;
+  }
   const i=stepForRoom(v,room);
+  if(v.loc&&i===v.step){v.loc='';v.locStep=null;put(v,true);renderAll(true);toast((v.name||'환자')+': '+ROOMS[room].label+'(으)로 돌아왔어요.');return true}
   if(i<0){toast((ROOMS[room]&&ROOMS[room].label||'그 방')+'에는 환자를 놓을 수 없어요.');return false}
   if(i===v.step){return false}
   const now=Date.now();
@@ -2897,7 +2904,7 @@ function m3Bind(){
     if(M3.mv&&M3.mv.pid===e.pointerId){
       const q=M3.mv;if(!q.on&&Math.hypot(e.clientX-q.x0,e.clientY-q.y0)>8){q.on=true;c.style.cursor='grabbing';q.av.hold=true;q.av.queue=[]}
       if(q.on){const g=m3Ground(e);if(g){q.av.g.position.x=g.x;q.av.g.position.z=g.z;q.av.g.position.y=.8;const room=roomAtPlan(g.x*10+380,g.z*10+245);q.room=room;
-        const t=M3.tip;if(t){const i=room?stepForRoom(q.av.v,room):-1;t.textContent=(q.av.v.name||'')+' → '+(room?(ROOMS[room].label+(i>=0?' · '+STEPS[i].name:' (놓을 수 없음)')):'방 밖');t.style.left=Math.min(M3.canvas.getBoundingClientRect().width-170,e.clientX-M3.canvas.getBoundingClientRect().left+12)+'px';t.style.top=(e.clientY-M3.canvas.getBoundingClientRect().top+12)+'px';t.hidden=false}}
+        const t=M3.tip;if(t){const i=room?stepForRoom(q.av.v,room):-1;t.textContent=(q.av.v.name||'')+' → '+(room?(ROOMS[room].label+(room==='fluid'?' (단계는 그대로)':i>=0?' · '+STEPS[i].name:' (놓을 수 없음)')):'방 밖');t.style.left=Math.min(M3.canvas.getBoundingClientRect().width-170,e.clientX-M3.canvas.getBoundingClientRect().left+12)+'px';t.style.top=(e.clientY-M3.canvas.getBoundingClientRect().top+12)+'px';t.hidden=false}}
         p.x=e.clientX;p.y=e.clientY;M3.dirty=true;return}
     }
     const dx=e.clientX-p.x,dy=e.clientY-p.y;
@@ -2967,7 +2974,7 @@ function m3Start(){if(!M3.raf)M3.raf=requestAnimationFrame(m3Frame)}
 /* ---- 화면에 끼우기 ---- */
 function renderMapView(){
   if(!m3Mode()||!m3Available())return renderMap()+m3Toggle(false);
-  return `<div class="m3wrap"><div class="m3bar"><span><b>3D 동선 지도</b> · 빈 곳을 끌어 돌리고, 휠·두 손가락으로 확대합니다. 환자를 누르면 동선이 표시되고, 환자를 끌어 다른 방에 놓으면 그 방의 단계로 옮겨져요.</span><span class="m3btns"><button type="button" class="btn sm" data-m3="reset">시점 초기화</button><button type="button" class="btn sm" data-m3="top">위에서 보기</button><button type="button" class="btn sm" data-m3="2d">평면 지도로 보기</button></span></div><div id="map3d" class="m3host"><div class="m3tip" hidden></div></div></div>
+  return `<div class="m3wrap"><div class="m3bar"><span><b>3D 동선 지도</b> · 빈 곳을 끌어 돌리고, 휠·두 손가락으로 확대합니다. 환자를 누르면 동선이 표시되고, 환자를 끌어 다른 방에 놓으면 그 방의 단계로 옮겨져요(수액실은 단계 없이 머무는 방).</span><span class="m3btns"><button type="button" class="btn sm" data-m3="reset">시점 초기화</button><button type="button" class="btn sm" data-m3="top">위에서 보기</button><button type="button" class="btn sm" data-m3="2d">평면 지도로 보기</button></span></div><div id="map3d" class="m3host"><div class="m3tip" hidden></div></div></div>
   <div class="legend"><span><i></i>진행 중</span><span><i class="w"></i>기준 시간 초과(주황 링)</span><span>방 이름 옆 숫자는 그 방의 현재 인원입니다</span></div>`;
 }
 function m3Toggle(is3d){
