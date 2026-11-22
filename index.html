@@ -12374,14 +12374,26 @@ async function vcDash(){
     if(plan.status==='confirmed' && plan.slot && Date.parse(plan.slot) > Date.now() - 2*3600e3) items.push({ p, plan, k:0, t:Date.parse(plan.slot) });
     else if(plan.status==='proposed') items.push({ p, plan, k:1, t:Date.parse(plan.updatedAt||0) || 0, ask: vcPicks(rows, p.accessCode, plan.ver).some(x=>x.t.kind==='ask') }); });
   items.sort((a,b)=>a.k-b.k || a.t-b.t);
-  if(cnt){ cnt.style.display = items.length ? '' : 'none'; cnt.textContent = items.length; }
+  // 환자가 요청하지 않아도: 해외 환아의 「다음 화상통화 예정일」이 가까우면(60일 이내·지난 것 포함) 시간 미정으로 미리 보여 줌
+  const sched = [], tdy = todayStr();
+  patients.forEach(p=>{ if(!p || p.location==='domestic' || p.archived) return;
+    const plan = p.accessCode ? vcPlanOf(rows, p.accessCode) : null;
+    if(plan && (plan.status==='proposed' || (plan.status==='confirmed' && plan.slot && Date.parse(plan.slot) > Date.now() - 2*3600e3))) return;
+    let nx; try{ nx = nextCallInfo(p); }catch(e){ nx = null; } if(!nx) return;
+    const dd = Math.round((Date.parse(nx+'T00:00:00') - Date.parse(tdy+'T00:00:00'))/864e5);
+    if(dd <= 60) sched.push({ p, nx, dd }); });
+  sched.sort((a,b)=>a.dd-b.dd);
+  const total = items.length + sched.length;
+  if(cnt){ cnt.style.display = total ? '' : 'none'; cnt.textContent = total; }
+  const schedHtml = sched.length ? '<div class="vc-dim" style="margin:10px 0 4px;font-weight:700;">⏳ 예정일은 있는데 시간이 아직 안 정해진 환아</div>' + sched.map(({p,nx,dd})=>`<div class="call-card ${dd<=7?'soon':''}" onclick="openDetail('${p.id}')"><div class="who"><div class="name">${escapeHtml(p.name)}</div></div><div class="meta">다음 화상통화 예정일 ${escapeHtml(nx)} · ${dd<0?`${-dd}일 지남`:dd===0?'오늘':`D-${dd}`} — 눌러서 후보 시간 보내기</div></div>`).join('') : '';
+  if(!items.length && sched.length){ box.innerHTML = '<div class="empty-note">확정·제안된 화상통화는 아직 없어요.</div>' + schedHtml; return; }
   if(!items.length){ box.innerHTML = '<div class="empty-note">잡힌 화상통화가 없어요. 환아 화면의 「📅 화상통화 일정」에서 후보 시간을 보내세요.</div>'; return; }
   box.innerHTML = items.map(({p, plan, k, ask})=>{
     const tz = plan.pickTz || plan.tz;
     const right = k===0 ? (()=>{ const ms = Date.parse(plan.slot) - Date.now(); return ms < 0 ? '진행 중' : ms < 864e5 ? `${Math.floor(ms/3600e3)}시간 ${Math.floor(ms%3600e3/60000)}분 후` : `D-${Math.ceil(ms/864e5)}`; })() : (ask ? '💬 다른 시간 요청' : plan.clash ? '⚠️ 겹침' : '⏳ 선택 대기');
     return `<div class="call-card ${k===0 && Date.parse(plan.slot)-Date.now() < 864e5 ? 'soon' : ''}" onclick="openDetail('${p.id}')"><div class="who"><div class="name">${escapeHtml(p.name)} <span style="font-weight:400;color:var(--secondary);font-size:11.5px;">${escapeHtml(vcTzLabel(tz))}</span></div>
       <div class="meta">${k===0 ? `📹 ${escapeHtml(vcFmt(plan.slot,'Asia/Seoul'))} 서울 · 현지 ${escapeHtml(vcFmt(plan.slot, tz))}` : `후보 ${plan.slots.length}개 보냄 · ${escapeHtml(plan.slots.slice(0,3).map(s=>vcFmt(s,'Asia/Seoul')).join(', '))}`}</div></div><div class="badge">${right}</div></div>`;
-  }).join('');
+  }).join('') + schedHtml;
 }
 (function vcStyle(){ const s = document.createElement('style'); s.textContent = `
   .vc-card{margin-top:12px;padding:12px;border:1.5px solid #CFE3EA;border-radius:12px;background:#F7FBFC}
