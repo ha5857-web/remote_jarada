@@ -9113,7 +9113,7 @@ function rvRead(p){
 }
 let rvT = null;
 let rvFT = null;
-function rvSave(){ clearTimeout(rvT); rvT = setTimeout(()=>{ const p = fvCur(); if(!p || p.firstVisit) return; rvRead(p); p.rvNote.editedAt = Date.now(); try{ savePatientsLocalOnly(); }catch(e){} clearTimeout(rvFT); rvFT = setTimeout(()=>{ const q = fvCur(); if(q && q === p && !q.firstVisit && rvHasContent((q.rvNote||{}).post)) rvPushFlow(q, {}); }, 1500); }, 500); }
+function rvSave(){ clearTimeout(rvT); rvT = setTimeout(()=>{ const p = fvCur(); if(!p || p.firstVisit) return; rvRead(p); p.rvNote.editedAt = Date.now(); try{ savePatientsLocalOnly(); }catch(e){} clearTimeout(rvFT); rvFT = setTimeout(()=>{ const q = fvCur(); if(q && q === p && !q.firstVisit && rvHasContent((q.rvNote||{}).post)) rvPushFlow(q, { reviewed:true, auto:true }); }, 1500); }, 500); }   // 원장님이 고친 내용은 곧바로 「리포트 완성」 → flow 인쇄 대기
 /* ---- flow 연동: 오늘 flow에 있는 같은 환자의 「성장 리포트」로 내용을 보냅니다 (flow의 [성장 리포트] 탭에서 직원이 인쇄) ---- */
 function rvFlowSay(t, bad){ const e = document.getElementById('rv_flowStatus') || document.getElementById('fv_flowStatus'); if(e){ e.textContent = t; e.style.color = bad ? 'var(--danger)' : 'var(--ok)'; } }
 function rvRecsText(p){
@@ -9138,7 +9138,20 @@ async function rvPushFlow(p, o){
     const cands = fl.visits.filter(v=>v && v.id && v.id!=='config:flow' && v.name && (!v.date || v.date===today) && v.step!==undefined);
     let m = p.chartNo ? cands.filter(v=>dg(v.chartNo) && dg(v.chartNo)===dg(p.chartNo)) : [];
     if(!m.length){ const byName = cands.filter(v=>v.name===p.name); if(byName.length===1) m = byName; }
-    if(m.length!==1){ rvFlowSay(m.length ? '오늘 flow에 같은 이름이 여러 명이라 보내지 못했어요. 차트번호를 확인해 주세요.' : '오늘 flow에 이 환자가 없어요. flow에 등록(예약 불러오기·환자 등록)한 뒤 다시 눌러 주세요.', true); return; }
+    let printOnly = false;
+    if(m.length>1){ rvFlowSay('오늘 flow에 같은 이름이 여러 명이라 보내지 못했어요. 차트번호를 확인해 주세요.', true); return; }
+    if(!m.length){
+      // 오늘 내원·접수하지 않은 환자도 인쇄할 수 있게: flow 「인쇄 대기」 전용 기록을 새로 만듭니다 (현황판에는 안 보임)
+      const prev = fl.visits.find(v=>v && v.printOnly && !v.hide && ((p.chartNo && dg(v.chartNo)===dg(p.chartNo)) || (!p.chartNo && v.name===p.name)) && (!(v.gr&&v.gr.printedAt) || v.date===today));
+      if(prev) m = [prev];
+      else {
+        const sx = p.sex==='M' ? '남' : p.sex==='F' ? '여' : '';
+        const nv = { id:'pr_' + today + '_' + (dg(p.chartNo) || Date.now()), sv:2, name:p.name||'', chartNo:p.chartNo||'', sex:sx, age:'', card:'', appt:'', step:10, log:[], createdAt:Date.now(), date:today, printOnly:true };
+        const c0 = await bqPost({ action:'flowsave', id:nv.id, patch:nv });
+        if(!c0 || c0.status!=='ok'){ rvFlowSay('flow에 인쇄 대기 기록을 만들지 못했어요: ' + ((c0 && (c0.message||c0.code)) || ''), true); return; }
+        m = [nv]; printOnly = true;
+      }
+    }
     const v = m[0], old = v.gr || {};
     if(o.draft && old.ready && (old.reviewed || old.from==='flow') && rvHasContent(old.post)){ rvFlowSay('flow에서 이미 쓰신 리포트가 있어 초안으로 덮어쓰지 않았어요.'); return; }
     const vids = (po.videos||[]).filter(x=>x && x.no).map(x=>({ no:x.no, title:x.title||'', question:x.question||'' }));

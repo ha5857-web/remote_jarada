@@ -938,7 +938,7 @@ const UI={view:'board',sel:null,viewStep:null,adding:false,confirmDel:null,msg:'
 function isMob(){try{const f=localStorage.getItem('jrd_mob');if(f==='1')return true;if(f==='0')return false}catch(e){}return !!(window.matchMedia&&matchMedia('(max-width:760px)').matches)}
 try{if(isMob()){const mv=localStorage.getItem('jrd_mview')||'';if(/^(report|board)$/.test(mv))UI.view=mv}if(location.hash==='#report')UI.view='report'}catch(e){}
 const ymdOf=t=>{const d=new Date(t);return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
-const allList=()=>{const td=ymdOf(Date.now());return [...S.items.values()].filter(v=>!v.hide&&!(v.step<0&&v.date&&v.date!==td))};   // ×로 지운 카드(hide)는 어디에도 안 보임
+const allList=()=>{const td=ymdOf(Date.now());return [...S.items.values()].filter(v=>!v.hide&&!v.printOnly&&!(v.step<0&&v.date&&v.date!==td))};   // ×로 지운 카드(hide)는 어디에도 안 보임
 /* 귀가까지 끝난 아이는 다음 날 현황판·요약·지도에서 자동으로 빠집니다.
    기록은 서버에 그대로 둡니다. 「귀가 후 결과 대기」 상자도 오늘 것만, 「보호자 안내 필요」만 지난 날짜까지 보입니다. */
 const list=()=>{const td=ymdOf(Date.now());return allList().filter(v=>!(v.step>=9&&(v.date||(v.createdAt?ymdOf(v.createdAt):td))!==td))};
@@ -984,7 +984,7 @@ function cardHtml(v,now){
     <span class="nm">${esc(v.name||'이름 없음')}${exTag(v)}${invTag(v)}${grPill(v)}${txPill(v)}${askPill(v)}${ratePill(v)}</span>
     <span class="meta">${esc(age(v))}${v.sex?' · '+esc(v.sex):''}${v.chartNo?' · '+cnoHtml(v.chartNo):''}${v.card&&isTodayV(v)?' · <b>🎫 '+esc(v.card)+'</b>':''}</span>
     <span class="st" style="${w?'color:var(--warn);font-weight:600':''}">${st}</span>
-    ${dl}${v.step<0&&!v.card?`<span class="qd" role="button" data-act="card-next" data-id="${v.id}" title="카드를 주면서 누르면 연결 + 도착 처리">🎫 ${esc(nextCard())} 주기</span>`:''}${v.step>=0&&v.step<10?`<span class="qd" role="button" data-act="quick-done" data-id="${v.id}" title="남은 단계를 건너뛰고 바로 완료 처리">바로 완료 ▸</span>`:''}<span class="bar">${bar}</span></button>`;
+    ${dl}${v.step<0&&!v.card?`<span class="qd" role="button" data-act="card-next" data-id="${v.id}" title="카드를 미리 배정해 둡니다 (도착 처리는 따로)">🎫 ${esc(nextCard())} 미리 주기</span>`:''}${v.step<0?`<span class="qd" role="button" data-act="vid-open" data-id="${v.id}" title="이 아이가 볼 영상을 미리 고릅니다">🎬 ${v.vids?'영상 '+esc(v.vids):'영상 고르기'}</span>`:''}${v.step<0&&v.card?`<span class="qd" role="button" data-act="arrive" data-id="${v.id}" title="내원했을 때 누르면 대기 시간이 시작돼요">✅ 도착</span>`:''}${v.step>=0&&v.step<10?`<span class="qd" role="button" data-act="quick-done" data-id="${v.id}" title="남은 단계를 건너뛰고 바로 완료 처리">바로 완료 ▸</span>`:''}<span class="bar">${bar}</span></button>`;
 }
 function notifyText(v){
   return `[삼성자라다 소아청소년과] ${v.name} 어린이의 검사 결과가 모두 나왔습니다. 결과는 진료 시간에 병원으로 문의하시거나 내원해서 확인해 주세요.`;
@@ -1477,6 +1477,10 @@ function reportText(v){
 function sdDob(t){const d=String(t||'').replace(/\D/g,'');let y,m,dd;
   if(d.length===8){y=+d.slice(0,4);m=+d.slice(4,6);dd=+d.slice(6,8)}else if(d.length===6){y=2000+(+d.slice(0,2));m=+d.slice(2,4);dd=+d.slice(4,6);if(y>new Date().getFullYear())y-=100}else return '';
   if(m<1||m>12||dd<1||dd>31)return '';const s=y+'-'+pad(m)+'-'+pad(dd),a=(Date.now()-new Date(s+'T00:00:00'))/31557600000;return a>=0&&a<20?s:''}
+function vidPicker(v){
+  const cur=String(v.vids||'').replace(/[^1-7]/g,'').split('').filter((n,i,a)=>a.indexOf(n)===i);
+  return `<div class="meta" style="margin-top:8px">볼 영상 고르기 — 누른 순서대로 보여요${cur.length?' ('+cur.join('→')+')':''}</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">`+JRD_VIDEOS.map(x=>{const i=cur.indexOf(String(x.no));return `<button type="button" class="btn sm ${i>=0?'primary':'ghost'}" data-act="vid-tog" data-n="${x.no}" style="text-align:left">${i>=0?(i+1)+'순위 · ':''}${x.no}. ${esc(x.title)}</button>`}).join('')+(cur.length?`<button type="button" class="btn sm ghost" data-act="vid-clear">모두 지우기</button>`:'')+'</div>';
+}
 function sdVids(sex,age){return '12'+((sex==='여'&&age>=6&&age<9.5)||(sex==='남'&&age>=7&&age<10.5)?'3':'')}
 const SD_PREP=['이전에 재어둔 키·몸무게 기록(학교 건강검진 결과, 소아과 기록 등)이 있으면 사진으로 올려주세요.','이전 검사 결과(혈액검사, 엑스레이 등)가 있으면 사진으로 올려주세요.','복용 중인 약과 영양제가 있다면 이름을 메모해 오세요.','진료 전 아래 영상을 시청하고 오시면 설명을 훨씬 쉽게 이해하실 수 있어요.'].join('\n');
 function sdPid(name,dob){let m={};try{m=JSON.parse(localStorage.getItem('jrd_fv_pids')||'{}')}catch(e){}const k=name+'|'+dob;
@@ -1778,14 +1782,16 @@ function detailHtml(){
     <div class="sub">${esc(age(v))}${age(v)?' · ':''}${sexSw(v)}${v.chartNo?' · '+cnoHtml(v.chartNo,'등록번호 '):''}${v.appt?' · 예약 '+esc(v.appt):''}</div></div>
     <button class="btn sm ghost" data-act="close">닫기</button></div>${txLineHtml(v)}${askBoxHtml(v)}
     <button class="btn primary" data-act="gr-open" style="width:100%;margin-top:8px;font-size:15px">📄 성장 리포트 ${v.gr&&v.gr.ready?(v.gr.reviewed?'보기 ✓':(v.gr.src&&v.gr.src!=='today'?'열기 (가안)':'열어서 확인')):'만들기'}</button>
-    <details class="more" style="margin-top:8px"><summary>초진·대기 영상 설정${v.first?' (초진)':''}${v.rev?' (재진)':''}${v.vids?' · 영상 '+esc(v.vids):''}</summary>
+    <details class="more" style="margin-top:8px"${v.step<0||UI.vidOpen===v.id?' open':''}><summary>초진·대기 영상 설정${v.first?' (초진)':''}${v.rev?' (재진)':''}${v.vids?' · 영상 '+esc(v.vids):''}</summary>
     <label class="chk" style="margin-top:8px"><input type="checkbox" data-path="first"${v.first?' checked':''}>초진 환자 (대기 중 영상 표시)</label>
     <label class="chk" style="margin-top:8px"><input type="checkbox" data-path="rev"${v.rev?' checked':''}>재진 환자 (초진방 링크 단계 건너뜀)</label>
     <label class="l" style="margin-top:8px">초진 안내 문자 붙여넣기<textarea data-paste rows="2" placeholder="1순위) 1. … 2순위) 7. …"></textarea></label>
+    ${vidPicker(v)}
+    ${v.step<0?`<button type="button" class="btn sm" data-act="gr-pre1" style="width:100%;margin-top:8px">${v.gr&&v.gr.ready?'📄 성장 리포트 가안 있음 (다시 만들기 아님)':'📄 지난 EMR 차트로 성장 리포트 가안 미리 만들기'}</button>`:''}
     <label class="l" style="margin-top:8px">대기 영상 번호 (예: 172)<input type="text" data-path="vids" inputmode="numeric" maxlength="7" value="${esc(v.vids||'')}" placeholder="초진 접수에서 고른 영상 번호"></label></details>
     ${xvPanel(v)}
     <div class="cardbox"><div class="xvh"><b>🎫 QR 카드</b>${v.card?`<span class="pill ok" style="font-size:14px">${esc(v.card)}</span><button type="button" class="btn sm ghost" data-act="card-unlink">연결 풀기</button>`:'<span class="meta">카드를 주면서 누르세요</span>'}</div>
-    ${v.card?'':`<button type="button" class="btn primary" data-act="card-next" style="width:100%;margin:6px 0 4px;font-size:15px">🎫 ${esc(nextCard())} 카드 주기${v.step<0?' + 도착 처리':''}</button>`}
+    ${v.card?'':`<button type="button" class="btn primary" data-act="card-next" style="width:100%;margin:6px 0 4px;font-size:15px">🎫 ${esc(nextCard())} 카드 ${v.step<0?'미리 ':''}주기${v.step<0?' (도착 처리 아님)':''}</button>`}
     <label class="l" style="margin-top:4px">${v.card?'다른 카드로 바꾸기':'다른 카드를 줄 때'} — 카드에 적힌 번호만 입력 (예: 27)<input type="text" data-card value="" placeholder="번호 입력 후 Enter" autocomplete="off" inputmode="numeric"></label></div>`;
   if(v.step<0){
     return head+`<div class="sect"><p style="margin:0 0 10px">아직 도착 전입니다. 보호자와 함께 내원하면 도착 처리하세요.</p>
@@ -1899,6 +1905,9 @@ function onAction(act,el){
       v.sex=nx;if(v.gr&&v.gr.sex)v.gr=Object.assign({},v.gr,{sex:nx==='남'?'M':'F'});   // 성장 리포트도 새 성별 기준으로
       put(v,true);renderAll(true);toast((v.name||'환자')+': 성별을 '+nx+'(으)로 바꿨어요.')}break;
 
+    case 'vid-open':if(v){UI.sel=v.id;UI.vidOpen=v.id;renderAll(true);$('#detail').scrollIntoView({block:'nearest'})}break;
+    case 'vid-tog':if(v){const n=el.dataset.n;let c=String(v.vids||'').replace(/[^1-7]/g,'').split('').filter((x,i,a)=>a.indexOf(x)===i);const i=c.indexOf(n);if(i>=0)c.splice(i,1);else c.push(n);v.vids=c.join('');v.vidsSrc='manual';v.first=true;put(v,true);UI.vidOpen=v.id;renderAll(true)}break;
+    case 'vid-clear':if(v){v.vids='';v.vidsSrc='manual';put(v,true);UI.vidOpen=v.id;renderAll(true)}break;
     case 'arrive':if(v){v.step=0;v.log=[{s:0,t:Date.now()}];put(v,true);renderAll(true)}break;
     case 'next':if(v)advance(v);break;
     case 'next-force':if(v)advance(v,true);break;
@@ -1915,6 +1924,8 @@ function onAction(act,el){
     case 'gr-optpdf':FR.setOpt('pdf',!!el.checked);renderAll(false);break;
     case 'gr-optauto':FR.setOpt('autoprint',!!el.checked);renderAll(false);if(el.checked)toast('이 기기에서 자동 인쇄를 켰어요. 원장 확인이 끝난 리포트가 올라오면 바로 인쇄 창이 떠요.');break;
     case 'gr-paste':FR.pasteClick();break;
+    case 'gr-predraft':FR.preDraftAll();break;
+    case 'gr-pre1':if(v)FR.preDraft(v.id).then(r=>{if(r==='nodoc'||r==='nochart')toast((v.name||'')+': 의사 앱에 지난 EMR 차트가 없어요');else if(r==='ok')toast((v.name||'')+': 진료 전 가안 완료')});break;
     case 'gr-booked':UI.grBooked=!UI.grBooked;renderAll(false);break;
     case 'mr-seg':UI.mrf=el.dataset.k;renderAll(false);window.scrollTo(0,0);break;
     case 'mob-off':try{localStorage.setItem('jrd_mob','0')}catch(e){}renderAll(false);break;
@@ -1987,9 +1998,9 @@ function linkCard(v,raw){
   const lc=code.toLowerCase(),dup=list().find(x=>x.id!==v.id&&isTodayV(x)&&x.step<10&&x.card&&x.card.toLowerCase()===lc);
   if(dup){toast('이미 '+(dup.name||'다른')+' 환자에게 연결된 카드예요: '+code);return false}
   S.items.forEach(x=>{if(x.id!==v.id&&x.card&&x.card.toLowerCase()===lc){x.card='';put(x,false)}});
-  v.card=code;v.cardAt=Date.now();let arrived=false;if(v.step<0){v.step=0;v.log=[{s:0,t:Date.now()}];arrived=true}
+  v.card=code;v.cardAt=Date.now();let arrived=false;   // 예약(도착 전) 환자는 카드만 미리 배정 — 도착 처리·대기 시간은 실제 내원(출입구 스캔·내원 확인) 때부터
   put(v,true);renderAll(true);
-  toast((v.name||'환자')+': 카드 '+code+' 연결'+(arrived?' · 도착 처리':'')+' — 보호자 폰으로 QR을 찍으면 대기 현황과 영상이 떠요.');
+  toast((v.name||'환자')+': 카드 '+code+(v.step<0?' 미리 배정 (도착 전 — 대기 시간은 내원 확인부터 집계)':' 연결')+' — 보호자 폰으로 QR을 찍으면 대기 현황과 영상이 떠요.');
   return true;
 }
 function findByCard(code){
@@ -3413,7 +3424,12 @@ function act(kind){
 return{setM:setM,act:act,build:build,compute:compute,pagesHTML:pagesHTML,paint:paint,fit:fit,parsePast:parsePast,pdfOf:pdfOf,saveBlob:saveBlob,guideUrl:guideUrl,vidNos:vidNos};
 })();
 const FR=(function(){
-function todayList(){return list().filter(function(v){return isTodayV(v)})}   // 리포트는 오늘 방문만
+function todayList(){
+  /* 오늘 내원 환자 + 「인쇄 전용」(오늘 내원하지 않아도 원장 앱에서 보낸 리포트) — 인쇄 전엔 날짜가 지나도 남아 있음 */
+  var td=todayYmd(),po=[];
+  S.items.forEach(function(v){if(!v.printOnly||v.hide)return;var g=v.gr||{};if(g.printedAt&&v.date!==td)return;if(!v.lab)Object.assign(v,Object.assign(blank(),{intake:v.intake||blank().intake}),v.lab?{}:{});po.push(v)});
+  return list().filter(function(v){return isTodayV(v)}).concat(po);
+}   // 리포트는 오늘 방문만
 function addMonths(dateStr, months){
   const d = new Date(dateStr+'T00:00:00');
   d.setMonth(d.getMonth()+months);
@@ -4365,7 +4381,7 @@ function rowHtml(v){
   else if(s===2){st='<span class="pill">📝 가안 · '+(g.src==='intake'?'초진기록지':'지난 차트')+'</span>'+(g.srcAt?' <span class="grwhy">'+hm(g.srcAt)+'</span>':'');bt='<button class="btn sm" data-act="gr-open" data-id="'+v.id+'">열기</button>'+bl}
   else if(s===4){st='<span class="pill warn">결과 나오면 보고</span> <span class="grwhy">'+esc(bloodWhy(v))+'</span>';bt='<button class="btn sm" data-act="gr-open" data-id="'+v.id+'">지금 만들기</button>'+bl}
   else{st='<span class="pill ex">차트 대기</span>';bt='<button class="btn sm" data-act="gr-open" data-id="'+v.id+'">차트 붙여넣기</button>'+bl}
-  return '<div class="frrow"><div class="frnm"><b>'+esc(v.name||'이름 없음')+(v.temp?' <span class="pill" style="background:#fdeccc;color:#8a4b00">당일접수</span>':'')+'</b><span class="meta">'+esc(age(v))+(v.sex?' · '+esc(v.sex):'')+(v.chartNo?' · '+cnoHtml(v.chartNo):'')+(v.step<0&&v.appt?' · 예약 '+esc(v.appt):'')+' '+qChips(v)+'</span></div><div>'+st+'</div><div class="frbt">'+bt+'</div></div>';
+  return '<div class="frrow"><div class="frnm"><b>'+esc(v.name||'이름 없음')+(v.temp?' <span class="pill" style="background:#fdeccc;color:#8a4b00">당일접수</span>':'')+(v.printOnly?' <span class="pill" style="background:#e6eef5;color:#1B3A4B">내원 없이 인쇄</span>':'')+'</b><span class="meta">'+esc(age(v))+(v.sex?' · '+esc(v.sex):'')+(v.chartNo?' · '+cnoHtml(v.chartNo):'')+(v.step<0&&v.appt?' · 예약 '+esc(v.appt):'')+' '+qChips(v)+'</span></div><div>'+st+'</div><div class="frbt">'+bt+'</div></div>';
 }
 /* 📱 휴대폰 목록: 위쪽 구분 단추(확인할 것·가안·결과 대기·차트 없음·확인 끝) + 큰 카드. 카드를 누르면 그 구분의 순서대로 「다음 아이」로 넘어갑니다. */
 var MSEG=[['todo','확인할 것',function(s){return s===1}],['draft','📝 가안',function(s){return s===2}],['blood','🩸 결과 대기',function(s){return s===4}],['nochart','차트 없음',function(s){return s===3}],['done','✓ 확인 끝',function(s){return s===0||s===5}]];
@@ -4407,9 +4423,9 @@ function listHtml(){
       '<button class="btn primary big" data-act="gr-printall"'+(cnt[0]?'':' disabled')+'>🖨 모두 인쇄 ('+cnt[0]+')</button>'+
       '<label><input type="checkbox" data-act="gr-optauto"'+(auto?' checked':'')+'> 이 기기에서 자동 인쇄 (리포트가 올라오면 바로 인쇄 창)</label></div>'+
   '</div>'+
-  '<div class="grq-opts"><label><input type="checkbox" data-act="gr-optpdf"'+(pdf?' checked':'')+'> 확인할 때 PDF도 저장 (이 기기)</label>'+gdPill()+
+  '<p style="margin:0 0 8px"><button type="button" class="btn" data-act="gr-predraft">📄 예약·대기 환자 가안 미리 만들기 (의사 앱의 지난 EMR 차트 → AI)</button></p>'+'<div class="grq-opts"><label><input type="checkbox" data-act="gr-optpdf"'+(pdf?' checked':'')+'> 확인할 때 PDF도 저장 (이 기기)</label>'+gdPill()+
     '<span>📝 가안 <b>'+cnt[2]+'</b> · 차트 대기 <b>'+cnt[3]+'</b> · 원장 확인 전 <b>'+cnt[1]+'</b> · 🩸 결과 나오면 보고 <b>'+cnt[4]+'</b> · 🖨 인쇄 대기 <b>'+cnt[0]+'</b></span></div>';
-  var LAB=['🖨 인쇄할 리포트','원장 확인 전 · 오늘 EMR 반영됨','📝 진료 전 가안 · 진료 끝나면 EMR 다시 붙여넣기','📋 차트 대기 · 혈액검사 없음','🩸 혈액검사 · 결과 나오면 보고','인쇄 완료'],cur=-1;
+  var LAB=['🖨 인쇄 대기 (오늘 내원하지 않은 환자 포함)','원장 확인 전 · 오늘 EMR 반영됨','📝 진료 전 가안 · 진료 끝나면 EMR 다시 붙여넣기','📋 차트 대기 · 혈액검사 없음','🩸 혈액검사 · 결과 나오면 보고','인쇄 완료'],cur=-1;
   var rows=a.map(function(v){var s=grState(v),hd='';if(s!==cur){cur=s;hd='<div class="hint" style="margin:12px 0 2px;font-weight:700">'+LAB[s]+' ('+cnt[s]+')</div>'+(s===4?'<div class="hint" style="margin:0 0 2px">결과가 나오면 의사 앱(재진 기록지)에서 쓰거나, 여기서 차트를 붙여넣으면 돼요. 혈액검사가 없는 아이면 [🩸 해제]를 누르세요.</div>':'')}return hd+rowHtml(v)}).join('');
   var bk='';
   if(booked.length){
@@ -4420,7 +4436,32 @@ function listHtml(){
   if(!a.length&&!booked.length)return top+'<div class="empty"><h2>오늘 등록된 환자가 없습니다</h2><p>환자가 등록되면 여기에서 성장 리포트를 만들고 인쇄할 수 있어요.</p></div>';
   return top+rows+bk;
 }
-return{labxApply:labxApply,open:open,close:close,listHtml:listHtml,print:printFor,unprint:unprint,queueCount:printQueueCount,printAll:printAll,toggleBlood:toggleBlood,roomRetry:roomRetry,setOpt:setOpt,pasteClick:pasteClick,fromChart:fromChart,pasteIntoOpen:pasteIntoOpen,looksLikeChart:looksLikeChart,autoTick:autoTick,importCodes:importCodes};
+/* 예약 환자: 의사 앱에 올려 둔 EMR 차트(지난 진료)로 진료 전 가안을 미리 만들어 둠 — 진료 뒤엔 새로 들어간 줄만 고치면 됩니다 */
+function docChartText(p,want){
+  var recs=(p.records||[]).filter(function(r){return r&&r.date&&String(r.chartNoteRaw||'').trim()}).sort(function(a,b){return a.date<b.date?-1:1});
+  var cur=recs.filter(function(r){return r.date<=want}).pop()||recs[recs.length-1]||null;
+  if(cur)return String(cur.chartNoteRaw);
+  var nt=String(p.notes||''),M='— 원본 메모 —',k=nt.indexOf(M);
+  return k>=0?nt.slice(k+M.length).replace(/^\s*\n/,'').trim():'';
+}
+async function preDraft(id,quiet){
+  var v=S.items.get(id);if(!v||BUSY[id])return 'busy';
+  if(v.gr&&v.gr.ready)return 'has';
+  var list;try{list=await docFor(v)}catch(e){list=null}
+  var p=docFind(list||[],v);if(!p)return 'nodoc';
+  var txt=docChartText(p,todayStr());if(!txt.trim())return 'nochart';
+  var ok=await runFor(id,txt,true,{quiet:true});
+  return ok?'ok':'fail';
+}
+async function preDraftAll(){
+  var t=todayList().filter(function(v){return v.step<2&&!(v.gr&&v.gr.ready)&&!BUSY[v.id]});
+  if(!t.length){toast('가안을 만들 환자가 없어요 (이미 있거나 진료 중).');return}
+  toast('예약·대기 '+t.length+'명의 지난 EMR 차트로 가안을 만드는 중… (한 명씩, 1~2분)');
+  var c={ok:0,nodoc:0,nochart:0,fail:0};
+  for(var i=0;i<t.length;i++){var r=await preDraft(t[i].id,true);if(c[r]!=null)c[r]++}
+  toast('가안 '+c.ok+'명 완료'+(c.nodoc+c.nochart?' · 의사 앱에 EMR 차트가 없는 '+(c.nodoc+c.nochart)+'명은 건너뜀':'')+(c.fail?' · 실패 '+c.fail+'명':''));
+}
+return{labxApply:labxApply,open:open,close:close,listHtml:listHtml,print:printFor,unprint:unprint,queueCount:printQueueCount,printAll:printAll,toggleBlood:toggleBlood,roomRetry:roomRetry,setOpt:setOpt,pasteClick:pasteClick,fromChart:fromChart,pasteIntoOpen:pasteIntoOpen,looksLikeChart:looksLikeChart,autoTick:autoTick,importCodes:importCodes,preDraft:preDraft,preDraftAll:preDraftAll};
 })();
 /* 어디서든 EMR 차트를 Ctrl+V → 성장 리포트 (스캔 칸에 커서가 있어도 됨, 다른 입력칸은 그대로) */
 document.addEventListener('paste',function(e){try{

@@ -50,7 +50,7 @@ function handle(b) {
   await page.click('[data-act="card-next"][data-id="b"]'); await page.waitForTimeout(700);
   const b = DB.get('b'), n3 = await page.evaluate(() => nextCard());
   console.log('문다은에게 주기 → 문다은 카드:', b.card, 'step', b.step, '· 다음 카드:', n3);
-  if (b.card !== 'C001' || b.step !== 0) console.log('FAIL 문다은에게 C001이 연결되고 도착 처리돼야 함');
+  if (b.card !== 'C001' || b.step !== -1) console.log('FAIL 예약 환자에게 C001만 미리 배정되고 도착 전(step -1)이어야 함');
   if (n3 !== 'C002') console.log('FAIL C001을 다시 쓰는 동안에는 C002를 줘야 함');
   // 조하연 보호자 폰이 남긴 별점(카드를 다시 주기 전에 찍음)은 조하연 것으로
   const who = await page.evaluate(([t]) => { const v = fxVisit('C001', t); return v && v.name; }, [now - 24 * M]);
