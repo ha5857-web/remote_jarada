@@ -503,8 +503,11 @@
   </div>
   <div id="dashList" class="collapsible-body" style="display:none;margin-bottom:16px;"></div>
 
-  <div class="section-title"><h2>최근 등록 기록</h2></div>
-  <div id="recentList"></div>
+  <div class="section-title collapsible" onclick="toggleDashSection('recent')">
+    <h2>최근 등록 기록</h2>
+    <span><span class="chevron" id="recentChevron">▸</span></span>
+  </div>
+  <div id="recentList" class="collapsible-body" style="display:none;margin-bottom:16px;"></div>
 </div>
 
 <!-- 환자 목록 -->
