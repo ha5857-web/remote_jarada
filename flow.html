@@ -2860,12 +2860,46 @@ function m3Pick(ev){
   for(const h of hit){let o=h.object;while(o&&!(o.userData&&o.userData.id))o=o.parent;if(o)return o.userData.id}
   return null;
 }
+/* 🖱 3D 지도에서 환자를 끌어 다른 방에 놓으면 그 방의 단계로 옮깁니다 (수액실·임상병리실은 단계가 없어 놓을 수 없음) */
+function roomAtPlan(x,y){for(const k of Object.keys(ROOMS)){const r=ROOMS[k];if(x>=r.x&&x<=r.x+r.w&&y>=r.y&&y<=r.y+r.h)return k}return null}
+function stepForRoom(v,room){
+  const idx=[];STEPS.forEach((st,i)=>{if(st.room===room&&i<=9)idx.push(i)});
+  if(!idx.length)return -1;
+  if(idx.indexOf(v.step)>=0)return v.step;
+  const fwd=idx.filter(i=>i>v.step&&!skipStep(v,i));
+  return fwd.length?fwd[0]:idx[0];
+}
+function moveToRoom(v,room){
+  if(!v||v.step<0||v.step>=10)return false;
+  const i=stepForRoom(v,room);
+  if(i<0){toast((ROOMS[room]&&ROOMS[room].label||'그 방')+'에는 환자를 놓을 수 없어요.');return false}
+  if(i===v.step){return false}
+  const now=Date.now();
+  if(v.step===4)v.xray.done=true;if(v.step===5)v.lab.drawn=true;if(v.step===8)v.exit.paid=true;
+  v.step=i;v.log.push({s:i,t:now});UI.msg='';UI.force=null;UI.viewStep=null;
+  put(v,true);renderAll(true);toast((v.name||'환자')+': '+ROOMS[room].label+' · '+STEPS[i].name+' 단계로 옮겼어요.');
+  return true;
+}
+function m3Ground(ev){
+  const b=M3.canvas.getBoundingClientRect();
+  const m=new THREE.Vector2((ev.clientX-b.left)/b.width*2-1,-((ev.clientY-b.top)/b.height*2-1));
+  const rc=new THREE.Raycaster();rc.setFromCamera(m,M3.cam);
+  const pl=new THREE.Plane(new THREE.Vector3(0,1,0),0),pt=new THREE.Vector3();
+  return rc.ray.intersectPlane(pl,pt)?pt:null;
+}
 function m3Bind(){
   const c=M3.canvas,P=M3.pointers;
-  c.addEventListener('pointerdown',e=>{c.setPointerCapture(e.pointerId);P.set(e.pointerId,{x:e.clientX,y:e.clientY});M3.drag={moved:0,id:e.pointerId,pd:0}});
+  c.addEventListener('pointerdown',e=>{c.setPointerCapture(e.pointerId);P.set(e.pointerId,{x:e.clientX,y:e.clientY});M3.drag={moved:0,id:e.pointerId,pd:0};
+    M3.mv=null;if(P.size===1&&S.canWrite){const pid=m3Pick(e),av=pid&&M3.avs.get(pid);if(av&&av.v&&av.v.step>=0&&av.v.step<10)M3.mv={id:pid,av:av,pid:e.pointerId,on:false,x0:e.clientX,y0:e.clientY}}});
   c.addEventListener('pointermove',e=>{
     const p=P.get(e.pointerId);
     if(!p){const id=m3Pick(e);M3.hover=id;c.style.cursor=id?'pointer':'grab';m3Tip(e,id);return}
+    if(M3.mv&&M3.mv.pid===e.pointerId){
+      const q=M3.mv;if(!q.on&&Math.hypot(e.clientX-q.x0,e.clientY-q.y0)>8){q.on=true;c.style.cursor='grabbing';q.av.hold=true;q.av.queue=[]}
+      if(q.on){const g=m3Ground(e);if(g){q.av.g.position.x=g.x;q.av.g.position.z=g.z;q.av.g.position.y=.8;const room=roomAtPlan(g.x*10+380,g.z*10+245);q.room=room;
+        const t=M3.tip;if(t){const i=room?stepForRoom(q.av.v,room):-1;t.textContent=(q.av.v.name||'')+' → '+(room?(ROOMS[room].label+(i>=0?' · '+STEPS[i].name:' (놓을 수 없음)')):'방 밖');t.style.left=Math.min(M3.canvas.getBoundingClientRect().width-170,e.clientX-M3.canvas.getBoundingClientRect().left+12)+'px';t.style.top=(e.clientY-M3.canvas.getBoundingClientRect().top+12)+'px';t.hidden=false}}
+        p.x=e.clientX;p.y=e.clientY;M3.dirty=true;return}
+    }
     const dx=e.clientX-p.x,dy=e.clientY-p.y;
     if(P.size===2){
       const o=[...P.entries()].find(a=>a[0]!==e.pointerId)[1];
@@ -2878,6 +2912,13 @@ function m3Bind(){
   });
   const up=e=>{
     const had=P.has(e.pointerId);P.delete(e.pointerId);
+    if(M3.mv&&M3.mv.pid===e.pointerId&&M3.mv.on){
+      const q=M3.mv;M3.mv=null;q.av.hold=false;q.av.g.position.y=0;if(M3.tip)M3.tip.hidden=true;M3.canvas.style.cursor='grab';
+      const moved=q.room?moveToRoom(q.av.v,q.room):false;
+      if(!moved){const sl=q.av.slot;if(sl)q.av.queue=[m3Pt(sl.x,sl.y)]}
+      M3.drag=null;if(!P.size)M3.drag=null;return;
+    }
+    M3.mv=null;
     if(had&&M3.drag&&M3.drag.moved<6&&e.type==='pointerup'){const id=m3Pick(e);if(id)select(id);else if(UI.sel){UI.sel=null;renderAll(true)}}
     if(!P.size)M3.drag=null;
   };
@@ -2906,6 +2947,7 @@ function m3Frame(ts){
   let moving=false;const t=ts/1000;
   M3.avs.forEach(av=>{
     const g=av.g;
+    if(av.hold){moving=true;return}
     if(av.queue.length){
       const tp=av.queue[0],dx=tp.x-g.position.x,dz=tp.z-g.position.z,d=Math.hypot(dx,dz),st=18*dt;
       if(d<=st){g.position.x=tp.x;g.position.z=tp.z;if(av.queue.length>1)av.queue.shift();else av.queue=[]}
@@ -2925,7 +2967,7 @@ function m3Start(){if(!M3.raf)M3.raf=requestAnimationFrame(m3Frame)}
 /* ---- 화면에 끼우기 ---- */
 function renderMapView(){
   if(!m3Mode()||!m3Available())return renderMap()+m3Toggle(false);
-  return `<div class="m3wrap"><div class="m3bar"><span><b>3D 동선 지도</b> · 끌어서 돌리고, 휠·두 손가락으로 확대합니다. 환자를 누르면 지나온 동선이 표시됩니다.</span><span class="m3btns"><button type="button" class="btn sm" data-m3="reset">시점 초기화</button><button type="button" class="btn sm" data-m3="top">위에서 보기</button><button type="button" class="btn sm" data-m3="2d">평면 지도로 보기</button></span></div><div id="map3d" class="m3host"><div class="m3tip" hidden></div></div></div>
+  return `<div class="m3wrap"><div class="m3bar"><span><b>3D 동선 지도</b> · 빈 곳을 끌어 돌리고, 휠·두 손가락으로 확대합니다. 환자를 누르면 동선이 표시되고, 환자를 끌어 다른 방에 놓으면 그 방의 단계로 옮겨져요.</span><span class="m3btns"><button type="button" class="btn sm" data-m3="reset">시점 초기화</button><button type="button" class="btn sm" data-m3="top">위에서 보기</button><button type="button" class="btn sm" data-m3="2d">평면 지도로 보기</button></span></div><div id="map3d" class="m3host"><div class="m3tip" hidden></div></div></div>
   <div class="legend"><span><i></i>진행 중</span><span><i class="w"></i>기준 시간 초과(주황 링)</span><span>방 이름 옆 숫자는 그 방의 현재 인원입니다</span></div>`;
 }
 function m3Toggle(is3d){

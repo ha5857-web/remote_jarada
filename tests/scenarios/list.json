@@ -95,5 +95,9 @@
  {
   "file": "printonly.js",
   "name": "내원 없이 보낸 리포트가 인쇄 대기에 뜸"
+ },
+ {
+  "file": "mapdrag.js",
+  "name": "3D 지도에서 환자를 끌어 방 옮기기"
  }
 ]
