@@ -3695,14 +3695,15 @@ async function fvGuideBuild(p, chartText, baseline){
   let ai = null, warn = '';
   if(getApiUrl()){
     try{
-      const res = await fetch(getApiUrl(), { method:'POST', body: JSON.stringify({
+      var ac = new AbortController(), acT = setTimeout(()=>ac.abort(), 70000);   // 서버가 응답 없을 때 한 명에서 멈추지 않게
+      const res = await fetch(getApiUrl(), { method:'POST', signal: ac.signal, body: JSON.stringify({
         action:'generatefirstvisitchart', kind, compare: fvGuideCompare(p), name:p.name, gender: p.sex==='M'?'남':'여', ageText: calcAge(p.dob),
         chart: add.parts.chart, plan: add.plan, labs: labsIn, labsDone: !!String(labsIn||'').trim(), extra: add.extra, added: add.text, intake: kind==='first' ? String(baseline||p.notes||'').slice(0,3000) : ''
       })});
-      const data = await res.json();
+      const data = await res.json(); clearTimeout(acT);
       if(data && data.via === 'jarada-codegs' && data.status === 'ok' && data.data) ai = data.data;
       else warn = (data && data.via !== 'jarada-codegs') ? FV_OLD_SERVER_MSG : ('AI 정리 실패: ' + ((data && data.message) || ''));
-    }catch(e){ warn = 'AI 연결 오류'; }
+    }catch(e){ try{ clearTimeout(acT); }catch(x){} warn = (e && e.name==='AbortError') ? 'AI 응답이 70초 넘게 없어 AI 없이 정리했어요' : 'AI 연결 오류'; }
   } else warn = '연동 설정의 백엔드 URL이 없어 AI 없이 정리했어요';
   const pick = (k, fb)=> (ai && ai[k] && String(ai[k]).trim()) ? String(ai[k]).trim() : (fb||'');
   const post = {
