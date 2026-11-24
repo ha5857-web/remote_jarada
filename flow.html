@@ -3797,6 +3797,10 @@ function shellHtml(v){
     '<button class="btn" data-fr="print" id="fr-printbtn" hidden>🖨 인쇄</button>'+
     '<button class="btn" data-fr="pdf" id="fr-pdfbtn" hidden>PDF 다시 저장</button>'+
     '<button class="btn ghost" data-fr="close">닫기</button></div></div>'+
+    '<div class="frfix" id="fr-fix" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:6px 12px;background:#fff8e1;border-bottom:1px solid #ecd9a0;font-size:12.5px"><b>환아 정보 확인</b>'+
+      '<label>생년월일 <input type="date" id="fx-dob" value="'+esc(String(v.dob||(v.gr&&v.gr.dob)||'').slice(0,10))+'" style="font:inherit;padding:3px 6px"></label>'+
+      '<span>성별 <button type="button" class="btn sm" data-fx="sex" data-s="남" id="fx-m">남</button> <button type="button" class="btn sm" data-fx="sex" data-s="여" id="fx-f">여</button></span>'+
+      '<span id="fx-msg" style="color:#8a6d1d">잘못됐으면 여기서 바로 고치세요 — 리포트와 카드에 함께 반영돼요</span></div>'+
     '<div class="grxv" id="fr-xv"></div>'+
     '<div class="grtip" id="fr-tip" hidden></div>'+
     '<div class="grbody"><div class="gredit" id="gredit"><div id="fr-diff"></div>'+editorHtml(v)+'</div>'+
@@ -3818,9 +3822,28 @@ function syncBar(){
     s('mb-pos',function(e){e.textContent=i>=0&&q.length>1?(i+1)+' / '+q.length:''});
   }
 }
+
+/* 성장 리포트 위쪽 「환아 정보 확인」: 생년월일·성별을 바로 고치면 카드(flow)·리포트에 함께 반영 */
+function fixApply(patch){
+  var v=V();if(!v)return;
+  if(patch.dob!=null)v.dob=patch.dob;
+  if(patch.sex)v.sex=patch.sex;
+  var g=Object.assign({},v.gr||{});
+  if(patch.dob!=null)g.dob=patch.dob;
+  if(patch.sex)g.sex=patch.sex==='남'?'M':'F';
+  v.gr=g;put(v,true);
+  var fd=document.getElementById('fr-dob'),fs=document.getElementById('fr-sex');
+  if(fd&&patch.dob!=null)fd.value=patch.dob;
+  if(fs&&patch.sex)fs.value=patch.sex==='남'?'M':'F';
+  var m=document.getElementById('fx-msg');if(m){m.textContent='✔ 고쳤어요 — 카드와 리포트에 반영됐어요';m.style.color='#1a7f4b'}
+  fixMark();refresh();try{renderAll(false)}catch(e){}
+}
+function fixMark(){var v=V();if(!v)return;var m=document.getElementById('fx-m'),f=document.getElementById('fx-f');if(m&&f){m.classList.toggle('primary',v.sex==='남');f.classList.toggle('primary',v.sex==='여')}}
+document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-fx="sex"]');if(b&&document.getElementById('grov'))fixApply({sex:b.dataset.s})});
+document.addEventListener('change',function(e){if(e.target&&e.target.id==='fx-dob'&&/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)&&document.getElementById('grov'))fixApply({dob:e.target.value})});
 function refresh(){
   var v=V(),host=document.getElementById('gr-inner');if(!host||!v)return;
-  var m=modelOf(v);host.innerHTML=GR.pagesHTML(m);GR.setM(m);GR.paint(host,m);GR.fit();syncBar();
+  var m=modelOf(v);host.innerHTML=GR.pagesHTML(m);GR.setM(m);GR.paint(host,m);GR.fit();syncBar();try{fixMark()}catch(e){}
 }
 function onEdit(e){
   if(e.target&&e.target.id==='fr-chart')return;
@@ -4005,7 +4028,18 @@ async function runFor(id,text,useAI,opt){
       exercise:pick('exercise',fvLifestyleDraft('exercise',shim)),nutrition:pick('nutrition',fvLifestyleDraft('nutrition',shim)),sleep:pick('sleep',fvLifestyleDraft('sleep',shim)),
       nextDate:draft.nextDate||'',tests:draft.tests||[],videos:pickVideos(add.text||text,v.vids)};
     /* 혈액검사는 차트(#Lab)에 결과가 있을 때만 적습니다. index에서 EMR 업로드로 만든 초안(old.from==='index')이 있으면 그 검사 내용을 기준으로 삼아요 */
-    if(!String(add.labs||'').trim()){ if(g.post.labs)warn=(warn?warn+' · ':'')+'차트에 혈액검사 결과가 없어 혈액검사 칸을 비웠어요'; g.post.labs=''; }
+    if(!String(add.labs||'').trim()){
+      /* 결과가 없으면: 이번에 검사를 했다고 차트에 있으면 그렇게, 아니면 지난 검사 결과를 알려 줍니다 (「원장님이 말씀드릴 거예요」 식이 아니라 방금 완성한 리포트를 건네는 말투) */
+      var planT=String(add.plan||'')+'\n'+String(add.extra||''),ordered=planT.split('\n').some(function(l){return BLOOD_RE.test(l)&&!LATER_RE.test(l)}),prevL=String((oldPost&&oldPost.labs)||(v.labx&&v.labx.t)||'').trim();
+      g.post.labs=ordered?'오늘 혈액검사를 시행했습니다. 결과는 나오는 대로 정리해서 안내해 드릴게요.'
+        :(prevL?'이번 내원에서는 혈액검사를 하지 않았습니다. 지난 검사 결과는 아래와 같아요.\n'+prevL:'이번 내원에서는 혈액검사를 하지 않았습니다.');
+      warn=(warn?warn+' · ':'')+'차트에 새 혈액검사 결과가 없어 '+(ordered?'「검사 시행, 결과 대기」':'「이번에는 검사 안 함」')+' 문구로 채웠어요';
+    }
+    /* 「원장님이 말씀드릴 거예요」처럼 떠넘기는 문장은 빼고, 방금 완성해서 건네는 리포트 말투로 */
+    ['summary','labs','xray','direction','exercise','nutrition','sleep'].forEach(function(k){
+      var t=String(g.post[k]||'');if(!/원장님?(이|께서)\s*(따로\s*|직접\s*|추후\s*|나중에\s*)?(말씀|설명|안내)/.test(t))return;
+      g.post[k]=t.split(/(?<=[.!?。]|요\s|다\s)(?=\S)|\n/).filter(function(x){return !/원장님?(이|께서)\s*(따로\s*|직접\s*|추후\s*|나중에\s*)?(말씀|설명|안내)/.test(x)}).join(' ').trim();
+    });
     if(old.from==='index'&&old.post){ if(String(old.post.labs||'').trim())g.post.labs=String(old.post.labs).trim(); if(String(old.post.xray||'').trim()&&!String(g.post.xray||'').trim())g.post.xray=String(old.post.xray).trim(); }
     g.reviewed=false;g.reviewedAt=null;g.printedAt=null;g.ai=!!A;
     DIFF[id]=(g.src==='today'&&(pre||oldPost))?{lines:pre?nl:null,oldPost:oldPost,oldSrc:old.src||''}:null;
@@ -4526,4 +4560,5 @@ document.addEventListener('paste',function(e){try{
   e.preventDefault();FR.fromChart(txt);
 }catch(err){}},true);
 </script>
+
 
