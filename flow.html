@@ -3666,7 +3666,7 @@ function sexOf(v){return v.sex==='남'?'M':v.sex==='여'?'F':''}
 function hasPost(po){return !!po&&['summary','labs','xray','direction','exercise','nutrition','sleep','nextDate'].some(function(k){return String(po[k]||'').trim()})}
 function modelOf(v){
   var g=v&&v.gr;if(!g)return{error:'아직 만든 리포트가 없습니다. 왼쪽에 EMR 차트를 붙여넣어 주세요.'};
-  return GR.compute(GR.build(Object.assign({name:v.name||'',txh:v.txh||null},g)).st);
+  return GR.compute(GR.build(Object.assign({name:v.name||'',txh:v.txh||null},g,{dob:g.dob||v.dob||''})).st);
 }
 function say(t,bad){ST.msg=t;ST.bad=!!bad;var e=document.getElementById('grmsg');if(e){e.textContent=t;e.style.color=bad?'#b63a32':''}}
 function commit(g,now){var v=V();if(!v)return;commitTo(v.id,g,now)}
@@ -3973,7 +3973,7 @@ async function runFor(id,text,useAI,opt){
     g.recsText=mergeRecs('',recs);
     g.txp=txPeriodsOf(text);   // 💉 성장호르몬·억제제 기간(리포트 그래프 띠·화살표)
     var cdob=findDob(text),notes=[];
-    g.dob=v.dob||cdob||'';
+    g.dob=v.dob||cdob||opt.dob||'';
     if(v.dob&&cdob&&v.dob!==cdob)notes.push('⚠️ 차트의 생년월일('+cdob+')이 이 환자('+v.dob+')와 달라요. 다른 아이 차트가 아닌지 확인해 주세요.');
     g.sex=sexOf(v);
     if((!g.dob||!g.sex)&&/\d{3,}/.test(v.chartNo||'')){
@@ -4499,7 +4499,9 @@ async function preDraft(id,quiet){
   var list;try{list=await docFor(v)}catch(e){list=null}
   var p=docFind(list||[],v);if(!p)return 'nodoc';
   var txt=docChartText(p,todayStr());if(!txt.trim())return 'nochart';
-  var ok=await runFor(id,txt,true,{quiet:true});
+  var dbd=String(p.dob||'').slice(0,10);
+  if(!v.dob&&/^\d{4}-\d{2}-\d{2}$/.test(dbd)){v.dob=dbd;try{put(v,true)}catch(e){}}   // 의사 앱 환아 정보의 생년월일을 flow 카드에도 채움
+  var ok=await runFor(id,txt,true,{quiet:true,dob:dbd});
   return ok?'ok':'fail';
 }
 async function preDraftAll(){
