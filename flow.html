@@ -1926,7 +1926,7 @@ function onAction(act,el){
     case 'gr-optauto':FR.setOpt('autoprint',!!el.checked);renderAll(false);if(el.checked)toast('이 기기에서 자동 인쇄를 켰어요. 원장 확인이 끝난 리포트가 올라오면 바로 인쇄 창이 떠요.');break;
     case 'gr-paste':FR.pasteClick();break;
     case 'gr-predraft':FR.preDraftAll();break;
-    case 'gr-pre1':if(v)FR.preDraft(v.id).then(r=>{if(r==='nodoc'||r==='nochart')toast((v.name||'')+': 의사 앱에 지난 EMR 차트가 없어요');else if(r==='ok')toast((v.name||'')+': 진료 전 가안 완료')});break;
+    case 'gr-pre1':if(v)FR.preDraft(v.id).then(r=>{if(r==='nodoc'||r==='nochart')toast((v.name||'')+': 의사 앱에 이 환자의 지난 EMR 차트가 없어요 (차트번호가 같은 환아가 의사 앱에 등록돼 있고 오늘 이전 진료 차트가 있어야 해요)');else if(r==='ok')toast((v.name||'')+': 진료 전 가안 완료');else if(r==='has')toast((v.name||'')+': 이미 가안이 있어요');else if(r==='busy')toast((v.name||'')+': 만드는 중이에요. 잠시만요');else toast((v.name||'')+': 가안 생성 실패 — AI 서버 응답을 확인해 주세요')});break;
     case 'gr-booked':UI.grBooked=!UI.grBooked;renderAll(false);break;
     case 'mr-seg':UI.mrf=el.dataset.k;renderAll(false);window.scrollTo(0,0);break;
     case 'mob-off':try{localStorage.setItem('jrd_mob','0')}catch(e){}renderAll(false);break;
