@@ -4585,7 +4585,10 @@ document.addEventListener('paste',function(e){try{
   document.addEventListener('drop',function(e){
     if(!cid)return;var c=colOf(e);if(!c)return;e.preventDefault();
     var v=S.items.get(cid),room=c.dataset.colkey;cid=null;window.__colDrag=false;if(!v)return;
-    if(room==='booked'){toast('예약 칸으로는 되돌리지 않아요.');return}
+    if(room==='booked'){
+      if(v.step<0)return;
+      if(v.step>=10){toast((v.name||'환자')+': 이미 완료된 환자예요. 상세 화면의 「완료 취소」를 먼저 눌러 주세요.');return}
+      v.step=-1;v.log=[];v.loc='';v.locStep=null;UI.msg='';UI.force=null;UI.viewStep=null;put(v,true);renderAll(true);toast((v.name||'환자')+': 예약 칸으로 되돌렸어요 (도착 전).');return}
     if(v.step>=10){toast((v.name||'환자')+': 이미 완료된 환자예요. 상세 화면의 「완료 취소」를 먼저 눌러 주세요.');return}
     if(room==='exit'){quickDone(v,true);toast((v.name||'환자')+': 완료로 옮겼어요.');return}
     if(v.step<0){v.step=0;v.log=[{s:0,t:Date.now()}];put(v,true)}   // 예약 → 도착
