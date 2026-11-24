@@ -14,3 +14,15 @@ test('검사한 재진은 안내 대상', async () => {
   assert.strictEqual(r[0], '검사 리포트');
   assert.strictEqual(r[1], '');
 });
+test('같은 날 차트가 바뀌면 chartChangedAt 기록', async () => {
+  const o = await open(b, page('index.html'), { phone: true, storage });
+  const r = await o.p.evaluate(() => {
+    const t = todayStr(), p = { id: 'g9', name: 'G9', records: [] }, long1 = '가'.repeat(40), long2 = '나'.repeat(40);
+    fvGuideCollect(p, { chartNoteRaw: long1 }, true, '', t, []);
+    const a = p.chartChangedAt || 0;
+    fvGuideCollect(p, { chartNoteRaw: long2 }, true, '', t, []);
+    return [a, !!p.chartChangedAt];
+  });
+  assert.strictEqual(r[0], 0);
+  assert.strictEqual(r[1], true);
+});

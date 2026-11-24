@@ -3647,6 +3647,12 @@ function fvGuideCollect(p, rec, hasToday, base, today, list){
   if(chart.length < 30) return;
   if(p.guideDraft && p.guideDraft.date === today && p.guideDraft.sentAt) return;      // 오늘 이미 보낸 아이는 다시 만들지 않아요
   if(!p.guideBase || p.guideBase.date !== today) p.guideBase = { date: today, text: String(base||'').slice(0, 6000) };
+  try{   // 오늘 같은 환자의 차트가 이전 업로드와 달라졌는지(= 업데이트됨) 기억
+    let h = 0; for(let i=0;i<chart.length;i++){ h = (h*31 + chart.charCodeAt(i))|0; }
+    const old = p.chartSigToday;
+    if(old && old.date===today && old.sig!==h){ p.chartChangedAt = Date.now(); }
+    p.chartSigToday = { date: today, sig: h };
+  }catch(e){}
   list.push({ id: p.id, chart, base: p.guideBase.text });
 }
 // 그래프 데이터 지문 — 오늘 이미 같은 데이터로 보냈으면 일괄 발송 대기에 다시 올리지 않기 위한 용도
@@ -3745,16 +3751,29 @@ async function fvGuideGenerateAll(targets){
   guideRunning = true;
   const status = () => document.getElementById('batchGuideStatus');
   const made = [], skipped = [], failed = [];
-  let i = 0, notTarget = 0; const notTargetNames = [];
+  let i = 0, notTarget = 0; const notTargetNames = [], reasonCount = {};
+  // flow에서 이미 작성한 성장 리포트가 있는지 대조 (없거나, 오늘 차트가 그 뒤에 바뀌었으면 다시 만듭니다)
+  let flowMap = null;
+  try{ const fl = await Promise.race([bqPost({ action:'flowlist' }), new Promise(r=>setTimeout(()=>r(null), 20000))]); if(fl && fl.status==='ok' && Array.isArray(fl.visits)) flowMap = fl.visits; }catch(e){}
+  const needReason = p => {
+    const v = flowMap ? fvFlowFindVisit(p, flowMap) : null, g = v && v.gr;
+    const has = !!(g && g.ready && g.from==='flow' && rvHasContent(g.post));
+    if(!has) return flowMap ? 'flow에 리포트 없음' : '리포트 대조 불가(flow 연결 실패)';
+    if(p.chartChangedAt && (g.at||0) < p.chartChangedAt) return 'EMR 차트가 flow 리포트 뒤에 바뀜';
+    return '';
+  };
   while(guideQueue.length){
     const t = guideQueue.shift(); i++;
     const p = getPatient(t.id); if(!p) continue;
     // 진료 후 안내는 「초진」·「오늘 치료(GH·GnRH) 시작」·「오늘 혈액/엑스레이 검사」 아이만 — 나머지 재진은 만들지 않아요
-    if(!fvGuideReason(p) && !(p.guideDraft && p.guideDraft.manual)){ notTarget++; notTargetNames.push(p.name); continue; }
+    let why = fvGuideReason(p) || (p.guideDraft && p.guideDraft.manual ? '직접 요청' : '');
+    if(!why){ why = needReason(p); if(!why){ notTarget++; notTargetNames.push(p.name); continue; } }
+    reasonCount[why] = (reasonCount[why]||0) + 1;
     const st = status(); if(st){ st.style.color = 'var(--secondary)'; st.textContent = `📋 진료 후 안내 초안 만드는 중… (${i}/${i+guideQueue.length}) — ${p.name||''}`; }
     try{
       if(p.guideDraft && p.guideDraft.date === todayStr() && p.guideDraft.edited && !p.guideDraft.sentAt){ continue; }   // 직접 고친 초안은 덮어쓰지 않아요
-      const r = await fvGuideBuild(p, t.chart, t.base);
+      let r = await fvGuideBuild(p, t.chart, t.base);
+      if(r.skip && /^(flow에|EMR|리포트 대조)/.test(why)) r = await fvGuideBuild(p, t.chart, '');   // flow에 리포트가 없으면 EMR 차트 전체로 다시 만듭니다
       if(r.skip){ skipped.push(p.name); continue; }
       p.guideDraft = { date: todayStr(), kind: r.kind, post: r.post, count: r.count, ai: r.ai, warn: r.warn, added: r.added || '', generatedAt: new Date().toISOString(), sentAt: '' };
       p.pendingGuideSend = true; p.updatedAt = new Date().toISOString();
@@ -3765,11 +3784,11 @@ async function fvGuideGenerateAll(targets){
     }catch(e){ failed.push(p.name); }
   }
   guideRunning = false;
-  plog('안내 초안', `초안 ${made.length}명 완료 · 새 내용 없어 건너뜀 ${skipped.length}명 · 초진/치료시작/검사 아니라 제외 ${notTarget}명 · 실패 ${failed.length}명`, [].concat(made.map(n=>'✔'+n), skipped.map(n=>'건너뜀:'+n), failed.map(n=>'실패:'+n), notTargetNames.slice(0,15).map(n=>'제외:'+n)));
+  plog('안내 초안', `초안 ${made.length}명 완료 · 새 내용 없어 건너뜀 ${skipped.length}명 · flow 리포트 이미 있어 제외 ${notTarget}명 · 실패 ${failed.length}명 · 만든 이유: ${Object.keys(reasonCount).map(k=>k+' '+reasonCount[k]).join(', ')||'-'}`, [].concat(made.map(n=>'✔'+n), skipped.map(n=>'건너뜀:'+n), failed.map(n=>'실패:'+n), notTargetNames.slice(0,15).map(n=>'flow작성됨:'+n)));
   const st = status();
   if(st){
     st.style.color = failed.length ? 'var(--danger)' : 'var(--ok)';
-    st.textContent = `✅ 진료 후 안내 초안 ${made.length}명 완료. 이름을 눌러 내용을 확인한 뒤 일괄 발송하세요.` + (skipped.length ? ` · 새로 추가된 내용이 없어 건너뜀 ${skipped.length}명` : '')+ (notTarget ? ` · 초진·치료시작이 아니라 제외 ${notTarget}명` : '') + (failed.length ? ` · 실패 ${failed.length}명: ${failed.join(', ')}` : '');
+    st.textContent = `✅ 진료 후 안내 초안 ${made.length}명 완료. 이름을 눌러 내용을 확인한 뒤 일괄 발송하세요.` + (skipped.length ? ` · 새로 추가된 내용이 없어 건너뜀 ${skipped.length}명` : '')+ (notTarget ? ` · flow에 리포트가 이미 있어 제외 ${notTarget}명` : '') + (failed.length ? ` · 실패 ${failed.length}명: ${failed.join(', ')}` : '');
   }
   renderBatchSendBar();
 }
@@ -4255,6 +4274,17 @@ function commitBulkPatientPasteCore(){
     }
   });
   window.__guideTargets = guideTargets;
+  // 오늘 초진인데 초진방 링크를 아직 안 보낸 아이는 자동으로 「초진방 링크 일괄 발송 대기」에 담습니다 (외래기록지 엑셀 기준)
+  const fvAutoNames = [];
+  try{
+    const td0 = todayStr();
+    patients.forEach(p=>{
+      if(!p || p.pendingFvLinkSend || linkSentMap[p.accessCode] || !isFirstPatient(p)) return;
+      const today1 = (p.firstFlag && p.firstFlag.date===td0) || (p.firstVisit && p.firstVisit.visitDate===td0);
+      if(today1){ p.pendingFvLinkSend = true; fvAutoNames.push(p.name); }
+    });
+  }catch(e){}
+  if(fvAutoNames.length) plog('초진방 대기', `오늘 초진 중 링크 미발송 ${fvAutoNames.length}명을 자동으로 담았어요`, fvAutoNames);
   plog('엑셀 업로드', `신규 ${added}명·기존 갱신 ${updated}명${skipped?`·미등록 건너뜀 ${skipped}명`:''} · 그래프 대기 ${queuedForChartSend.length}명 · 링크 대기 ${queuedForLinkSend.length}명 · 오늘 초진 ${firstTodayNames.length}명 · 치료시작 ${startedTreatmentToday.length}명 · 안내 초안 대상(오늘 진료+차트 30자↑) ${guideTargets.length}명`, [].concat(firstTodayNames.map(n=>'초진:'+n), startedTreatmentToday.map(n=>'치료시작:'+n)));
   savePatients();
   document.getElementById('bulkPatientPasteInput').value = '';
@@ -8091,7 +8121,7 @@ function renderBatchSendBar(){
   if(guideCountEl){
     const gchip = p => `<span class="gq-chip${p.guideDraft.okAt?' ok':''}" style="display:inline-flex;align-items:center;gap:4px;margin:2px 4px 2px 0;padding:2px 4px 2px 8px;background:${p.guideDraft.okAt?'#EAF7EE':'#fff'};border:1px solid #BFE0C8;border-radius:12px;font-weight:600;"><span role="button" class="gq-name" title="초안 확인·수정" onclick="guideEdit('${p.id}')" style="cursor:pointer;text-decoration:underline dotted;">${p.guideDraft.okAt?'✓ ':''}${escapeHtml(p.name||'')}</span>${cnum(p)}<span style="font-size:10px;color:${fvGuideIsFirst(p)?'#7B4FA3':'#C0392B'};font-weight:700;">${fvGuideReason(p)||'수동'}${p.guideDraft.edited?'·수정':''}</span><b role="button" class="gq-x" title="이 환아만 대기에서 빼기" onclick="removeFromQueue('guide','${p.id}')" style="cursor:pointer;padding:0 5px;color:#B2452F;">✕</b></span>`;
     const gOk = guideQueued.filter(p=>p.guideDraft.okAt).length;
-    guideCountEl.innerHTML = `<div>📋 진료 후 안내 일괄 발송 대기: ${guideQueued.length}명${gOk?` <span style="color:#2B7A4B;">(✓ 확인 ${gOk})</span>`:''} <span style="font-weight:400;font-size:11px;">(이름을 누르면 초안을 보고 고칠 수 있어요 · 등록번호를 누르면 복사돼요)</span></div>${guideQueued.length?`<button type="button" class="gq-start" onclick="guideEdit('${(guideQueued.find(p=>!p.guideDraft.okAt)||guideQueued[0]).id}')">${gOk>=guideQueued.length?'✓ 모두 확인했어요 · 다시 보기':gOk?'✏️ 남은 '+(guideQueued.length-gOk)+'명 이어서 확인':'✏️ 첫 아이부터 차례로 확인하기'}</button>`:''}<div style="margin-top:3px;font-size:11.5px;line-height:1.9;">${guideQueued.map(gchip).join('')}</div>`;
+    guideCountEl.innerHTML = `<div>📋 성장리포트·진료 후 안내 일괄 발송 대기: ${guideQueued.length}명${gOk?` <span style="color:#2B7A4B;">(✓ 확인 ${gOk})</span>`:''} <span style="font-weight:400;font-size:11px;">(이름을 누르면 초안을 보고 고칠 수 있어요 · 등록번호를 누르면 복사돼요)</span></div>${guideQueued.length?`<button type="button" class="gq-start" onclick="guideEdit('${(guideQueued.find(p=>!p.guideDraft.okAt)||guideQueued[0]).id}')">${gOk>=guideQueued.length?'✓ 모두 확인했어요 · 다시 보기':gOk?'✏️ 남은 '+(guideQueued.length-gOk)+'명 이어서 확인':'✏️ 첫 아이부터 차례로 확인하기'}</button>`:''}<div style="margin-top:3px;font-size:11.5px;line-height:1.9;">${guideQueued.map(gchip).join('')}</div>`;
   }
   const fvCountEl = document.getElementById('batchFvCount');
   if(fvCountEl) fvCountEl.innerHTML = `<div>🌱 초진방 링크 일괄 발송 대기: ${fvQueued.length}명</div><div style="margin-top:3px;font-size:11.5px;line-height:1.9;">${fvQueued.map(p=>chip('fv',p)).join('')}</div>`;
