@@ -3672,6 +3672,14 @@ function fvGuideReason(p){
   // 오늘 혈액검사·엑스레이를 한 아이(성장 리포트 대상)도 일괄 발송 대기에 올립니다 — 아이 창을 일일이 열지 않고 한꺼번에 확인·발송
   try{ if(p.rvQ && p.rvQ.date===todayStr() && (p.rvQ.blood || p.rvQ.xray)) return '검사 리포트'; }catch(e){}
   try{ const c = String(p.chartNo||'').trim(), m = rvMarksLoad()[c]; if(c && m && (m.b || m.x)) return '검사 리포트'; }catch(e){}
+  // 오늘 기록에 골연령·혈액검사 수치가 들어온 아이
+  try{
+    const r = (p.records||[]).find(x=>x && x.date===todayStr());
+    if(r){
+      if(r.boneAgeWristMonths!=null || r.boneAgeElbowMonths!=null) return '골연령 검사';
+      if(typeof LAB_PATTERNS!=='undefined' && LAB_PATTERNS.some(q=> r[q.key]!=null && r[q.key]!=='')) return '혈액검사';
+    }
+  }catch(e){}
   return '';
 }
 function fvGuideIsFirst(p){ return isFirstPatient(p) || !!(p.firstVisit && p.firstVisit.status && p.firstVisit.status !== 'done'); }
@@ -3751,7 +3759,7 @@ async function fvGuideGenerateAll(targets){
   guideRunning = true;
   const status = () => document.getElementById('batchGuideStatus');
   const made = [], skipped = [], failed = [];
-  let i = 0, notTarget = 0; const notTargetNames = [], reasonCount = {};
+  let i = 0, notTarget = 0; const notTargetNames = [], reasonCount = {}; let flowDoneCnt = 0; const flowDoneNames = [];
   // flow에서 이미 작성한 성장 리포트가 있는지 대조 (없거나, 오늘 차트가 그 뒤에 바뀌었으면 다시 만듭니다)
   let flowMap = null;
   try{ const fl = await Promise.race([bqPost({ action:'flowlist' }), new Promise(r=>setTimeout(()=>r(null), 20000))]); if(fl && fl.status==='ok' && Array.isArray(fl.visits)) flowMap = fl.visits; }catch(e){}
@@ -3766,9 +3774,14 @@ async function fvGuideGenerateAll(targets){
     const t = guideQueue.shift(); i++;
     const p = getPatient(t.id); if(!p) continue;
     // 진료 후 안내는 「초진」·「오늘 치료(GH·GnRH) 시작」·「오늘 혈액/엑스레이 검사」 아이만 — 나머지 재진은 만들지 않아요
-    let why = fvGuideReason(p) || (p.guideDraft && p.guideDraft.manual ? '직접 요청' : '');
-    if(!why){ why = needReason(p); if(!why){ notTarget++; notTargetNames.push(p.name); continue; } }
-    reasonCount[why] = (reasonCount[why]||0) + 1;
+    // 대상: 초진 · 오늘 치료 시작 · 혈액검사 · 골연령 검사를 한 아이 (그 밖의 재진은 만들지 않아요)
+    const base0 = fvGuideReason(p) || (p.guideDraft && p.guideDraft.manual ? '직접 요청' : '');
+    if(!base0){ notTarget++; notTargetNames.push(p.name); continue; }
+    // 그 중에서도 flow에 이미 쓴 리포트가 있으면 건너뛰고, 없거나 오늘 차트가 그 뒤에 바뀌었을 때만 만듭니다
+    const nr = needReason(p);
+    if(!nr){ flowDoneCnt++; flowDoneNames.push(p.name); continue; }
+    const why = nr;
+    reasonCount[base0 + ' · ' + nr] = (reasonCount[base0 + ' · ' + nr]||0) + 1;
     const st = status(); if(st){ st.style.color = 'var(--secondary)'; st.textContent = `📋 진료 후 안내 초안 만드는 중… (${i}/${i+guideQueue.length}) — ${p.name||''}`; }
     try{
       if(p.guideDraft && p.guideDraft.date === todayStr() && p.guideDraft.edited && !p.guideDraft.sentAt){ continue; }   // 직접 고친 초안은 덮어쓰지 않아요
@@ -3784,11 +3797,11 @@ async function fvGuideGenerateAll(targets){
     }catch(e){ failed.push(p.name); }
   }
   guideRunning = false;
-  plog('안내 초안', `초안 ${made.length}명 완료 · 새 내용 없어 건너뜀 ${skipped.length}명 · flow 리포트 이미 있어 제외 ${notTarget}명 · 실패 ${failed.length}명 · 만든 이유: ${Object.keys(reasonCount).map(k=>k+' '+reasonCount[k]).join(', ')||'-'}`, [].concat(made.map(n=>'✔'+n), skipped.map(n=>'건너뜀:'+n), failed.map(n=>'실패:'+n), notTargetNames.slice(0,15).map(n=>'flow작성됨:'+n)));
+  plog('안내 초안', `초안 ${made.length}명 완료 · 새 내용 없어 건너뜀 ${skipped.length}명 · 대상 아님(초진·치료시작·혈액·골연령 아님) ${notTarget}명 · flow 리포트 이미 있어 제외 ${flowDoneCnt}명 · 실패 ${failed.length}명 · 만든 이유: ${Object.keys(reasonCount).map(k=>k+' '+reasonCount[k]).join(', ')||'-'}`, [].concat(made.map(n=>'✔'+n), skipped.map(n=>'건너뜀:'+n), failed.map(n=>'실패:'+n), notTargetNames.slice(0,10).map(n=>'대상아님:'+n), flowDoneNames.map(n=>'flow작성됨:'+n)));
   const st = status();
   if(st){
     st.style.color = failed.length ? 'var(--danger)' : 'var(--ok)';
-    st.textContent = `✅ 진료 후 안내 초안 ${made.length}명 완료. 이름을 눌러 내용을 확인한 뒤 일괄 발송하세요.` + (skipped.length ? ` · 새로 추가된 내용이 없어 건너뜀 ${skipped.length}명` : '')+ (notTarget ? ` · flow에 리포트가 이미 있어 제외 ${notTarget}명` : '') + (failed.length ? ` · 실패 ${failed.length}명: ${failed.join(', ')}` : '');
+    st.textContent = `✅ 진료 후 안내 초안 ${made.length}명 완료. 이름을 눌러 내용을 확인한 뒤 일괄 발송하세요.` + (skipped.length ? ` · 새로 추가된 내용이 없어 건너뜀 ${skipped.length}명` : '')+ (notTarget ? ` · 초진·치료시작·검사 대상 아님 ${notTarget}명` : '') + (flowDoneCnt ? ` · flow 리포트 이미 있음 ${flowDoneCnt}명` : '') + (failed.length ? ` · 실패 ${failed.length}명: ${failed.join(', ')}` : '');
   }
   renderBatchSendBar();
 }

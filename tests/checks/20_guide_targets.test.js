@@ -26,3 +26,13 @@ test('같은 날 차트가 바뀌면 chartChangedAt 기록', async () => {
   assert.strictEqual(r[0], 0);
   assert.strictEqual(r[1], true);
 });
+test('골연령·혈액 수치 있는 오늘 기록만 대상, 일반 재진은 제외', async () => {
+  const o = await open(b, page('index.html'), { phone: true, storage });
+  const r = await o.p.evaluate(() => {
+    const t = todayStr();
+    const mk = rec => ({ id: 'x', name: 'X', chartNo: '8' + Math.floor(Math.random()*9e5), records: [Object.assign({ date: t }, rec)] });
+    return [fvGuideReason(mk({ boneAgeWristMonths: 100 })), fvGuideReason(mk({ height: 120 }))];
+  });
+  assert.strictEqual(r[0], '골연령 검사');
+  assert.strictEqual(r[1], '');
+});
