@@ -63,7 +63,7 @@ button{cursor:pointer}
 .layout:has(#detail .empty){grid-template-columns:minmax(0,1fr)}.layout:has(#detail .empty) #detail{display:none}
 .board{display:flex;gap:6px;overflow:visible;padding-bottom:6px}.board>.col{flex:1 1 0;min-width:0}
 .board .col{padding:6px;min-width:0}.board .col h3{font-size:11.5px}.board .card{padding:6px 7px}.board .card .nm{font-size:13px;gap:4px}.board .card .meta{font-size:11px}.board .card .st{font-size:11px}.board .pill{padding:1px 5px;font-size:10.5px}
-.col{background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:6px;min-height:150px}
+.col.dropto{outline:2px dashed #0e7c86;outline-offset:-2px}.col{background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:6px;min-height:150px}
 .col h3{margin:0;font-size:12px;font-weight:600;letter-spacing:.02em;color:var(--muted);display:flex;justify-content:space-between}
 .col h3 span{font-family:var(--mono)}
 .card{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 9px;text-align:left;display:flex;flex-direction:column;gap:3px;width:100%}
@@ -607,7 +607,9 @@ function boardCols(){
   const used=new Set(['booked','exit']);
   STEPS.forEach(s=>used.add(s.room));
   S.items.forEach(v=>used.add(roomOf(v)));
-  return ['booked','wait','fluid','clin','lab','xray','doctor','exit'].filter(k=>used.has(k)).map(k=>({key:k,label:k==='booked'?'예약':(k==='exit'?'귀가·리포트':ROOMS[k].label)}));
+  let ord=[];try{ord=JSON.parse(localStorage.getItem('jrd_flow_colorder')||'[]')}catch(e){}   // 현황판 열 순서(이 기기에 저장): 열 제목을 끌어서 바꿈
+  const dflt=['booked','wait','fluid','clin','lab','xray','doctor','exit'],rk=k=>{const i=ord.indexOf(k);return i<0?100+dflt.indexOf(k):i};
+  return dflt.filter(k=>used.has(k)).sort((a,b)=>rk(a)-rk(b)).map(k=>({key:k,label:k==='booked'?'예약':(k==='exit'?'귀가·리포트':ROOMS[k].label)}));
 }
 const LAB_OPTS=['원내검사','수탁검사'];
 const LAB_DEFAULT=['원내검사'];
@@ -1015,9 +1017,9 @@ function renderBoard(){
   if(!a.length)return notifyHtml()+emptyHtml();
   const cols=boardCols().map(c=>{
     const vs=a.filter(v=>roomOf(v)===c.key).sort((x,y)=>(stepStart(x,x.step)||x.createdAt)-(stepStart(y,y.step)||y.createdAt));
-    return `<div class="col"><h3>${c.label}<span>${vs.length}</span></h3>${vs.map(v=>cardHtml(v,now)).join('')}</div>`;
+    return `<div class="col" data-colkey="${c.key}"><h3 draggable="true" data-colh="${c.key}" title="끌어서 열 위치를 옮길 수 있어요" style="cursor:grab">${c.label}<span>${vs.length}</span></h3>${vs.map(v=>cardHtml(v,now)).join('')}</div>`;
   }).join('');
-  const ex=a.some(v=>v.example)?`<p class="hint"><button class="btn sm ghost" data-act="clear-ex">예시 환자 비우기</button></p>`:'';
+  const ex=`<p class="hint">${a.some(v=>v.example)?'<button class="btn sm ghost" data-act="clear-ex">예시 환자 비우기</button> ':''}<button class="btn sm ghost" data-act="col-reset">열 순서 처음대로</button> <span style="color:var(--sub,#789)">열 제목을 끌어서 위치를 옮길 수 있어요</span></p>`;
   return `${notifyHtml()}<div class="board">${cols}</div>${ex}`;
 }
 
@@ -1826,6 +1828,7 @@ function delBtn(v){
 function detailFocused(){const a=document.activeElement;return !!(a&&$('#detail').contains(a)&&/INPUT|TEXTAREA|SELECT/.test(a.tagName))}
 function renderMain(){
   const el=$('#main-view');
+  if(UI.view==='board'&&window.__colDrag)return;   // 열을 끄는 동안은 다시 그리지 않음
   if(!S.loaded){el.innerHTML='<div class="empty"><p>환자 기록을 불러오는 중입니다…</p></div>';return}
   if(UI.view==='cards'){if(!el.querySelector('[data-cc]'))el.innerHTML=renderCards();return}
   if(UI.view==='flow'){if(!el.querySelector('[data-fl]'))el.innerHTML=renderFlow();return}
@@ -1900,6 +1903,7 @@ function onAction(act,el){
     case 'save-flow':{const c=readFlow();applyFlow(c);saveFlow(c);$('#main-view').innerHTML='';renderAll(true);toast('동선 설정을 저장했습니다.');break}
     case 'reset-flow':{applyFlow(DEF);saveFlow(DEF);$('#main-view').innerHTML='';renderAll(true);toast('기본값으로 되돌렸습니다.');break}
     case 'cancel-add':UI.adding=false;renderDetail(true);break;
+    case 'col-reset':try{localStorage.removeItem('jrd_flow_colorder')}catch(e){}renderAll(false);break;
     case 'close':UI.sel=null;renderAll(true);break;
     case 'sex':if(v){const nx=el.dataset.s;if(nx!=='남'&&nx!=='여'||v.sex===nx)break;const old=v.sex;
       if(v.vids&&v.vidsSrc==='default'&&v.vids===sdVids(old,v.age||0))v.vids=sdVids(nx,v.age||0);   // 당일 접수 기본 영상은 성별 기준이라 함께 바꿈
@@ -4559,6 +4563,18 @@ document.addEventListener('paste',function(e){try{
   if(editable||document.getElementById('grpick')||!S.loaded)return;
   e.preventDefault();FR.fromChart(txt);
 }catch(err){}},true);
+
+/* 현황판 열 끌어서 순서 바꾸기 */
+(function(){
+  var src=null;
+  document.addEventListener('dragstart',function(e){var h=e.target.closest&&e.target.closest('[data-colh]');if(!h)return;src=h.dataset.colh;window.__colDrag=true;try{e.dataTransfer.setData('text/plain',src);e.dataTransfer.effectAllowed='move'}catch(x){}var c=h.closest('.col');if(c)c.style.opacity='.5'});
+  document.addEventListener('dragover',function(e){if(!src)return;var c=e.target.closest&&e.target.closest('[data-colkey]');if(!c)return;e.preventDefault();document.querySelectorAll('.col.dropto').forEach(function(x){x.classList.remove('dropto')});if(c.dataset.colkey!==src)c.classList.add('dropto')});
+  document.addEventListener('drop',function(e){if(!src)return;var c=e.target.closest&&e.target.closest('[data-colkey]');if(!c)return;e.preventDefault();
+    var to=c.dataset.colkey,cur=boardCols().map(function(x){return x.key});
+    if(to!==src){cur.splice(cur.indexOf(src),1);cur.splice(cur.indexOf(to),0,src);try{localStorage.setItem('jrd_flow_colorder',JSON.stringify(cur))}catch(x){}}
+  });
+  document.addEventListener('dragend',function(){src=null;window.__colDrag=false;document.querySelectorAll('.col.dropto').forEach(function(x){x.classList.remove('dropto')});try{renderAll(false)}catch(e){}});
+})();
 </script>
 
 
