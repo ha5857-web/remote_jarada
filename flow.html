@@ -2332,7 +2332,7 @@ function bindEvents(){
      같은 번호가 오늘 다른 아이에게 가도 그 아이 정보는 뜨지 않습니다. 대신 만족도 별점 → 🎁 보호자 안내서가 뜹니다.
    · 진료 중에 휴대폰마다 무작위 표(tok)를 서버에 묶어 두고(flowbind), 질문(flowask)·별점(flowrate)은 그 표로만 받습니다. */
 const PM_CODE=String(new URLSearchParams(location.search).get('c')||'').trim().toUpperCase();
-const PM={off:0,alerted:new Set(),sound:false,ctx:null,wl:null,notif:false,fail:0,live:{},cur:'',busy:false,binding:{},draft:{},rateSel:{},msg:{}};
+const PM={voice:false,vs:{},off:0,alerted:new Set(),sound:false,ctx:null,wl:null,notif:false,fail:0,live:{},cur:'',busy:false,binding:{},draft:{},rateSel:{},msg:{}};
 const PM_DEFAULT_ID='AKfycbzTNYUR8rlsZSmQl1AQrIkB-HGARhUQDwP4nrDFti3R7-ip4ipRGOqk4lVfVZpIFSwONg';
 const PM_GUIDE_SITE='https://jaradacare.com/app.html';
 function pmApi(){let a=String(new URLSearchParams(location.search).get('a')||PM_DEFAULT_ID);const dev=location.protocol==='file:'||/^(localhost|127\.0\.0\.1)$/.test(location.hostname);if(/^https?:/.test(a)){let ok=dev;try{const x=new URL(a);if(x.protocol==='https:'&&x.hostname==='script.google.com')ok=true}catch(e){}if(ok)return a;a=PM_DEFAULT_ID}if(!/^[A-Za-z0-9_-]+$/.test(a))a=PM_DEFAULT_ID;return 'https://script.google.com/macros/s/'+a+'/exec'}
@@ -2448,6 +2448,7 @@ function pmLiveHtml(c,k,d,now){
   let now_=d.step<0?'<div class="pm-now"><b>아직 접수 전이에요</b></div>':d.step>=8?'<div class="pm-now"><b>진료가 끝났어요</b><span>수납 후 귀가해 주세요</span></div>':`<div class="pm-now"><span>지금</span><b>${esc(names[cur])}</b><span class="pm-t"><span data-since="${d.since||now}">${mins(now-(d.since||now))}분째</span></span></div>`;
   let h=`<div class="pm-hero"><small>삼성자라다 소아청소년과</small><h2>${esc(d.name)} 어린이</h2>${now_}</div>`+
     (d.step<0?'':`<ol class="pm-track">`+ms.map((n,i)=>`<li class="${i<mi?'d':i===mi?'c':''}"><i>${i<mi?'✓':i+1}</i><span>${n}</span></li>`).join('')+'</ol>');
+  h+=pmVoiceHtml(d);
   if(draws.length){
     h+=`<div class="keta"><b>${esc(d.protoName||'자극검사')} 채혈 일정</b>`+draws.map(x=>`<div style="display:grid;grid-template-columns:56px 1fr auto;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)"><b>${x.off}분</b><span>${fmtT(x.due)}</span>${x.done?'<span style="color:var(--ok);font-weight:700">✓ 완료</span>':`<b data-due="${x.due}"></b>`}</div>`).join('')+
       (pend.length?'<p class="meta" style="margin:8px 0 0">시간이 되면 채혈실로 와 주세요. 직원이 안내해 드립니다.</p>':'<p class="meta" style="margin:8px 0 0">채혈이 모두 끝났습니다.</p>')+'</div>';
@@ -2459,6 +2460,25 @@ function pmLiveHtml(c,k,d,now){
   h+=pmManualHtml();
   h+=kioskVideos({vids:d.vids,xv:d.xv,first:!!d.first,lab:{proto:d.proto||'single'}});
   return h;
+}
+/* ---------- 음성 안내 (보호자 휴대폰, 이어폰) ----------
+   브라우저는 사용자가 한 번 눌러야 소리를 낼 수 있어서 「음성 안내 듣기」 버튼을 둡니다. 환자 이름은 읽지 않습니다. */
+function pmSay(t){
+  if(!PM.voice||!('speechSynthesis' in window))return;
+  try{const u=new SpeechSynthesisUtterance(t);u.lang='ko-KR';u.rate=.95;const v=speechSynthesis.getVoices().find(x=>/^ko/i.test(x.lang));if(v)u.voice=v;speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){}
+}
+const PM_STEP_SAY=['접수와 대기','초진기록지 작성','초진방 링크 확인','키와 몸무게 측정','엑스레이 촬영','채혈','검사 결과 대기','원장님 진료','수납과 귀가','귀가'];
+function pmGreeting(d){
+  const x=xvList({xv:d.xv}),mine=patientVideos({vids:d.vids}),n=x.pick.length+mine.length;
+  let t='안녕하세요. 삼성자라다 소아청소년과를 찾아주셔서 감사합니다. ';
+  t+=d.step<0?'접수가 끝나면 이 화면에서 순서를 안내해 드립니다. ':'지금은 '+PM_STEP_SAY[Math.min(d.step,9)]+' 단계입니다. ';
+  t+=n?'원장님을 기다리시는 동안 질문을 남기고, 미리 보실 영상 '+n+'편을 준비했어요. 화면 아래의 영상을 터치하시면 재생됩니다. ':'원장님을 기다리시는 동안 질문을 남기고 영상을 미리 보고 계실까요? 화면 아래를 터치하시면 연결됩니다. ';
+  return t+'의학적인 판단은 진료 때 원장님께서 해드립니다.';
+}
+function pmVoiceHtml(d){
+  if(!('speechSynthesis' in window))return '';
+  return PM.voice?'<p class="meta"><button type="button" class="btn sm" id="pm-voice-off">🔇 음성 안내 끄기</button> 단계가 바뀌면 짧게 알려 드려요.</p>'
+   :'<div class="keta pm-voicebox"><b>🎧 음성으로 안내받기</b><p class="meta">이어폰을 끼고 아래 버튼을 눌러 주세요. 지금 순서와 볼 영상을 말씀드립니다.</p><p><button type="button" class="btn primary" id="pm-voice" style="font-size:18px;padding:12px 18px">🎧 음성 안내 듣기</button></p></div>';
 }
 function pmTick(el,now){
   el.querySelectorAll('[data-due]').forEach(e=>{const l=Number(e.dataset.due)-now;e.textContent=fmtLeft(l);e.classList.toggle('late',l<=0);e.classList.toggle('soon',l>0&&l<=120000)});
@@ -2490,10 +2510,13 @@ function pmRender(force,ui){
   if(!d&&PM.loaded)h+=pmManualHtml();
   el.innerHTML=h;
   pmTick(el,now);pmAlarms(s,now);
+  if(PM.voice&&d&&PM.vs[c]!==d.step){const first=PM.vs[c]===undefined;PM.vs[c]=d.step;if(!first)pmSay(d.step>=8?'진료가 끝났습니다. 수납 후 귀가해 주세요. 오늘도 수고 많으셨습니다.':'다음 단계입니다. 지금은 '+PM_STEP_SAY[Math.min(d.step,9)]+'입니다.')}
 }
 function pmClick(e){
   const t=e.target.closest('button');if(!t)return;
   const c=PM.cur;
+  if(t.id==='pm-voice'){PM.voice=true;const d=PM.live[c];if(d){PM.vs[c]=d.step;pmSay(pmGreeting(d))}pmRender(true,true);return}
+  if(t.id==='pm-voice-off'){PM.voice=false;try{speechSynthesis.cancel()}catch(e){}pmRender(true,true);return}
   if(t.id==='pm-alarm'){pmEnableAlarm();return}
   if(t.id==='pm-today'){const h=pmHist();delete h[c];try{localStorage.setItem(PM_HIST,JSON.stringify(h))}catch(x){}const st=pmStore();if(st.kids[c]){st.kids[c].st='new';delete st.kids[c].nm;pmSave(st)}PM.busy=false;pmLoad();return}
   if(t.dataset.pmstar){PM.rateSel[c]=Number(t.dataset.pmstar);pmRender(true,true);const ta=$('#pm-rate-t');if(ta&&PM.rateSel[c]<=3)ta.focus();return}
