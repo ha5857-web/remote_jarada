@@ -687,6 +687,10 @@ function newVisit(f){
 }
 /* 단계 완료 조건. 부족하면 안내 문구를 돌려준다 */
 /* 재진 환자는 '초진방 링크 발송' 단계를 건너뜀 (이미 링크를 보낸 경우는 제외) */
+/* 진료 먼저: 계측 다음에 진료실에서 먼저 진료하고(검사 전 진료) → X-ray·채혈 → 결과 대기 → 결과 확인(다시 진료).
+   검사 전 진료는 다음 검사 단계에 「진료실에 있음」(loc='doctor')으로 표시합니다. */
+const firstConsult=v=>!!v&&v.loc==='doctor'&&v.locStep===v.step&&v.step>=4&&v.step<=6;
+const stepLabel=(v,sh)=>firstConsult(v)?(sh?'진료':'진료 (검사 전)'):STEPS[Math.min(v.step,9)][sh?'short':'name'];
 const skipStep=(v,i)=>i===2&&!!v.rev&&!(v.invite&&v.invite.sentAt);
 function blocker(v){
   switch(v.step){
@@ -972,7 +976,7 @@ function cardHtml(v,now){
   let st;
   if(v.step<0)st=`<span>예약 ${esc(v.appt||'--:--')}</span><span>도착 전</span>`;
   else if(v.step>=10)st=`<span>완료</span><span>${mins(stayMs(v,now))}분 체류</span>`;
-  else st=`<span>${v.step===5?'채혈·'+(timed(v)?'연속':'일반'):esc(STEPS[v.step].name)}</span><span>${mins(curElapsed(v,now))}분</span>`;
+  else st=`<span>${v.step===5?'채혈·'+(timed(v)?'연속':'일반'):esc(stepLabel(v))}</span><span>${mins(curElapsed(v,now))}분</span>`;
   let bar='';
   for(let i=0;i<10;i++)bar+=`<i class="${v.step>i?'d':v.step===i?'c':''}"></i>`;
   let dl='';
@@ -1069,7 +1073,7 @@ function renderMap(){
     vs.forEach((v,i)=>{
       const cx=r.x+34+(i%perRow)*52,cy=dotY(r,Math.floor(i/perRow));
       const w=isWarn(v,now),on=UI.sel===v.id;
-      s+=`<g tabindex="0" role="button" data-sel="${v.id}" aria-label="${esc(v.name)} ${esc(STEPS[Math.min(v.step,9)].name)}"><title>${esc(v.name)} · ${esc(STEPS[Math.min(v.step,9)].name)} · ${mins(curElapsed(v,now))}분</title><rect class="dot2${w?' warn':''}${on?' sel':''}" x="${cx-22}" y="${cy-13}" width="44" height="26" rx="13" style="fill:${pcolor(v)}"/><text class="dt2" x="${cx}" y="${cy+4.5}" text-anchor="middle">${esc((v.name||'?').slice(0,3))}</text></g>`;
+      s+=`<g tabindex="0" role="button" data-sel="${v.id}" aria-label="${esc(v.name)} ${esc(stepLabel(v))}"><title>${esc(v.name)} · ${esc(stepLabel(v))} · ${mins(curElapsed(v,now))}분</title><rect class="dot2${w?' warn':''}${on?' sel':''}" x="${cx-22}" y="${cy-13}" width="44" height="26" rx="13" style="fill:${pcolor(v)}"/><text class="dt2" x="${cx}" y="${cy+4.5}" text-anchor="middle">${esc((v.name||'?').slice(0,3))}</text></g>`;
     });
   });
   s+='</svg>';
@@ -1802,11 +1806,11 @@ function detailHtml(){
   }
   const cur=v.step;
   let status='';
-  if(cur<10)status=`<span class="pill${w?' warn':''}">${esc(STEPS[cur].name)} · ${mins(curElapsed(v,now))}분${w?' (기준 '+warnAt(v,cur)+'분 초과)':''}</span>`;
+  if(cur<10)status=`<span class="pill${w?' warn':''}">${esc(stepLabel(v))} · ${mins(curElapsed(v,now))}분${w?' (기준 '+warnAt(v,cur)+'분 초과)':''}</span>`;
   else status=`<span class="pill ok">리포트 발송 완료 · 총 체류 ${mins(stayMs(v,now))}분</span>`;
   let act='';
   if(cur<10){
-    const nextName=cur<9?STEPS[cur+(skipStep(v,cur+1)?2:1)].name:'발송 완료';
+    let nextName=cur<9?STEPS[cur+(skipStep(v,cur+1)?2:1)].name:'발송 완료';if(firstConsult(v))nextName=STEPS[cur].name;else if(cur<=3&&!v.c1Done&&cur+(skipStep(v,cur+1)?2:1)>=4&&cur+(skipStep(v,cur+1)?2:1)<=6)nextName='진료 (검사 전)';
     act=`<div class="actions">${cur>=0?`<button class="btn ghost" data-act="back">이전 단계로</button>`:''}
       <button class="btn" data-act="gr-open">📄 성장 리포트${grMark(v)}</button><button class="btn" data-act="quick-done" title="남은 단계를 건너뛰고 바로 완료 처리">바로 완료 처리</button>
       <button class="btn primary" data-act="next">${cur<9?'완료 → 다음: '+esc(nextName):'리포트 발송 완료로 표시'}</button>
@@ -1860,12 +1864,15 @@ function select(id){
   if(window.matchMedia('(max-width:980px)').matches)$('#detail').scrollIntoView({behavior:'smooth',block:'start'});
 }
 function advance(v,force){
+  if(firstConsult(v)){v.loc='';v.locStep=null;v.c1Done=true;UI.msg='';UI.force=null;UI.viewStep=null;put(v,true);renderAll(true);toast(`${v.name}: 진료 끝 → ${STEPS[v.step].name} 단계로 이동`);return}
   const b=force?null:blocker(v);if(b){UI.msg=b;UI.force=v.id;UI.viewStep=null;renderDetail(true);return}
   UI.force=null;
   const now=Date.now();UI.msg='';UI.viewStep=null;
   if(v.step===4)v.xray.done=true;if(v.step===5)v.lab.drawn=true;if(v.step===8)v.exit.paid=true;
   if(v.step===9){v.step=10;v.log.push({s:10,t:now});v.report.sent=true;v.report.sentAt=now;toast(v.name+': 리포트 발송 완료로 표시했습니다.')}
-  else{v.step++;if(skipStep(v,v.step))v.step++;v.log.push({s:v.step,t:now});toast(`${v.name}: ${STEPS[v.step].name} 단계로 이동`)}
+  else{const was=v.step;v.step++;if(skipStep(v,v.step))v.step++;v.log.push({s:v.step,t:now});
+    if(was<=3&&v.step>=4&&v.step<=6&&!v.c1Done){v.loc='doctor';v.locStep=v.step;toast(`${v.name}: 진료 (검사 전) 단계로 이동`)}
+    else toast(`${v.name}: ${STEPS[v.step].name} 단계로 이동`)}
   put(v,true);renderAll(true);
 }
 function grMark(v){return v.gr&&v.gr.ready?(v.gr.reviewed?' ✓':' (확인 전)'):''}
@@ -1887,6 +1894,7 @@ function rewind(v){
     const f=v.quickFrom;v.log=v.log.filter(l=>l.s<=f);v.report.sent=false;delete v.report.sentAt;v.step=f;v.quickFrom=null;
     UI.msg='';UI.force=null;UI.viewStep=null;put(v,true);renderAll(true);return;
   }
+  if(firstConsult(v)){v.loc='';v.locStep=null}
   v.log=v.log.filter(l=>l.s!==v.step);
   if(v.step===10){v.report.sent=false;delete v.report.sentAt}
   v.step--;if(skipStep(v,v.step))v.step--;UI.msg='';UI.force=null;UI.viewStep=null;put(v,true);renderAll(true);
@@ -2444,8 +2452,8 @@ function pmRateHtml(c,k){
 function pmLiveHtml(c,k,d,now){
   const names=['접수·대기','초진기록지','초진방 링크','키·몸무게·인바디','X-ray','채혈','결과 대기','진료','수납·귀가','귀가'];
   const draws=d.draws||[],pend=draws.filter(x=>!x.done),cur=Math.min(d.step,9);
-  const ms=['접수','계측','X-ray','채혈','결과','진료','수납'],mi=d.step<=2?0:d.step>=8?6:d.step-2;
-  let now_=d.step<0?'<div class="pm-now"><b>아직 접수 전이에요</b></div>':d.step>=8?'<div class="pm-now"><b>진료가 끝났어요</b><span>수납 후 귀가해 주세요</span></div>':`<div class="pm-now"><span>지금</span><b>${esc(names[cur])}</b><span class="pm-t"><span data-since="${d.since||now}">${mins(now-(d.since||now))}분째</span></span></div>`;
+  const dc=d.loc==='doctor'&&d.step>=4&&d.step<=6,ms=['접수','계측','진료','X-ray','채혈','결과','진료','수납'],mi=d.step<=2?0:d.step>=8?7:d.step===3?1:dc?2:d.step-1;
+  let now_=d.step<0?'<div class="pm-now"><b>아직 접수 전이에요</b></div>':d.step>=8?'<div class="pm-now"><b>진료가 끝났어요</b><span>수납 후 귀가해 주세요</span></div>':`<div class="pm-now"><span>지금</span><b>${esc(dc?'원장님 진료 (검사 전)':names[cur])}</b><span class="pm-t"><span data-since="${d.since||now}">${mins(now-(d.since||now))}분째</span></span></div>`;
   let h=`<div class="pm-hero"><small>삼성자라다 소아청소년과</small><h2>${esc(d.name)} 어린이</h2>${now_}</div>`+
     (d.step<0?'':`<ol class="pm-track">`+ms.map((n,i)=>`<li class="${i<mi?'d':i===mi?'c':''}"><i>${i<mi?'✓':i+1}</i><span>${n}</span></li>`).join('')+'</ol>');
   h+=pmVoiceHtml(d);
@@ -2487,6 +2495,7 @@ function pmVideoSay(d){
 function pmStepSay(d,next){
   if(d.step<0)return '접수가 끝나면 이 화면에서 순서를 안내해 드립니다. ';
   if(d.step>=8)return '진료가 끝났습니다. 수납 후 귀가해 주세요. 오늘도 수고 많으셨습니다.';
+  if(d.loc==='doctor'&&d.step>=4&&d.step<=6)return (next?'다음 순서입니다. ':'지금은 원장님 진료 단계입니다. ')+'원장님 진료 차례예요. 진료실로 들어와 주세요. 진료가 끝나면 검사를 안내해 드려요. 남겨 주신 질문도 함께 봐 드려요. ';
   if(d.loc==='fluid')return (next?'수액실로 옮기셨어요. ':'지금은 수액실에 계세요. ')+'수액을 맞는 동안 편하게 쉬어 주세요. '+pmVideoSay(d);
   let t=(next?'다음 순서입니다. ':'지금은 '+PM_STEP_SAY[d.step]+' 단계입니다. ')+PM_STEP_DO[d.step]+' ';
   if(d.step===5&&(d.draws||[]).length)t+='자극검사는 정해진 시간마다 채혈해요. 화면의 채혈 시간을 확인해 주세요. ';
@@ -2926,7 +2935,13 @@ function moveToRoom(v,room){
     if(roomOf(v)==='fluid')return false;
     v.loc='fluid';v.locStep=v.step;put(v,true);renderAll(true);toast((v.name||'환자')+': 수액실로 옮겼어요 (진행 단계는 그대로).');return true;
   }
+  if(room==='doctor'&&!v.c1Done&&v.step<=4&&!firstConsult(v)){   // 검사 전에 진료실로 → 먼저 진료
+    const now=Date.now();if(v.step<4){v.step=4;v.log.push({s:4,t:now})}
+    v.loc='doctor';v.locStep=v.step;UI.msg='';UI.force=null;UI.viewStep=null;put(v,true);renderAll(true);toast((v.name||'환자')+': 진료실로 옮겼어요 (검사 전 진료).');return true;
+  }
+  if(room==='doctor'&&firstConsult(v))return false;
   const i=stepForRoom(v,room);
+  if(firstConsult(v))v.c1Done=true;
   if(v.loc&&i===v.step){v.loc='';v.locStep=null;put(v,true);renderAll(true);toast((v.name||'환자')+': '+ROOMS[room].label+'(으)로 돌아왔어요.');return true}
   if(i<0){toast((ROOMS[room]&&ROOMS[room].label||'그 방')+'에는 환자를 놓을 수 없어요.');return false}
   if(i===v.step){return false}
@@ -2988,7 +3003,7 @@ function m3Tip(e,id){
   if(!e||!id){t.hidden=true;return}
   const av=M3.avs.get(id);if(!av||!av.v){t.hidden=true;return}
   const v=av.v,b=M3.canvas.getBoundingClientRect();
-  t.textContent=(v.name||'?')+' · '+STEPS[Math.min(v.step,9)].name+' · '+mins(curElapsed(v,Date.now()))+'분';
+  t.textContent=(v.name||'?')+' · '+stepLabel(v)+' · '+mins(curElapsed(v,Date.now()))+'분';
   t.style.left=Math.min(b.width-150,e.clientX-b.left+12)+'px';t.style.top=(e.clientY-b.top+12)+'px';t.hidden=false;
 }
 /* ---- 그리기 루프 ---- */
@@ -4335,7 +4350,7 @@ function pickSheet(txt,cands){
     '<button class="btn primary" data-new="1">등록하고 가안 만들기</button></div>';
   o.innerHTML='<div class="grpick-box" role="dialog" aria-label="환자 고르기"><b>누구의 차트인가요?</b>'+(strongNew?newBox:'')+'<p>'+(cands.length?'이름·등록번호가 같은 환자가 여러 명이에요.':'차트에서 이름·등록번호를 찾지 못했어요.')+' 누르면 바로 리포트를 만들어요.</p>'+
     (a.length?'<div class="grpick-list">'+a.slice(0,60).map(function(v){
-      var where=v.step<0?(v.appt?'예약 '+v.appt:'도착 전'):(STEPS[v.step]?STEPS[v.step].short:'귀가');
+      var where=v.step<0?(v.appt?'예약 '+v.appt:'도착 전'):(STEPS[v.step]?stepLabel(v,1):'귀가');
       return '<button class="btn" data-pick="'+v.id+'"><b>'+esc(v.name||'이름 없음')+'</b><span>'+esc([age(v),v.sex,v.chartNo,where].filter(Boolean).join(' · '))+(isBlood(v)?' · 🩸':'')+'</span></button>'}).join('')+'</div>'
      :'<p>오늘 명단에 고를 환자가 없어요.</p>')+
     (strongNew?'':newBox)+'<button class="btn ghost" data-pick="">취소</button></div>';
