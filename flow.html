@@ -2468,12 +2468,34 @@ function pmSay(t){
   try{const u=new SpeechSynthesisUtterance(t);u.lang='ko-KR';u.rate=.95;const v=speechSynthesis.getVoices().find(x=>/^ko/i.test(x.lang));if(v)u.voice=v;speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){}
 }
 const PM_STEP_SAY=['접수와 대기','초진기록지 작성','초진방 링크 확인','키와 몸무게 측정','엑스레이 촬영','채혈','검사 결과 대기','원장님 진료','수납과 귀가','귀가'];
+/* 단계마다 무엇을 하면 되는지 — 방을 옮기면 이 말이 바뀝니다 */
+const PM_STEP_DO=['접수가 끝났어요. 대기실에서 잠시 기다려 주세요.','초진기록지를 작성해 주세요. 다 쓰시면 직원에게 알려 주세요.','보내 드린 초진방 링크를 열어 확인해 주세요.','키와 몸무게, 인바디를 잴 차례예요. 신발과 겉옷을 벗고 준비해 주세요.','엑스레이 촬영 차례예요. 엑스레이실로 이동해 주세요.','채혈 차례예요. 채혈실로 이동해 주세요.','검사가 끝났어요. 결과가 나올 때까지 대기실에서 기다려 주세요.','원장님 진료 차례예요. 진료실로 들어와 주세요. 남겨 주신 질문도 함께 봐 드려요.'];
+function koCount(n){const o=['','한','두','세','네','다섯','여섯','일곱','여덟','아홉'],t=['','열','스물','서른'];if(n<1||n>39)return String(n);if(n===20)return '스무';const tt=Math.floor(n/10),u=n%10;return (t[tt]||'')+(u?(tt&&u===1?'한':o[u]):(tt===2?'':''))}
+/* 보호자 폰 화면 아래에 실제로 보이는 영상 목록과 같은 순서 (kioskVideos와 같음) */
+function pmVideoList(d){
+  const v={vids:d.vids,xv:d.xv,first:!!d.first,lab:{proto:d.proto||'single'}},mine=patientVideos(v),xv=xvList(v);
+  const a=mine.length?mine:videosFor(v);
+  return xv.pick.map(x=>({title:x.title,tag:x.tag||'',k:'pick'})).concat(a.map(x=>({title:x.title,tag:x.tag||'',k:'mine'})),xv.always.map(x=>({title:x.title,tag:x.tag||'',k:'life'})));
+}
+function pmVideoSay(d){
+  const L=pmVideoList(d);if(!L.length)return '';
+  const st=d.step,test=x=>/채혈|검사/.test(x.tag+x.title);
+  const pick=(st===4||st===5)?(L.find(x=>x.k==='pick'&&test(x))||L.find(test)||L[0]):st===6?(L.find(x=>x.k==='pick')||L.find(x=>x.k==='life')||L[0]):(L.find(x=>x.k==='pick')||L[0]);
+  const when=st===5?'채혈 전후로 기다리시는 동안':st===6?'결과를 기다리시는 동안':'기다리시는 동안';
+  return when+' 보실 영상 '+koCount(L.length)+' 편이 화면 아래에 있어요. 지금은 「'+pick.title.replace(/[①②③]/g,'')+'」 영상을 먼저 보시면 좋아요. 영상을 터치하시면 재생됩니다. ';
+}
+function pmStepSay(d,next){
+  if(d.step<0)return '접수가 끝나면 이 화면에서 순서를 안내해 드립니다. ';
+  if(d.step>=8)return '진료가 끝났습니다. 수납 후 귀가해 주세요. 오늘도 수고 많으셨습니다.';
+  if(d.loc==='fluid')return (next?'수액실로 옮기셨어요. ':'지금은 수액실에 계세요. ')+'수액을 맞는 동안 편하게 쉬어 주세요. '+pmVideoSay(d);
+  let t=(next?'다음 순서입니다. ':'지금은 '+PM_STEP_SAY[d.step]+' 단계입니다. ')+PM_STEP_DO[d.step]+' ';
+  if(d.step===5&&(d.draws||[]).length)t+='자극검사는 정해진 시간마다 채혈해요. 화면의 채혈 시간을 확인해 주세요. ';
+  if(d.step<7)t+=pmVideoSay(d);
+  return t;
+}
+function pmVoiceKey(d){return d.step+'|'+(d.loc||'')}
 function pmGreeting(d){
-  const x=xvList({xv:d.xv}),mine=patientVideos({vids:d.vids}),n=x.pick.length+mine.length;
-  let t='안녕하세요. 삼성자라다 소아청소년과를 찾아주셔서 감사합니다. ';
-  t+=d.step<0?'접수가 끝나면 이 화면에서 순서를 안내해 드립니다. ':'지금은 '+PM_STEP_SAY[Math.min(d.step,9)]+' 단계입니다. ';
-  t+=n?'원장님을 기다리시는 동안 질문을 남기고, 미리 보실 영상 '+(['','한','두','세','네','다섯','여섯','일곱','여덟','아홉','열'][n]||n)+' 편을 준비했어요. 화면 아래의 영상을 터치하시면 재생됩니다. ':'원장님을 기다리시는 동안 질문을 남기고 영상을 미리 보고 계실까요? 화면 아래를 터치하시면 연결됩니다. ';
-  return t+'의학적인 판단은 진료 때 원장님께서 해드립니다.';
+  return '안녕하세요. 삼성자라다 소아청소년과를 찾아주셔서 감사합니다. '+pmStepSay(d,false)+(d.step>=0&&d.step<7?'궁금한 점은 화면에 질문으로 남겨 주세요. ':'')+'의학적인 판단은 진료 때 원장님께서 해드립니다.';
 }
 function pmVoiceHtml(d){
   if(!('speechSynthesis' in window))return '';
@@ -2510,12 +2532,12 @@ function pmRender(force,ui){
   if(!d&&PM.loaded)h+=pmManualHtml();
   el.innerHTML=h;
   pmTick(el,now);pmAlarms(s,now);
-  if(PM.voice&&d&&PM.vs[c]!==d.step){const first=PM.vs[c]===undefined;PM.vs[c]=d.step;if(!first)pmSay(d.step>=8?'진료가 끝났습니다. 수납 후 귀가해 주세요. 오늘도 수고 많으셨습니다.':'다음 단계입니다. 지금은 '+PM_STEP_SAY[Math.min(d.step,9)]+'입니다.')}
+  if(PM.voice&&d&&PM.vs[c]!==pmVoiceKey(d)){const first=PM.vs[c]===undefined;PM.vs[c]=pmVoiceKey(d);if(!first)pmSay(pmStepSay(d,true))}
 }
 function pmClick(e){
   const t=e.target.closest('button');if(!t)return;
   const c=PM.cur;
-  if(t.id==='pm-voice'){PM.voice=true;const d=PM.live[c];if(d){PM.vs[c]=d.step;pmSay(pmGreeting(d))}pmRender(true,true);return}
+  if(t.id==='pm-voice'){PM.voice=true;const d=PM.live[c];if(d){PM.vs[c]=pmVoiceKey(d);pmSay(pmGreeting(d))}pmRender(true,true);return}
   if(t.id==='pm-voice-off'){PM.voice=false;try{speechSynthesis.cancel()}catch(e){}pmRender(true,true);return}
   if(t.id==='pm-alarm'){pmEnableAlarm();return}
   if(t.id==='pm-today'){const h=pmHist();delete h[c];try{localStorage.setItem(PM_HIST,JSON.stringify(h))}catch(x){}const st=pmStore();if(st.kids[c]){st.kids[c].st='new';delete st.kids[c].nm;pmSave(st)}PM.busy=false;pmLoad();return}
