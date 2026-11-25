@@ -2356,6 +2356,61 @@ const PM={voice:false,vs:{},off:0,alerted:new Set(),sound:false,ctx:null,wl:null
 const PM_DEFAULT_ID='AKfycbzTNYUR8rlsZSmQl1AQrIkB-HGARhUQDwP4nrDFti3R7-ip4ipRGOqk4lVfVZpIFSwONg';
 const PM_GUIDE_SITE='https://jaradacare.com/app.html';
 function pmApi(){let a=String(new URLSearchParams(location.search).get('a')||PM_DEFAULT_ID);const dev=location.protocol==='file:'||/^(localhost|127\.0\.0\.1)$/.test(location.hostname);if(/^https?:/.test(a)){let ok=dev;try{const x=new URL(a);if(x.protocol==='https:'&&x.hostname==='script.google.com')ok=true}catch(e){}if(ok)return a;a=PM_DEFAULT_ID}if(!/^[A-Za-z0-9_-]+$/.test(a))a=PM_DEFAULT_ID;return 'https://script.google.com/macros/s/'+a+'/exec'}
+/* ---------- 성장 리포트 PDF (보호자 휴대폰) ----------
+   리포트 PDF는 아이의 초진방(pid)에 올라가 있습니다. 이 휴대폰이 연 적 있는 초진방(jrd_my_kids)에서 가져와
+   「이 휴대폰」에 저장해 둡니다. 카드 번호는 다음 날 다른 아이가 받을 수 있어도, 저장된 PDF는 카드와 무관하게 계속 열립니다. */
+const PM_PDF_LS='jrd_pm_pdfs';
+function pmPdfAll(){let o={};try{o=JSON.parse(localStorage.getItem(PM_PDF_LS)||'{}')||{}}catch(e){}return o}
+function pmPdfList(){const o=pmPdfAll();return Object.keys(o).map(k=>Object.assign({pid:k},o[k])).sort((a,b)=>b.at-a.at)}
+function pmPdfSave(pid,x){
+  const o=pmPdfAll();o[pid]=x;
+  const ks=Object.keys(o).sort((a,b)=>o[b].at-o[a].at);
+  for(let n=ks.length;n>=1;n--){const t={};ks.slice(0,n).forEach(k=>{t[k]=o[k]});try{localStorage.setItem(PM_PDF_LS,JSON.stringify(t));PM.pdfV=(PM.pdfV||0)+1;return true}catch(e){}}   // 저장 공간이 모자라면 오래된 것부터 지움
+  return false;
+}
+function pmPdfPick(rows,pid){
+  const sets={};
+  rows.filter(r=>r&&r.pid===pid&&r.type==='fvreport').forEach(r=>{let x=null;try{x=JSON.parse(r.question||'{}')}catch(e){}
+    if(!x||!x.set||x.data==null)return;
+    (sets[x.set]=sets[x.set]||{set:x.set,n:x.n,name:x.name,size:x.size,parts:{},ts:''}).parts[x.i]=x.data;if((r.timestamp||'')>sets[x.set].ts)sets[x.set].ts=r.timestamp||''});
+  const l=Object.keys(sets).map(k=>sets[k]).filter(o=>Object.keys(o.parts).length===o.n).sort((a,b)=>a.ts<b.ts?1:-1);
+  return l[0]||null;
+}
+async function pmPdfSync(force){
+  if(PM.pdfBusy||!navigator.onLine)return 0;
+  if(!force&&Date.now()-(PM.pdfAt||0)<180000)return 0;
+  let pids=[];try{pids=Object.keys(JSON.parse(localStorage.getItem('jrd_my_kids')||'{}')||{})}catch(e){}
+  if(!pids.length){PM.pdfAt=Date.now();return 0}
+  PM.pdfBusy=true;PM.pdfAt=Date.now();let n=0;
+  try{
+    const a=pmApi(),r=await fetch(a+(a.indexOf('?')<0?'?':'&')+'t='+Date.now()),rows=await r.json();
+    if(Array.isArray(rows))pids.forEach(pid=>{
+      const rep=pmPdfPick(rows,pid);if(!rep)return;
+      const cur=pmPdfAll()[pid];if(cur&&cur.set===rep.set)return;
+      let b64='';for(let i=0;i<rep.n;i++)b64+=rep.parts[i];
+      if(pmPdfSave(pid,{set:rep.set,name:rep.name||'growth-report.pdf',size:rep.size||0,at:Date.now(),date:pmToday(),b64:b64}))n++;
+    });
+  }catch(e){}
+  PM.pdfBusy=false;return n;
+}
+function pmPdfOpen(pid){
+  const x=pmPdfAll()[pid];if(!x)return false;
+  try{
+    const bin=atob(x.b64),u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
+    const url=URL.createObjectURL(new Blob([u8],{type:'application/pdf'})),a=document.createElement('a');a.href=url;a.download=x.name||'growth-report.pdf';document.body.appendChild(a);a.click();a.remove();
+    if(/KAKAOTALK|NAVER\(|Instagram|FBAN|FBAV|Line\/|; wv\)/i.test(navigator.userAgent))setTimeout(()=>{try{window.open(url,'_blank')}catch(e){}},400);   // 앱 안 브라우저는 다운로드가 막혀 새 창으로
+    setTimeout(()=>URL.revokeObjectURL(url),60000);return true;
+  }catch(e){return false}
+}
+function pmPdfHtml(final){
+  const l=pmPdfList();
+  if(!l.length){
+    if(!final)return '';
+    return '<div class="keta pm-pdf"><b>📄 성장 리포트 PDF</b><p class="meta">리포트가 준비되면 이 휴대폰에 저장돼서, 다음에 카드 번호가 바뀌어도 계속 열어 볼 수 있어요. 문자로 받은 초진방 링크를 한 번 열어 두셨다면 자동으로 가져옵니다.</p><button type="button" class="btn" data-pmpdf-sync="1">지금 가져오기</button><p class="meta">'+esc(PM.pdfMsg||'')+'</p></div>';
+  }
+  return '<div class="keta pm-pdf"><b>📄 성장 리포트 PDF</b><p class="meta">이 휴대폰에 저장되어 있어요. 병원 카드 번호가 다른 아이에게 넘어가도 계속 열립니다.</p>'+
+    l.map(x=>'<div class="pm-row" style="margin:6px 0"><button type="button" class="btn primary" data-pmpdf="'+esc(x.pid)+'">⬇️ '+esc((x.name||'리포트').replace(/\.pdf$/i,''))+'</button><span class="meta">'+esc(x.date||'')+' · '+Math.max(1,Math.round((x.size||0)/1024))+'KB</span></div>').join('')+'</div>';
+}
 function pmToday(){const n=new Date(Date.now()+PM.off);return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0')}
 /* 귀가했거나 어제 이전 방문이면 카드를 찍어도 보여주지 않음(서버도 같은 기준으로 거르고, 여기서 한 번 더) */
 function pmUsable(v){if(!v||v.step>=9)return false;if(v.date&&v.date!==pmToday())return false;return true}
@@ -2477,6 +2532,7 @@ function pmLiveHtml(c,k,d,now){
   }
   if(d.step<8)h+=pmAskHtml(c,k,d);
   if(d.step>=8)h+=pmRateHtml(c,k);
+  if(d.step>=7)h+=pmPdfHtml(d.step>=8);
   h+=pmManualHtml();
   h+=kioskVideos({vids:d.vids,xv:d.xv,first:!!d.first,lab:{proto:d.proto||'single'}});
   return h;
@@ -2543,7 +2599,7 @@ function pmRender(force,ui){
   const playing=el.querySelector('.kvitem.on');   // 영상을 보는 중이면 다시 그리지 않음 (다시 그리면 영상이 3~5초 만에 끊김)
   if(playing&&!ui){pmTick(el,now);pmAlarms(s,now);return}
   const c=PM.cur,k=s.kids[c]||{st:'new'},d=k.st==='live'?PM.live[c]:null;   // 지금 찍은 카드만 — 다른 아이로 넘어가지 않음
-  const key=JSON.stringify([c,k.st,k.nm,k.bound,k.ask,k.rate,k.code,d,PM.sound,PM.fail,PM.rateSel[c],PM.msg[c],PM.msg['r'+c],PM.loaded]);
+  const key=JSON.stringify([c,k.st,k.nm,k.bound,k.ask,k.rate,k.code,d,PM.sound,PM.fail,PM.pdfV,PM.pdfMsg,PM.rateSel[c],PM.msg[c],PM.msg['r'+c],PM.loaded]);
   if(!force&&!ui&&el.dataset.k===key){pmTick(el,now);pmAlarms(s,now);return}
   el.dataset.k=key;
   let h='';
@@ -2552,7 +2608,7 @@ function pmRender(force,ui){
   else if(k.st==='done')h=`<div class="pm-hero"><small>삼성자라다 소아청소년과</small><h2>${esc(k.nm||'')} 어린이</h2><div class="pm-now"><b>오늘 진료가 끝났어요</b><span>수고 많으셨어요. 조심히 들어가세요.</span></div></div>`+pmRateHtml(c,k);
   else if(!PM.loaded)h='<p class="kbig">불러오는 중…</p>';
   else h='<h2>삼성자라다 소아청소년과</h2><p class="kbig">'+(PM.fail?'대기 현황을 불러오지 못했습니다. 자동으로 다시 시도합니다.<br><span style="font-size:15px">계속 안 되면 접수 데스크에 카드를 보여 주세요.</span>':'지금 확인되는 접수 정보가 없습니다. 접수 후 다시 카드를 찍어 주세요.')+'</p>'+pmReceiptHtml();
-  if(!d&&PM.loaded)h+=pmManualHtml();
+  if(!d&&PM.loaded)h+=pmPdfHtml(false)+pmManualHtml();
   const keep=playing&&playing.querySelector('.kvrow')?playing.querySelector('.kvrow').dataset.vsrc:null;
   el.innerHTML=h;
   if(keep){const b=[...el.querySelectorAll('.kvrow')].find(x=>x.dataset.vsrc===keep);if(b)kvToggle(b,true)}
@@ -2564,6 +2620,8 @@ function pmClick(e){
   const c=PM.cur;
   if(t.id==='pm-voice'){PM.voice=true;const d=PM.live[c];if(d){PM.vs[c]=pmVoiceKey(d);pmSay(pmGreeting(d))}pmRender(true,true);return}
   if(t.id==='pm-voice-off'){PM.voice=false;try{speechSynthesis.cancel()}catch(e){}pmRender(true,true);return}
+  if(t.dataset.pmpdf){if(!pmPdfOpen(t.dataset.pmpdf)){PM.pdfMsg='파일을 열지 못했어요. 다시 가져와 주세요.';pmRender(true,true)}return}
+  if(t.dataset.pmpdfSync){PM.pdfMsg='가져오는 중…';pmRender(true,true);pmPdfSync(true).then(n=>{PM.pdfMsg=n?'':'아직 올라온 리포트가 없어요. 직원이 확인하는 대로 올라옵니다.';pmRender(true,true)});return}
   if(t.id==='pm-alarm'){pmEnableAlarm();return}
   if(t.id==='pm-today'){const h=pmHist();delete h[c];try{localStorage.setItem(PM_HIST,JSON.stringify(h))}catch(x){}const st=pmStore();if(st.kids[c]){st.kids[c].st='new';delete st.kids[c].nm;pmSave(st)}PM.busy=false;pmLoad();return}
   if(t.dataset.pmstar){PM.rateSel[c]=Number(t.dataset.pmstar);pmRender(true,true);const ta=$('#pm-rate-t');if(ta&&PM.rateSel[c]<=3)ta.focus();return}
@@ -2600,7 +2658,7 @@ function patientMode(){
   el.addEventListener('click',pmClick);
   el.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.dataset.pmdraft!=null)PM.draft[t.dataset.pmdraft]=t.value});
   el.addEventListener('focusout',e=>{if(e.target&&e.target.tagName==='TEXTAREA')setTimeout(()=>pmRender(false),300)});
-  pmLoad().then(()=>{PM.loaded=true;pmRender(true)});setInterval(pmLoad,10000);setInterval(()=>pmRender(false),1000);
+  pmLoad().then(()=>{PM.loaded=true;pmRender(true)});setInterval(pmLoad,10000);setInterval(()=>{const d=PM.live[PM.cur];if(PM.loaded&&(!d||d.step>=6))pmPdfSync(false).then(n=>{if(n)pmRender(true,true)})},20000);   // 리포트가 올라오면 이 휴대폰에 자동 저장setInterval(()=>pmRender(false),1000);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){pmLoad();if(PM.sound&&navigator.wakeLock)navigator.wakeLock.request('screen').then(w=>PM.wl=w).catch(()=>{})}});
 }
 if(PM_CODE){patientMode()}else{

@@ -590,6 +590,8 @@ function applyI18n(){
 
 const qs = new URLSearchParams(location.search);
 const PID = qs.get('pid') || '';
+/* 이 휴대폰에서 연 초진방(아이)을 기억해 둡니다 — 병원 카드 화면에서 우리 아이 성장 리포트 PDF를 이어서 받을 수 있게 */
+try{ if(PID){ const _mk = JSON.parse(localStorage.getItem('jrd_my_kids')||'{}')||{}; _mk[PID] = { t: Date.now() }; const _ks = Object.keys(_mk).sort((x,y)=>_mk[y].t-_mk[x].t).slice(0,6), _o = {}; _ks.forEach(k=>{ _o[k] = _mk[k]; }); localStorage.setItem('jrd_my_kids', JSON.stringify(_o)); } }catch(e){}
 /* 주소의 api= 는 우리 서버(구글 Apps Script)만 받습니다 — 누가 가짜 서버 주소를 넣은 링크를 보내도 기록·사진이 그쪽으로 가지 않게 합니다. */
 function safeApi(u){ u = String(u||'').trim(); if(!u) return ''; const dev = location.protocol === 'file:' || /^(localhost|127\.0\.0\.1)$/.test(location.hostname); try{ const x = new URL(u); if(x.protocol === 'https:' && x.hostname === 'script.google.com') return u; if(dev) return u; }catch(e){} return ''; }
 const API = safeApi(qs.get('api'));
