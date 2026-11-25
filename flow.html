@@ -159,6 +159,12 @@ button{cursor:pointer}
 .kiosk .kvopen{display:block;margin:6px 0 2px;font-size:15px}
 
 .kiosk .kv{width:100%;aspect-ratio:16/9;border:0;border-radius:10px;background:#000;margin:6px 0 2px}
+/* 영상을 열면 썸네일 자리에서 바로 재생 (아래에 같은 영상이 또 보이지 않게) */
+.kiosk .kvitem.on{display:flex;flex-direction:column}
+.kiosk .kvitem.on .kvplay{order:-1}
+.kiosk .kvitem.on .kvth{display:none}
+.kiosk .kvitem.on .kv{margin:0 0 6px}
+.kiosk .kvitem.on .kvopen{order:-1;margin:0 0 6px}
 .xvbox{margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface2)}
 .xvh{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline;margin-bottom:8px}
 .xvchips{display:flex;flex-wrap:wrap;gap:6px}
@@ -587,8 +593,8 @@ const STEPS=[
   {name:'계측·인바디',short:'계측',room:'wait',warn:10},
   {name:'X-ray',short:'X-ray',room:'xray',warn:15},
   {name:'채혈',short:'채혈',room:'lab',warn:10},
-  {name:'결과 대기',short:'결과대기',room:'wait',warn:40},
-  {name:'결과 확인',short:'진료',room:'doctor',warn:15},
+  {name:'대기',short:'대기',room:'wait',warn:40},
+  {name:'진료 (다시 봄)',short:'재진료',room:'doctor',warn:15},
   {name:'수납·귀가',short:'귀가',room:'exit',warn:10},
   {name:'결과지 리포트',short:'리포트',room:'exit',warn:0}
 ];
@@ -603,13 +609,16 @@ const ROOMS={
   doctor:{x:545,y:190,w:195,h:215,label:'진료실',door:[620,190],dy:68},
   exit:{x:380,y:415,w:200,h:56,label:'출입구',door:[480,415],dy:42}
 };
+/* 현황판 칸: 대기는 「진료 전 대기」(접수~계측)와 「진료 후 대기」(검사 끝난 뒤, 귀가 전)로 나눠 보여 줍니다 */
+function colKey(v){const r=roomOf(v);return r==='wait'&&v.step>=6?'wait2':r}
 function boardCols(){
-  const used=new Set(['booked','exit']);
+  const used=new Set(['booked','exit','wait','wait2']);
   STEPS.forEach(s=>used.add(s.room));
-  S.items.forEach(v=>used.add(roomOf(v)));
+  S.items.forEach(v=>used.add(colKey(v)));
   let ord=[];try{ord=JSON.parse(localStorage.getItem('jrd_flow_colorder')||'[]')}catch(e){}   // 현황판 열 순서(이 기기에 저장): 열 제목을 끌어서 바꿈
-  const dflt=['booked','wait','fluid','clin','lab','xray','doctor','exit'],rk=k=>{const i=ord.indexOf(k);return i<0?100+dflt.indexOf(k):i};
-  return dflt.filter(k=>used.has(k)).sort((a,b)=>rk(a)-rk(b)).map(k=>({key:k,label:k==='booked'?'예약':(k==='exit'?'귀가·리포트':ROOMS[k].label)}));
+  if(ord.length&&ord.indexOf('wait2')<0){const li=ord.indexOf('lab');ord.splice(li<0?ord.length:li+1,0,'wait2')}
+  const dflt=['booked','wait','doctor','xray','lab','wait2','fluid','clin','exit'],rk=k=>{const i=ord.indexOf(k);return i<0?100+dflt.indexOf(k):i};
+  return dflt.filter(k=>used.has(k)).sort((a,b)=>rk(a)-rk(b)).map(k=>({key:k,label:k==='booked'?'예약':k==='exit'?'귀가·리포트':k==='wait'?'진료 전 대기':k==='wait2'?'진료 후 대기':ROOMS[k].label}));
 }
 const LAB_OPTS=['원내검사','수탁검사'];
 const LAB_DEFAULT=['원내검사'];
@@ -691,14 +700,14 @@ function newVisit(f){
    검사 전 진료는 다음 검사 단계에 「진료실에 있음」(loc='doctor')으로 표시합니다. */
 const firstConsult=v=>!!v&&v.loc==='doctor'&&v.locStep===v.step&&v.step>=4&&v.step<=6;
 const stepLabel=(v,sh)=>firstConsult(v)?(sh?'진료':'진료 (검사 전)'):STEPS[Math.min(v.step,9)][sh?'short':'name'];
-const skipStep=(v,i)=>i===2&&!!v.rev&&!(v.invite&&v.invite.sentAt);
+const skipStep=(v,i)=>(i===2&&!!v.rev&&!(v.invite&&v.invite.sentAt))||(i===7&&!v.recheck);   // 7(다시 진료)는 다시 볼 때만
 function blocker(v){
   switch(v.step){
     case 1:case 2:case 3:case 4:return null;
     case 5:
       if(timed(v)){if(!v.lab.t0)return '검사 시작 버튼을 눌러 주세요.';const n=pendDraws(v).length;return n?'남은 채혈 '+n+'회':null}
       return null;
-    case 6:{const miss=pendingItems(v).filter(k=>!isExt(v,k));return miss.length?'결과가 아직 없는 항목: '+miss.join(', ')+' (수탁검사는 결과 대기 상태로 넘어갈 수 있습니다)':null}
+    case 6:return null;
     case 7:case 8:return null;
     default:return null;
   }
@@ -1020,7 +1029,7 @@ function renderBoard(){
   const now=Date.now(),a=list();
   if(!a.length)return notifyHtml()+emptyHtml();
   const cols=boardCols().map(c=>{
-    const vs=a.filter(v=>roomOf(v)===c.key).sort((x,y)=>(stepStart(x,x.step)||x.createdAt)-(stepStart(y,y.step)||y.createdAt));
+    const vs=a.filter(v=>colKey(v)===c.key).sort((x,y)=>(stepStart(x,x.step)||x.createdAt)-(stepStart(y,y.step)||y.createdAt));
     return `<div class="col" data-colkey="${c.key}"><h3 draggable="true" data-colh="${c.key}" title="끌어서 열 위치를 옮길 수 있어요" style="cursor:grab">${c.label}<span>${vs.length}</span></h3>${vs.map(v=>cardHtml(v,now)).join('')}</div>`;
   }).join('');
   const ex=`<p class="hint">${a.some(v=>v.example)?'<button class="btn sm ghost" data-act="clear-ex">예시 환자 비우기</button> ':''}<button class="btn sm ghost" data-act="col-reset">열 순서 처음대로</button> <span style="color:var(--sub,#789)">열 제목을 끌어서 위치를 옮길 수 있어요</span></p>`;
@@ -1433,14 +1442,16 @@ function kvRows(a,ranked){
 }
 function kioskVideos(v){
   const mine=patientVideos(v),xv=xvList(v);
-  const a=mine.length?mine.map(x=>({title:x.title,url:x.play||x.src,thumb:x.thumb})):videosFor(v);
+  let a=mine.length?mine.map(x=>({title:x.title,url:x.play||x.src,thumb:x.thumb})):videosFor(v);
+  const seen=new Set(xv.pick.concat(xv.always).map(x=>String(x.title||'').replace(/\s/g,'')));   // 위 상자에 이미 있는 영상은 다시 보여주지 않음
+  a=a.filter(x=>!seen.has(String(x.title||'').replace(/\s/g,'')));
   let h='';
   if(xv.pick.length)h+=`<div class="kvbox kvpick"><b>선생님이 권해 드리는 영상</b><p class="meta" style="margin:2px 0 8px">오늘 검사·치료와 관련된 영상이에요. 누르면 바로 재생돼요.</p>${kvRows(xv.pick,false)}</div>`;
   if(a.length)h+=`<div class="kvbox"><b>기다리는 동안 보세요</b><p class="meta" style="margin:2px 0 8px">보고 싶은 영상을 누르면 바로 재생돼요.</p>${kvRows(a,!!mine.length)}</div>`;
   if(xv.always.length)h+=`<div class="kvbox"><b>함께 보면 좋은 생활습관 영상</b><p class="meta" style="margin:2px 0 8px">영양·운동·수면, 성장에 꼭 필요한 습관이에요.</p>${kvRows(xv.always,false)}</div>`;
   return h;
 }
-function kvToggle(btn){
+function kvToggle(btn,noScroll){
   const box=btn.closest('#kiosk')||document,item=btn.parentNode,pl=item.querySelector('.kvplay'),open=btn.getAttribute('aria-expanded')==='true';
   box.querySelectorAll('.kvitem').forEach(it=>{it.querySelector('.kvrow').setAttribute('aria-expanded','false');it.querySelector('.kvplay').innerHTML='';it.classList.remove('on')});
   if(open)return;
@@ -1449,7 +1460,7 @@ function kvToggle(btn){
   else if(/\.(mp4|webm)(\?|$)/i.test(u))pl.innerHTML=`<video class="kv" src="${esc(u)}"${btn.dataset.vthumb?` poster="${esc(btn.dataset.vthumb)}"`:''} controls playsinline autoplay preload="metadata"></video>`;
   else pl.innerHTML=videoEmbed(u)+`<a class="kvopen" href="${esc(u)}" target="_blank" rel="noopener">크게 보기 ↗</a>`;
   btn.setAttribute('aria-expanded','true');item.classList.add('on');
-  setTimeout(()=>item.scrollIntoView({behavior:'smooth',block:'start'}),50);
+  if(!noScroll)setTimeout(()=>item.scrollIntoView({behavior:'smooth',block:'nearest'}),50);
 }
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('.kvrow');if(b)kvToggle(b)});
 /* ---------- 결과지 리포트 ---------- */
@@ -1812,7 +1823,7 @@ function detailHtml(){
   if(cur<10){
     let nextName=cur<9?STEPS[cur+(skipStep(v,cur+1)?2:1)].name:'발송 완료';if(firstConsult(v))nextName=STEPS[cur].name;else if(cur<=3&&!v.c1Done&&cur+(skipStep(v,cur+1)?2:1)>=4&&cur+(skipStep(v,cur+1)?2:1)<=6)nextName='진료 (검사 전)';
     act=`<div class="actions">${cur>=0?`<button class="btn ghost" data-act="back">이전 단계로</button>`:''}
-      <button class="btn" data-act="gr-open">📄 성장 리포트${grMark(v)}</button><button class="btn" data-act="quick-done" title="남은 단계를 건너뛰고 바로 완료 처리">바로 완료 처리</button>
+      <button class="btn" data-act="gr-open">📄 성장 리포트${grMark(v)}</button>${cur===6?`<button class="btn" data-act="recheck" title="결과를 보고 원장님이 한 번 더 진료할 때">다시 진료 필요</button>`:''}<button class="btn" data-act="quick-done" title="남은 단계를 건너뛰고 바로 완료 처리">바로 완료 처리</button>
       <button class="btn primary" data-act="next">${cur<9?'완료 → 다음: '+esc(nextName):'리포트 발송 완료로 표시'}</button>
       ${UI.msg?`<span class="msg" role="alert">${esc(UI.msg)}</span>`:''}
       ${UI.msg&&UI.force===v.id?`<button class="btn ghost" data-act="next-force">그래도 넘기기</button>`:''}</div>`;
@@ -1926,6 +1937,7 @@ function onAction(act,el){
     case 'next-force':if(v)advance(v,true);break;
     case 'xv':if(v){const n=String(el.dataset.n),c=String(v.xv||'').split('').filter(Boolean);const k=c.indexOf(n);if(k>=0)c.splice(k,1);else c.push(n);v.xv=c.sort().join('');put(v,true);renderDetail(true)}break;
     case 'back':if(v)rewind(v);break;
+    case 'recheck':if(v&&v.step===6){v.recheck=true;advance(v,true)}break;
     case 'del':UI.confirmDel=UI.sel;renderDetail(true);break;
     case 'del-no':UI.confirmDel=null;renderDetail(true);break;
     case 'del-yes':if(v){const i=v.id;UI.sel=null;UI.confirmDel=null;remove(i);renderAll(true)}break;
@@ -2450,9 +2462,9 @@ function pmRateHtml(c,k){
   return h+(PM.msg['r'+c]?`<p class="meta">${esc(PM.msg['r'+c])}</p>`:'')+'</div>';
 }
 function pmLiveHtml(c,k,d,now){
-  const names=['접수·대기','초진기록지','초진방 링크','키·몸무게·인바디','X-ray','채혈','결과 대기','진료','수납·귀가','귀가'];
+  const names=['접수·대기','초진기록지','초진방 링크','키·몸무게·인바디','X-ray','채혈','대기','진료 (다시 봄)','수납·귀가','귀가'];
   const draws=d.draws||[],pend=draws.filter(x=>!x.done),cur=Math.min(d.step,9);
-  const dc=d.loc==='doctor'&&d.step>=4&&d.step<=6,ms=['접수','계측','진료','X-ray','채혈','결과','진료','수납'],mi=d.step<=2?0:d.step>=8?7:d.step===3?1:dc?2:d.step-1;
+  const dc=d.loc==='doctor'&&d.step>=4&&d.step<=6,ms=['접수','계측','진료','X-ray','채혈','대기','수납'],mi=d.step<=2?0:d.step>=8?6:d.step===3?1:dc?2:Math.min(d.step-1,5);
   let now_=d.step<0?'<div class="pm-now"><b>아직 접수 전이에요</b></div>':d.step>=8?'<div class="pm-now"><b>진료가 끝났어요</b><span>수납 후 귀가해 주세요</span></div>':`<div class="pm-now"><span>지금</span><b>${esc(dc?'원장님 진료 (검사 전)':names[cur])}</b><span class="pm-t"><span data-since="${d.since||now}">${mins(now-(d.since||now))}분째</span></span></div>`;
   let h=`<div class="pm-hero"><small>삼성자라다 소아청소년과</small><h2>${esc(d.name)} 어린이</h2>${now_}</div>`+
     (d.step<0?'':`<ol class="pm-track">`+ms.map((n,i)=>`<li class="${i<mi?'d':i===mi?'c':''}"><i>${i<mi?'✓':i+1}</i><span>${n}</span></li>`).join('')+'</ol>');
@@ -2475,9 +2487,9 @@ function pmSay(t){
   if(!PM.voice||!('speechSynthesis' in window))return;
   try{const u=new SpeechSynthesisUtterance(t);u.lang='ko-KR';u.rate=.95;const v=speechSynthesis.getVoices().find(x=>/^ko/i.test(x.lang));if(v)u.voice=v;speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){}
 }
-const PM_STEP_SAY=['접수와 대기','초진기록지 작성','초진방 링크 확인','키와 몸무게 측정','엑스레이 촬영','채혈','검사 결과 대기','원장님 진료','수납과 귀가','귀가'];
+const PM_STEP_SAY=['접수와 대기','초진기록지 작성','초진방 링크 확인','키와 몸무게 측정','엑스레이 촬영','채혈','대기','원장님 진료','수납과 귀가','귀가'];
 /* 단계마다 무엇을 하면 되는지 — 방을 옮기면 이 말이 바뀝니다 */
-const PM_STEP_DO=['접수가 끝났어요. 대기실에서 잠시 기다려 주세요.','초진기록지를 작성해 주세요. 다 쓰시면 직원에게 알려 주세요.','보내 드린 초진방 링크를 열어 확인해 주세요.','키와 몸무게, 인바디를 잴 차례예요. 신발과 겉옷을 벗고 준비해 주세요.','엑스레이 촬영 차례예요. 엑스레이실로 이동해 주세요.','채혈 차례예요. 채혈실로 이동해 주세요.','검사가 끝났어요. 결과가 나올 때까지 대기실에서 기다려 주세요.','원장님 진료 차례예요. 진료실로 들어와 주세요. 남겨 주신 질문도 함께 봐 드려요.'];
+const PM_STEP_DO=['접수가 끝났어요. 대기실에서 잠시 기다려 주세요.','초진기록지를 작성해 주세요. 다 쓰시면 직원에게 알려 주세요.','보내 드린 초진방 링크를 열어 확인해 주세요.','키와 몸무게, 인바디를 잴 차례예요. 신발과 겉옷을 벗고 준비해 주세요.','엑스레이 촬영 차례예요. 엑스레이실로 이동해 주세요.','채혈 차례예요. 채혈실로 이동해 주세요.','검사가 끝났어요. 대기실에서 잠시 기다려 주세요. 영상을 보며 쉬셔도 좋아요.','원장님이 다시 한 번 볼게요. 진료실로 들어와 주세요.'];
 function koCount(n){const o=['','한','두','세','네','다섯','여섯','일곱','여덟','아홉'],t=['','열','스물','서른'];if(n<1||n>39)return String(n);if(n===20)return '스무';const tt=Math.floor(n/10),u=n%10;return (t[tt]||'')+(u?(tt&&u===1?'한':o[u]):(tt===2?'':''))}
 /* 보호자 폰 화면 아래에 실제로 보이는 영상 목록과 같은 순서 (kioskVideos와 같음) */
 function pmVideoList(d){
@@ -2528,6 +2540,8 @@ function pmAlarms(s,now){
 function pmRender(force,ui){
   const el=$('#kiosk'),now=Date.now()+PM.off,s=pmStore();
   if(!ui){const a=document.activeElement;if(a&&a.tagName==='TEXTAREA'&&el.contains(a)){pmTick(el,now);pmAlarms(s,now);return}}   // 글을 쓰는 중에는 화면을 다시 그리지 않음
+  const playing=el.querySelector('.kvitem.on');   // 영상을 보는 중이면 다시 그리지 않음 (다시 그리면 영상이 3~5초 만에 끊김)
+  if(playing&&!ui){pmTick(el,now);pmAlarms(s,now);return}
   const c=PM.cur,k=s.kids[c]||{st:'new'},d=k.st==='live'?PM.live[c]:null;   // 지금 찍은 카드만 — 다른 아이로 넘어가지 않음
   const key=JSON.stringify([c,k.st,k.nm,k.bound,k.ask,k.rate,k.code,d,PM.sound,PM.fail,PM.rateSel[c],PM.msg[c],PM.msg['r'+c],PM.loaded]);
   if(!force&&!ui&&el.dataset.k===key){pmTick(el,now);pmAlarms(s,now);return}
@@ -2539,7 +2553,9 @@ function pmRender(force,ui){
   else if(!PM.loaded)h='<p class="kbig">불러오는 중…</p>';
   else h='<h2>삼성자라다 소아청소년과</h2><p class="kbig">'+(PM.fail?'대기 현황을 불러오지 못했습니다. 자동으로 다시 시도합니다.<br><span style="font-size:15px">계속 안 되면 접수 데스크에 카드를 보여 주세요.</span>':'지금 확인되는 접수 정보가 없습니다. 접수 후 다시 카드를 찍어 주세요.')+'</p>'+pmReceiptHtml();
   if(!d&&PM.loaded)h+=pmManualHtml();
+  const keep=playing&&playing.querySelector('.kvrow')?playing.querySelector('.kvrow').dataset.vsrc:null;
   el.innerHTML=h;
+  if(keep){const b=[...el.querySelectorAll('.kvrow')].find(x=>x.dataset.vsrc===keep);if(b)kvToggle(b,true)}
   pmTick(el,now);pmAlarms(s,now);
   if(PM.voice&&d&&PM.vs[c]!==pmVoiceKey(d)){const first=PM.vs[c]===undefined;PM.vs[c]=pmVoiceKey(d);if(!first)pmSay(pmStepSay(d,true))}
 }
@@ -2931,6 +2947,11 @@ function stepForRoom(v,room){
 }
 function moveToRoom(v,room){
   if(!v||v.step<0||v.step>=10)return false;
+  if(room==='wait2'){   // 진료 후 대기: 검사를 마치고 기다리는 칸
+    if(v.step>=6)return false;
+    const now=Date.now();if(v.step===4)v.xray.done=true;if(v.step===5)v.lab.drawn=true;
+    v.c1Done=true;v.loc='';v.locStep=null;v.step=6;v.log.push({s:6,t:now});UI.msg='';UI.force=null;UI.viewStep=null;put(v,true);renderAll(true);toast((v.name||'환자')+': 진료 후 대기로 옮겼어요.');return true;
+  }
   if(room==='fluid'){
     if(roomOf(v)==='fluid')return false;
     v.loc='fluid';v.locStep=v.step;put(v,true);renderAll(true);toast((v.name||'환자')+': 수액실로 옮겼어요 (진행 단계는 그대로).');return true;
@@ -2947,6 +2968,7 @@ function moveToRoom(v,room){
   if(i===v.step){return false}
   const now=Date.now();
   if(v.step===4)v.xray.done=true;if(v.step===5)v.lab.drawn=true;if(v.step===8)v.exit.paid=true;
+  if(i===7)v.recheck=true;
   v.step=i;v.log.push({s:i,t:now});UI.msg='';UI.force=null;UI.viewStep=null;
   put(v,true);renderAll(true);toast((v.name||'환자')+': '+ROOMS[room].label+' · '+STEPS[i].name+' 단계로 옮겼어요.');
   return true;

@@ -1,4 +1,4 @@
-// 진료 순서: 대기 → 계측 → 진료(검사 전) → X-ray·채혈 → 결과 대기 → 진료(결과 확인) → 귀가. 검사 전 진료는 다음 검사 단계에 「진료실」로 표시
+// 진료 순서: 대기 → 계측 → 진료(검사 전) → X-ray·채혈 → 대기 → (다시 볼 때만 진료) → 귀가. 검사 전 진료는 다음 검사 단계에 「진료실」로 표시
 const { chromium } = require('playwright');
 const fs = require('fs'), path = require('path');
 const FLOW = process.argv[2], OUT = process.argv[3];
@@ -41,11 +41,18 @@ function handle(b) {
   await page.evaluate(() => advance(S.items.get('a'), true)); chk('계측 후 검사 전 진료', await st('a'), 4, 'doctor', '진료 (검사 전)');
   // 진료가 끝나면 → X-ray
   await page.evaluate(() => advance(S.items.get('a'), true)); chk('진료 후 X-ray', await st('a'), 4, 'xray', 'X-ray');
-  await page.evaluate(() => { advance(S.items.get('a'), true); advance(S.items.get('a'), true); advance(S.items.get('a'), true); }); chk('검사 후 결과 확인(진료)', await st('a'), 7, 'doctor', '결과 확인');
+  await page.evaluate(() => { advance(S.items.get('a'), true); advance(S.items.get('a'), true); }); chk('검사 후 그냥 대기', await st('a'), 6, 'wait', '대기');
+  await page.evaluate(() => advance(S.items.get('a'), true)); chk('대기 다음은 바로 수납·귀가', await st('a'), 8, 'exit', '수납·귀가');
   // 대기 중인 아이를 진료실에 놓으면 검사 전 진료, 진료실에서 검사실로 옮기면 진료 끝
   await page.evaluate(() => moveToRoom(S.items.get('b'), 'doctor')); chk('대기→진료실', await st('b'), 4, 'doctor', '진료 (검사 전)');
   await page.evaluate(() => moveToRoom(S.items.get('b'), 'lab')); const b2 = await st('b'); chk('진료실→채혈실', b2, 5, 'lab', '채혈'); if (!b2.c1) console.log('FAIL 검사 전 진료 완료 표시 없음');
-  await page.evaluate(() => moveToRoom(S.items.get('b'), 'doctor')); chk('검사 후 진료실', await st('b'), 7, 'doctor', '결과 확인');
+  await page.evaluate(() => moveToRoom(S.items.get('b'), 'doctor')); chk('검사 후 진료실(다시 봄)', await st('b'), 7, 'doctor', '진료 (다시 봄)');
+  await page.evaluate(() => { const v = S.items.get('b'); v.step = 6; v.recheck = false; onAction('recheck', { dataset: { id: 'b' } }); }); chk('다시 진료 필요 버튼', await st('b'), 7, 'doctor', '진료 (다시 봄)');
+  // 현황판 칸: 진료 전 대기 / 진료 / X-ray / 채혈 / 진료 후 대기 / 귀가
+  const cols = await page.evaluate(() => boardCols().map(c => c.label).join(' > '));
+  if (!/진료 전 대기 > 진료실 > 엑스레이실 > 채혈실·주사실 > 진료 후 대기 > 귀가·리포트/.test(cols)) console.log('FAIL 현황판 칸 순서', cols);
+  const k = await page.evaluate(() => { const v = S.items.get('b'); v.recheck = false; v.step = 6; v.loc = ''; const a = colKey(v); v.step = 3; const b = colKey(v); moveToRoom(v, 'wait2'); return [a, b, v.step, colKey(v)]; });
+  if (k.join() !== 'wait2,wait,6,wait2') console.log('FAIL 진료 후 대기 칸 배정', k.join());
   console.log('errors', JSON.stringify(errs));
   await browser.close();
 })().catch(e => { console.error('FAIL', e); process.exit(1); });
