@@ -22,6 +22,7 @@ const KIDS = { C001: { name: '한가람', step: 8, date: TODAY, since: now - 5 *
       if (b.action === 'flowme') return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ status: 'ok', now: Date.now(), visit: KIDS[b.card] || null }) });
       return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ status: 'ok' }) });
     }
+    if (u.includes('pdf.js/3.11.174/pdf.min.js')) return route.fulfill({ contentType: 'application/javascript', body: "window.pdfjsLib={GlobalWorkerOptions:{},getDocument:function(){return{promise:Promise.resolve({numPages:2,getPage:function(){return Promise.resolve({getViewport:function(o){return{width:600*o.scale,height:800*o.scale}},render:function(){return{promise:Promise.resolve()}}})}})}}};" });
     for (const k in LIBS) if (u.includes(k)) return route.fulfill({ contentType: 'application/javascript', body: fs.readFileSync(LIBS[k]) });
     if (u.startsWith('file:')) return route.continue();
     return route.fulfill({ status: 204, body: '' });
@@ -35,11 +36,19 @@ const KIDS = { C001: { name: '한가람', step: 8, date: TODAY, since: now - 5 *
   if (!(await pv.locator('[data-pmpdf="P1"]').count())) console.log('FAIL 귀가 단계에 PDF 받기 단추가 없음');
   const [dl] = await Promise.all([pv.waitForEvent('download', { timeout: 5000 }).catch(() => null), pv.click('[data-pmpdf="P1"]')]);
   if (!dl) console.log('FAIL PDF가 내려받아지지 않음'); else if (!/\.pdf$/.test(dl.suggestedFilename())) console.log('FAIL 파일 이름', dl.suggestedFilename());
+  // 리포트 열람 → 닫으면 네이버 리뷰로 이어지는 창
+  await pv.click('[data-pmview="P1"]'); await pv.waitForSelector('#pm-rv canvas', { timeout: 5000 }).catch(() => {});
+  const nc = await pv.locator('#pm-rv canvas').count(); if (nc !== 2) console.log('FAIL 리포트가 화면에서 열리지 않음 (쪽 수)', nc);
+  await pv.click('#pm-rvdone');
+  const rv = await pv.evaluate(() => { const a = document.querySelector('#pm-rvsheet #pm-rvgo'); return a ? a.getAttribute('href') : ''; });
+  if (!/review\.html|rv=/.test(rv)) console.log('FAIL 리포트를 닫아도 네이버 리뷰로 이어지지 않음', rv);
+  if (await pv.locator('#pm-rv').count()) console.log('FAIL 닫았는데 리포트 화면이 남음');
+  await pv.click('#pm-rvlater');
   // 다음 날: 같은 카드(C001)를 다른 아이가 받음 → 우리 아이 PDF는 그대로 열림
   KIDS.C001 = { name: '다른아이', step: 0, date: TODAY, since: now, vids: '', first: false, draws: [] };
   await pv.evaluate(() => { return pmLoad(); }); await pv.waitForTimeout(500); await pv.evaluate(() => pmRender(true, true));
-  const still = await pv.evaluate(() => ({ cached: !!pmPdfAll().P1, btn: !!document.querySelector('[data-pmpdf="P1"]') }));
-  if (!still.cached) console.log('FAIL 카드가 다른 아이에게 넘어가자 저장된 PDF가 사라짐');
+  const still = await pv.evaluate(() => ({ cached: !!pmPdfAll().P1, btn: !!document.querySelector('#kiosk [data-pmpdf="P1"]') }));
+  if (!still.cached || !still.btn) console.log('FAIL 카드가 다른 아이에게 넘어가자 저장된 PDF가 사라짐', JSON.stringify(still));
   console.log('cachedname', await pv.evaluate(() => (pmPdfAll().P1||{}).name)); console.log('after-reassign', JSON.stringify(still), 'errors', JSON.stringify(errs));
   await browser.close();
 })();

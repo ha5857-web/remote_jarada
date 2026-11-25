@@ -158,6 +158,19 @@ button{cursor:pointer}
 .kiosk .kvtx b{font-size:17px;line-height:1.35}
 .kiosk .kvopen{display:block;margin:6px 0 2px;font-size:15px}
 
+.pm-review{display:block;margin:12px 0 0;padding:16px 14px;border-radius:14px;background:#03C75A;color:#fff!important;text-align:center;font-size:19px;font-weight:800;text-decoration:none}
+.pm-sub{margin:6px 0 0}
+#pm-rv{position:fixed;inset:0;z-index:2147482000;background:#EEF3F5;display:flex;flex-direction:column}
+#pm-rv .pm-rvbar{flex:none;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#14232B;color:#fff;font-weight:700;font-size:16px}
+#pm-rv .pm-rvbar button{border:0;border-radius:10px;background:#fff;color:#14232B;font:inherit;font-weight:800;padding:8px 14px;cursor:pointer}
+#pm-rv .pm-rvbody{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:8px}
+#pm-rv canvas{display:block;margin:0 auto 10px;background:#fff;box-shadow:0 2px 10px rgba(20,35,43,.15)}
+#pm-rv .pm-rvend{padding:6px 4px 30px}
+body.pm-rvopen{overflow:hidden}
+#pm-rvsheet{position:fixed;inset:0;z-index:2147483000;background:rgba(12,22,28,.55);display:flex;align-items:flex-end;justify-content:center}
+#pm-rvsheet .pm-rvbox{width:min(520px,100%);background:#fff;color:#14232B;border-radius:20px 20px 0 0;padding:22px 18px calc(20px + env(safe-area-inset-bottom));font-size:16px;line-height:1.6}
+#pm-rvsheet .pm-rvbox b:first-child{font-size:22px;display:block}
+#pm-rvsheet .pm-rvbox .btn{display:block;margin:10px auto 0}
 .kiosk .kv{width:100%;aspect-ratio:16/9;border:0;border-radius:10px;background:#000;margin:6px 0 2px}
 /* 영상을 열면 썸네일 자리에서 바로 재생 (아래에 같은 영상이 또 보이지 않게) */
 .kiosk .kvitem.on{display:flex;flex-direction:column}
@@ -2402,6 +2415,47 @@ function pmPdfOpen(pid){
     setTimeout(()=>URL.revokeObjectURL(url),60000);return true;
   }catch(e){return false}
 }
+/* 리포트 열람: 화면 안에서 PDF를 펼쳐 보고, 닫으면 네이버 영수증 리뷰로 이어지는 창을 띄웁니다(별점은 부차적) */
+const PM_PDFJS='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',PM_PDFJS_W='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+function pmReviewUrl(k){return k&&k.code&&/^[A-Z0-9]{6,12}$/.test(k.code)?PM_GUIDE_SITE+'?rv='+encodeURIComponent(k.code):PM_RECEIPT.reviewUrl}
+function pmLoadJs(src){return new Promise((ok,no)=>{const e=document.createElement('script');e.src=src;e.onload=ok;e.onerror=()=>no(new Error('load'));document.head.appendChild(e)})}
+function pmReviewSheet(){
+  if(document.getElementById('pm-rvsheet'))return;
+  const c=PM.cur,k=(pmStore().kids[c])||{},el=document.createElement('div');el.id='pm-rvsheet';
+  el.innerHTML='<div class="pm-rvbox"><b>리포트 잘 보셨나요?</b><p>오늘 진료가 도움이 되셨다면 <b>네이버 영수증 리뷰</b> 한 줄을 남겨 주세요. 다른 부모님들께 큰 도움이 돼요.</p><a class="pm-review" href="'+esc(pmReviewUrl(k))+'" target="_blank" rel="noopener" id="pm-rvgo">⭐ 네이버 영수증 리뷰 남기기</a><button type="button" class="btn sm ghost" id="pm-rvlater">나중에 할게요</button></div>';
+  el.addEventListener('click',e=>{if(e.target.id==='pm-rvlater'||e.target===el)el.remove();else if(e.target.id==='pm-rvgo')setTimeout(()=>el.remove(),600)});
+  document.body.appendChild(el);
+}
+async function pmPdfView(pid){
+  const x=pmPdfAll()[pid];if(!x||document.getElementById('pm-rv'))return;
+  const ov=document.createElement('div');ov.id='pm-rv';ov.innerHTML='<div class="pm-rvbar"><span>📄 성장 리포트</span><button type="button" id="pm-rvx">닫기 ✕</button></div><div class="pm-rvbody" id="pm-rvbody"><p class="meta" style="padding:20px">리포트를 여는 중…</p></div>';
+  document.body.appendChild(ov);document.body.classList.add('pm-rvopen');
+  const close=()=>{ov.remove();document.body.classList.remove('pm-rvopen');pmReviewSheet()};
+  ov.querySelector('#pm-rvx').onclick=close;
+  try{
+    if(!window.pdfjsLib)await pmLoadJs(PM_PDFJS);
+    pdfjsLib.GlobalWorkerOptions.workerSrc=PM_PDFJS_W;
+    const bin=atob(x.b64),u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
+    const doc=await pdfjsLib.getDocument({data:u8}).promise,body=ov.querySelector('#pm-rvbody');body.innerHTML='';
+    const W=Math.min(body.clientWidth||window.innerWidth,900),dpr=Math.min(window.devicePixelRatio||1,2);
+    for(let i=1;i<=doc.numPages;i++){
+      const pg=await doc.getPage(i),v1=pg.getViewport({scale:1}),sc=W/v1.width,cv=document.createElement('canvas');
+      cv.width=Math.floor(v1.width*sc*dpr);cv.height=Math.floor(v1.height*sc*dpr);cv.style.width='100%';
+      body.appendChild(cv);await pg.render({canvasContext:cv.getContext('2d'),viewport:pg.getViewport({scale:sc*dpr})}).promise;
+    }
+    const end=document.createElement('div');end.className='pm-rvend';end.innerHTML='<button type="button" class="btn primary pm-wide" id="pm-rvdone">다 봤어요 (닫기)</button><button type="button" class="btn pm-wide" data-pmpdf="'+esc(pid)+'">⬇️ PDF 저장</button>';
+    end.querySelector('#pm-rvdone').onclick=close;end.querySelector('[data-pmpdf]').onclick=()=>pmPdfOpen(pid);body.appendChild(end);
+  }catch(e){   // 뷰어를 못 불러오면 PDF를 내려받게 하고, 바로 리뷰 안내를 띄움
+    ov.remove();document.body.classList.remove('pm-rvopen');pmPdfOpen(pid);setTimeout(pmReviewSheet,1200);
+  }
+}
+function pmEndHtml(c,k){
+  const l=pmPdfList();
+  let h='<div class="keta pm-end"><b>📄 오늘 성장 리포트</b>';
+  if(l.length)h+='<p class="meta">화면에서 바로 열어 보실 수 있어요. 닫으면 네이버 리뷰로 이어져요.</p>'+l.map(x=>'<button type="button" class="btn primary pm-wide" data-pmview="'+esc(x.pid)+'">📄 '+esc((x.name||'리포트').replace(/\.pdf$/i,''))+' 열어 보기</button><p class="pm-sub"><button type="button" class="btn sm ghost" data-pmpdf="'+esc(x.pid)+'">⬇️ PDF 저장</button> <span class="meta">'+esc(x.date||'')+'</span></p>').join('');
+  else h+='<p class="meta">리포트가 준비되는 대로 이 휴대폰에 저장됩니다. 문자로 받은 초진방 링크를 한 번 열어 두셨다면 자동으로 가져와요.</p><button type="button" class="btn" data-pmpdf-sync="1">지금 가져오기</button><p class="meta">'+esc(PM.pdfMsg||'')+'</p>';
+  return h+'<a class="pm-review" href="'+esc(pmReviewUrl(k))+'" target="_blank" rel="noopener">⭐ 네이버 영수증 리뷰 남기기</a><p class="meta" style="margin:6px 0 0">리뷰를 남기시면 「보호자 안내서」(성장·성조숙증·비만 Q&amp;A)가 열려요.</p></div>';
+}
 function pmPdfHtml(final){
   const l=pmPdfList();
   if(!l.length){
@@ -2532,7 +2586,7 @@ function pmLiveHtml(c,k,d,now){
   }
   if(d.step<8)h+=pmAskHtml(c,k,d);
   if(d.step>=8)h+=pmRateHtml(c,k);
-  if(d.step>=7)h+=pmPdfHtml(d.step>=8);
+  if(d.step>=8)h+=pmEndHtml(c,k);else h+=pmPdfHtml(false);   // 저장해 둔 PDF가 있으면 카드가 다른 아이에게 넘어간 뒤에도 보임
   h+=pmManualHtml();
   h+=kioskVideos({vids:d.vids,xv:d.xv,first:!!d.first,lab:{proto:d.proto||'single'}});
   return h;
@@ -2605,10 +2659,10 @@ function pmRender(force,ui){
   let h='';
   if(d)h=pmLiveHtml(c,k,d,now);
   else if(k.st==='old')h='<h2>삼성자라다 소아청소년과</h2><p class="kbig">지난 진료 때 받으신 카드예요.<br><span style="font-size:16px">이 카드는 다음 내원 때 반납해 주세요. 오늘 받은 카드라면 아래 단추를 눌러 주세요.</span></p><button class="btn primary pm-wide" id="pm-today">오늘 받은 카드예요</button>'+pmReceiptHtml();
-  else if(k.st==='done')h=`<div class="pm-hero"><small>삼성자라다 소아청소년과</small><h2>${esc(k.nm||'')} 어린이</h2><div class="pm-now"><b>오늘 진료가 끝났어요</b><span>수고 많으셨어요. 조심히 들어가세요.</span></div></div>`+pmRateHtml(c,k);
+  else if(k.st==='done')h=`<div class="pm-hero"><small>삼성자라다 소아청소년과</small><h2>${esc(k.nm||'')} 어린이</h2><div class="pm-now"><b>오늘 진료가 끝났어요</b><span>수고 많으셨어요. 조심히 들어가세요.</span></div></div>`+pmEndHtml(c,k)+pmRateHtml(c,k);
   else if(!PM.loaded)h='<p class="kbig">불러오는 중…</p>';
   else h='<h2>삼성자라다 소아청소년과</h2><p class="kbig">'+(PM.fail?'대기 현황을 불러오지 못했습니다. 자동으로 다시 시도합니다.<br><span style="font-size:15px">계속 안 되면 접수 데스크에 카드를 보여 주세요.</span>':'지금 확인되는 접수 정보가 없습니다. 접수 후 다시 카드를 찍어 주세요.')+'</p>'+pmReceiptHtml();
-  if(!d&&PM.loaded)h+=pmPdfHtml(false)+pmManualHtml();
+  if(!d&&PM.loaded)h+=(k.st==='done'?'':pmPdfHtml(false))+pmManualHtml();
   const keep=playing&&playing.querySelector('.kvrow')?playing.querySelector('.kvrow').dataset.vsrc:null;
   el.innerHTML=h;
   if(keep){const b=[...el.querySelectorAll('.kvrow')].find(x=>x.dataset.vsrc===keep);if(b)kvToggle(b,true)}
@@ -2620,6 +2674,7 @@ function pmClick(e){
   const c=PM.cur;
   if(t.id==='pm-voice'){PM.voice=true;const d=PM.live[c];if(d){PM.vs[c]=pmVoiceKey(d);pmSay(pmGreeting(d))}pmRender(true,true);return}
   if(t.id==='pm-voice-off'){PM.voice=false;try{speechSynthesis.cancel()}catch(e){}pmRender(true,true);return}
+  if(t.dataset.pmview){pmPdfView(t.dataset.pmview);return}
   if(t.dataset.pmpdf){if(!pmPdfOpen(t.dataset.pmpdf)){PM.pdfMsg='파일을 열지 못했어요. 다시 가져와 주세요.';pmRender(true,true)}return}
   if(t.dataset.pmpdfSync){PM.pdfMsg='가져오는 중…';pmRender(true,true);pmPdfSync(true).then(n=>{PM.pdfMsg=n?'':'아직 올라온 리포트가 없어요. 직원이 확인하는 대로 올라옵니다.';pmRender(true,true)});return}
   if(t.id==='pm-alarm'){pmEnableAlarm();return}
