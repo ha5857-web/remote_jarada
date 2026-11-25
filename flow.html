@@ -2408,7 +2408,7 @@ function pmPdfHtml(final){
     if(!final)return '';
     return '<div class="keta pm-pdf"><b>📄 성장 리포트 PDF</b><p class="meta">리포트가 준비되면 이 휴대폰에 저장돼서, 다음에 카드 번호가 바뀌어도 계속 열어 볼 수 있어요. 문자로 받은 초진방 링크를 한 번 열어 두셨다면 자동으로 가져옵니다.</p><button type="button" class="btn" data-pmpdf-sync="1">지금 가져오기</button><p class="meta">'+esc(PM.pdfMsg||'')+'</p></div>';
   }
-  return '<div class="keta pm-pdf"><b>📄 성장 리포트 PDF</b><p class="meta">이 휴대폰에 저장되어 있어요. 병원 카드 번호가 다른 아이에게 넘어가도 계속 열립니다.</p>'+
+  return '<div class="keta pm-pdf"><b>📄 성장 리포트 PDF</b><p class="meta">이 휴대폰에 저장되어 있어요. 병원 카드 번호가 다른 아이에게 넘어가도 계속 열립니다.<br><b>🎁 PDF 뒷장 아래 「보호자 안내서 선물」 칸을 누르면</b> 네이버 리뷰 → 보호자 안내서(전자책)로 바로 이어져요.</p>'+
     l.map(x=>'<div class="pm-row" style="margin:6px 0"><button type="button" class="btn primary" data-pmpdf="'+esc(x.pid)+'">⬇️ '+esc((x.name||'리포트').replace(/\.pdf$/i,''))+'</button><span class="meta">'+esc(x.date||'')+' · '+Math.max(1,Math.round((x.size||0)/1024))+'KB</span></div>').join('')+'</div>';
 }
 function pmToday(){const n=new Date(Date.now()+PM.off);return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0')}
@@ -3490,8 +3490,8 @@ function qrSvg(url,px){
 var GUIDE_SITE='https://jaradacare.com/app.html';
 function guideUrl(code,nos){return GUIDE_SITE+'?rv='+encodeURIComponent(code)+(nos?'&v='+nos:'')}
 function footQR(st){
-  if(st&&st.guide){var g=qrSvg(st.guide.url,80);if(g)return'<div class="ftgd"><div class="b">'+g+'</div><div class="t"><b>🎁 보호자 안내서 선물</b>QR을 찍고 <u>네이버 영수증 리뷰</u>에 참여해 주시면 성장·성조숙증·비만 Q&amp;A 안내서가 바로 열려요.<i>이 아이 전용 1회용 · 코드 '+esc(st.guide.code)+'</i></div></div>'}
-  var s=qrSvg(EV_REVIEW,44);return s?'<div class="ftqr"><div class="b">'+s+'</div><span>네이버 리뷰</span></div>':'';
+  if(st&&st.guide){var g=qrSvg(st.guide.url,80);if(g)return'<div class="ftgd" data-href="'+esc(st.guide.url)+'"><div class="b">'+g+'</div><div class="t"><b>🎁 보호자 안내서 선물</b>QR을 찍거나 (PDF는 이 칸을 눌러) <u>네이버 영수증 리뷰</u>에 참여해 주시면 성장·성조숙증·비만 Q&amp;A 안내서가 바로 열려요.<i>이 아이 전용 1회용 · 코드 '+esc(st.guide.code)+'</i></div></div>'}
+  var s=qrSvg(EV_REVIEW,44);return s?'<div class="ftqr" data-href="'+esc(EV_REVIEW)+'"><div class="b">'+s+'</div><span>네이버 리뷰</span></div>':'';
 }
 function cmpArw(a,b){var d=Math.round(b)-Math.round(a);return d>=1?'<i class="up">▲'+d+'</i>':d<=-1?'<i class="dn">▼'+(-d)+'</i>':'<i class="eq">변화 없음</i>'}
 function cmpPc(x){return x<1?'1 미만':x>99?'99 이상':String(Math.round(x))}
@@ -3593,7 +3593,10 @@ function capture(m){
   var done=function(){try{document.body.removeChild(host)}catch(e){}};
   return(document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(function(){
     paint(host,m);var pg=Array.prototype.slice.call(host.children),out=[];
-    return pg.reduce(function(pr,el){return pr.then(function(){return html2canvas(el,{scale:2,backgroundColor:'#ffffff',useCORS:true,logging:false}).then(function(c){out.push(c)})})},Promise.resolve()).then(function(){return out});
+    return pg.reduce(function(pr,el){return pr.then(function(){
+      var er=el.getBoundingClientRect(),k=210/(er.width||794),links=[];
+      el.querySelectorAll('[data-href]').forEach(function(a){var r=a.getBoundingClientRect();links.push({url:a.getAttribute('data-href'),x:(r.left-er.left)*k,y:(r.top-er.top)*k,w:r.width*k,h:r.height*k})});   // PDF 안에서 누를 수 있는 링크 칸(안내서 선물·네이버 리뷰)
+      return html2canvas(el,{scale:2,backgroundColor:'#ffffff',useCORS:true,logging:false}).then(function(c){c.jrdLinks=links;out.push(c)})})},Promise.resolve()).then(function(){return out});
   }).then(function(c){done();return c},function(e){done();throw e});
 }
 function fname(m,ext,suf){var t=new Date();return'성장리포트_'+(m.st.name||'환아').replace(/[\\/:*?"<>|]/g,'')+'_'+t.getFullYear()+pad(t.getMonth()+1)+pad(t.getDate())+(suf||'')+'.'+ext}
@@ -3601,11 +3604,12 @@ function saveBlob(blob,name){var a=document.createElement('a');a.href=URL.create
 function toBlob(c){return new Promise(function(ok){c.toBlob(ok,'image/png')})}
 function stack(cs){var W=cs[0].width,g=28,H=cs.reduce(function(a,c){return a+c.height},0)+g*(cs.length-1),o=document.createElement('canvas');o.width=W;o.height=H;var x=o.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,W,H);var y=0;cs.forEach(function(c){x.drawImage(c,0,y);y+=c.height+g});return o}
 /* 리포트 PDF 파일(앞장·뒷장). 저장과 초진방 올리기에 같이 씁니다 */
+function pdfLinks(pdf,c){(c.jrdLinks||[]).forEach(function(l){try{pdf.link(l.x,l.y,l.w,l.h,{url:l.url})}catch(e){}})}
 function pdfOf(m,q){
   if(!m||m.error)return Promise.reject(new Error(m&&m.error||'리포트 없음'));
   return libs(true).then(function(){return capture(m)}).then(function(cs){
     var pdf=new window.jspdf.jsPDF({unit:'mm',format:'a4',compress:true});
-    cs.forEach(function(c,i){if(i)pdf.addPage();pdf.addImage(c.toDataURL('image/jpeg',q||0.8),'JPEG',0,0,210,297)});
+    cs.forEach(function(c,i){if(i)pdf.addPage();pdf.addImage(c.toDataURL('image/jpeg',q||0.8),'JPEG',0,0,210,297);pdfLinks(pdf,c)});
     return{blob:pdf.output('blob'),name:fname(m,'pdf'),pages:cs.length};
   });
 }
@@ -3613,7 +3617,7 @@ function act(kind){
   if(!cache||cache.m.error){say('먼저 생년월일과 계측값을 확인해 주세요.');return Promise.resolve(false)}
   var m=cache.m;say('파일을 만드는 중입니다…');
   return libs(kind==='pdf').then(function(){return capture(m)}).then(function(cs){
-    if(kind==='pdf'){var pdf=new window.jspdf.jsPDF({unit:'mm',format:'a4',compress:true});cs.forEach(function(c,i){if(i)pdf.addPage();pdf.addImage(c.toDataURL('image/jpeg',0.95),'JPEG',0,0,210,297)});saveBlob(pdf.output('blob'),fname(m,'pdf'));say('PDF를 저장했습니다. (앞장·뒷장 2쪽, 양면 인쇄용)');return true}
+    if(kind==='pdf'){var pdf=new window.jspdf.jsPDF({unit:'mm',format:'a4',compress:true});cs.forEach(function(c,i){if(i)pdf.addPage();pdf.addImage(c.toDataURL('image/jpeg',0.95),'JPEG',0,0,210,297);pdfLinks(pdf,c)});saveBlob(pdf.output('blob'),fname(m,'pdf'));say('PDF를 저장했습니다. (앞장·뒷장 2쪽, 양면 인쇄용)');return true}
     if(kind==='png'){return Promise.all(cs.map(toBlob)).then(function(bs){bs.forEach(function(b,i){setTimeout(function(){saveBlob(b,fname(m,'png',i?'_뒷장':'_앞장'))},i*400)});say('이미지를 저장했습니다. (앞장·뒷장)')})}
     return toBlob(stack(cs)).then(function(b){
       try{return navigator.clipboard.write([new ClipboardItem({'image/png':b})]).then(function(){say('앞장·뒷장 이미지를 복사했습니다. 메시지 창에 붙여 넣으세요.')},function(){saveBlob(b,fname(m,'png'));say('복사가 막혀 있어 이미지로 저장했습니다.')})}
