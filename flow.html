@@ -2374,7 +2374,7 @@ function pmApi(){let a=String(new URLSearchParams(location.search).get('a')||PM_
    「이 휴대폰」에 저장해 둡니다. 카드 번호는 다음 날 다른 아이가 받을 수 있어도, 저장된 PDF는 카드와 무관하게 계속 열립니다. */
 const PM_PDF_LS='jrd_pm_pdfs';
 function pmPdfAll(){let o={};try{o=JSON.parse(localStorage.getItem(PM_PDF_LS)||'{}')||{}}catch(e){}return o}
-function pmPdfList(){const o=pmPdfAll();return Object.keys(o).map(k=>Object.assign({pid:k},o[k])).sort((a,b)=>b.at-a.at)}
+function pmPdfList(){const o=pmPdfAll(),seen={};return Object.keys(o).map(k=>Object.assign({pid:k},o[k])).sort((a,b)=>b.at-a.at).filter(x=>{const q=(x.name||'')+'|'+(x.date||'');if(seen[q])return false;seen[q]=1;return true})}   // 초진방과 카드로 같은 리포트가 두 번 와도 한 개만
 function pmPdfSave(pid,x){
   const o=pmPdfAll();o[pid]=x;
   const ks=Object.keys(o).sort((a,b)=>o[b].at-o[a].at);
@@ -2393,16 +2393,22 @@ async function pmPdfSync(force){
   if(PM.pdfBusy||!navigator.onLine)return 0;
   if(!force&&Date.now()-(PM.pdfAt||0)<180000)return 0;
   let pids=[];try{pids=Object.keys(JSON.parse(localStorage.getItem('jrd_my_kids')||'{}')||{})}catch(e){}
-  if(!pids.length){PM.pdfAt=Date.now();return 0}
+  const cp=PM.cur?'card-'+String(PM.cur).toUpperCase().replace(/[^A-Z0-9]/g,''):'';
+  if(!pids.length&&!cp){PM.pdfAt=Date.now();return 0}
   PM.pdfBusy=true;PM.pdfAt=Date.now();let n=0;
   try{
     const a=pmApi(),r=await fetch(a+(a.indexOf('?')<0?'?':'&')+'t='+Date.now()),rows=await r.json();
-    if(Array.isArray(rows))pids.forEach(pid=>{
-      const rep=pmPdfPick(rows,pid);if(!rep)return;
-      const cur=pmPdfAll()[pid];if(cur&&cur.set===rep.set)return;
-      let b64='';for(let i=0;i<rep.n;i++)b64+=rep.parts[i];
-      if(pmPdfSave(pid,{set:rep.set,name:rep.name||'growth-report.pdf',size:rep.size||0,at:Date.now(),date:pmToday(),b64:b64}))n++;
-    });
+    const dayOf=t=>{const d=new Date(t);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+    if(Array.isArray(rows)){
+      const jobs=pids.map(pid=>({key:pid,pid:pid,today:false}));if(cp)jobs.push({key:cp+':'+pmToday(),pid:cp,today:true});   // 카드 번호로 온 것은 「오늘 올라온 리포트」만
+      jobs.forEach(j=>{
+        const rep=pmPdfPick(rows,j.pid);if(!rep)return;
+        if(j.today){const t=parseInt(rep.set,36);if(!t||dayOf(t)!==pmToday())return}
+        const cur=pmPdfAll()[j.key];if(cur&&cur.set===rep.set)return;
+        let b64='';for(let i=0;i<rep.n;i++)b64+=rep.parts[i];
+        if(pmPdfSave(j.key,{set:rep.set,name:rep.name||'growth-report.pdf',size:rep.size||0,at:Date.now(),date:pmToday(),b64:b64}))n++;
+      });
+    }
   }catch(e){}
   PM.pdfBusy=false;return n;
 }
@@ -2676,7 +2682,7 @@ function pmClick(e){
   if(t.id==='pm-voice-off'){PM.voice=false;try{speechSynthesis.cancel()}catch(e){}pmRender(true,true);return}
   if(t.dataset.pmview){pmPdfView(t.dataset.pmview);return}
   if(t.dataset.pmpdf){if(!pmPdfOpen(t.dataset.pmpdf)){PM.pdfMsg='파일을 열지 못했어요. 다시 가져와 주세요.';pmRender(true,true)}return}
-  if(t.dataset.pmpdfSync){PM.pdfMsg='가져오는 중…';pmRender(true,true);pmPdfSync(true).then(n=>{PM.pdfMsg=n?'':'아직 올라온 리포트가 없어요. 직원이 확인하는 대로 올라옵니다.';pmRender(true,true)});return}
+  if(t.dataset.pmpdfSync){PM.pdfMsg='가져오는 중…';pmRender(true,true);pmPdfSync(true).then(n=>{PM.pdfMsg=n?'':(navigator.onLine?'아직 올라온 리포트가 없어요. 원장님이 확인하는 대로 자동으로 나타나요.':'인터넷 연결을 확인해 주세요.');pmRender(true,true)});return}
   if(t.id==='pm-alarm'){pmEnableAlarm();return}
   if(t.id==='pm-today'){const h=pmHist();delete h[c];try{localStorage.setItem(PM_HIST,JSON.stringify(h))}catch(x){}const st=pmStore();if(st.kids[c]){st.kids[c].st='new';delete st.kids[c].nm;pmSave(st)}PM.busy=false;pmLoad();return}
   if(t.dataset.pmstar){PM.rateSel[c]=Number(t.dataset.pmstar);pmRender(true,true);const ta=$('#pm-rate-t');if(ta&&PM.rateSel[c]<=3)ta.focus();return}
@@ -4362,11 +4368,11 @@ function confirmSave(){
     var cur=S.items.get(vid);if(!cur)return;
     if(code)g.gc=code;
     g.reviewed=true;g.reviewedAt=Date.now();g.printedAt=null;commitTo(vid,g,true);if(mine())refresh();
-    var room=hasRoom(cur),gt=code?' · 🎁 안내서 QR':'',done=function(msg){
+    var cardId=cur.card||cur.cardWas||'',room=hasRoom(cur),gt=code?' · 🎁 안내서 QR':'',done=function(msg){
       var nx=mine()&&isMob()?mobNextId(vid):null;   // 휴대폰: 바로 다음 아이 리포트로
       var was=mine();if(nx){open(nx,{mq:ST.mq,t:'edit'});toast(msg)}else{if(was)close();toast(msg+(was&&isMob()?' · 오늘 확인할 리포트를 모두 확인했어요 👍':''))}
       renderAll(false);try{if(!isMob())focusScan()}catch(e){}};
-    if(!pdfOn()&&!room){done(name+': 확인 완료'+gt+' — 직원 화면 「인쇄할 리포트」에 올라갔어요.');return}
+    if(!pdfOn()&&!room&&!cardId){done(name+': 확인 완료'+gt+' — 직원 화면 「인쇄할 리포트」에 올라갔어요.');return}
     SAVING=true;syncBar();if(mine())say('PDF 만드는 중…');
     GR.pdfOf(modelOf(S.items.get(vid)),0.72).then(function(pdf){return pdf},function(){return null}).then(function(pdf){
       SAVING=false;
@@ -4374,6 +4380,7 @@ function confirmSave(){
       if(!pdf&&pdfOn()&&!room){syncBar();if(mine())say('확인은 끝났고 직원 인쇄 대기에 올렸어요. PDF는 저장하지 못했어요(인터넷 확인) — [PDF 다시 저장]을 눌러 주세요.',true);else toast(name+': 확인 완료 · PDF는 저장하지 못했어요');return}
       done(name+': 확인'+(pdf&&pdfOn()?' · PDF 저장':'')+gt+' 완료 — 직원 인쇄 대기'+(room?' · 초진방에 올리는 중…':''));
       if(room)roomPush(vid,pdf);
+      if(cardId&&pdf)cardPush(vid,pdf,cardId);   // 초진방이 없어도 카드 번호로 보호자 폰에 전달
     });
   });
 }
@@ -4556,6 +4563,18 @@ function roomPush(id,pdf){
     var x=S.items.get(id);if(x&&x.gr){x.gr=Object.assign({},x.gr,{roomErr:String((e&&e.message)||e||'오류')});put(x,true);renderAll(false)}
     toast(nm+': 초진방에 올리지 못했어요 — '+((e&&e.message)||'연결 오류')+' (목록의 [초진방에 올리기]로 다시)');
   });
+}
+/* 카드 번호로 보호자 폰에 리포트 PDF 전달: 초진방이 없는 재진 아이도 받을 수 있게, 카드(pid 「card-C001」)에 오늘 날짜로 올려 둡니다.
+   카드 번호는 다음 날 다른 아이가 받을 수 있어서, 보호자 폰이 오늘 올라온 것만 가져가 폰에 저장합니다. */
+async function cardPush(id,pdf,card){
+  var nm=(S.items.get(id)||{}).name||'',pid='card-'+String(card).toUpperCase().replace(/[^A-Z0-9]/g,'');
+  try{
+    var b64=await b64Of(pdf.blob),SZ=38000,n=Math.ceil(b64.length/SZ),stamp=Date.now().toString(36),today=todayStr();
+    if(n>40)throw new Error('PDF가 너무 커요');
+    for(var i=0;i<n;i++){var j=await api({id:'fvr_'+pid+'_'+stamp+'_'+i,pid:pid,type:'fvreport',date:today,question:JSON.stringify({v:1,set:stamp,i:i,n:n,name:pdf.name,mime:'application/pdf',size:pdf.blob.size,data:b64.slice(i*SZ,(i+1)*SZ)})});if(!j||j.status!=='ok')throw new Error((j&&j.message)||'올리지 못했어요')}
+    try{var rows=await rowsGet();rows.filter(function(r){return r.pid===pid&&r.type==='fvreport'&&String(r.id).indexOf('_'+stamp+'_')<0}).forEach(function(r){api({action:'delete',id:r.id}).catch(function(){})})}catch(e){}
+    toast(nm+': 보호자 폰(카드 '+card+')에도 리포트 PDF를 올렸어요');
+  }catch(e){if(e&&e.code==='AUTH_REQUIRED')return;toast(nm+': 보호자 폰에 리포트를 올리지 못했어요 — '+((e&&e.message)||'연결 오류'))}
 }
 function roomRetry(id){
   var v=S.items.get(id);if(!v||!v.gr||!v.gr.reviewed){toast('원장 확인이 끝난 리포트만 초진방에 올릴 수 있어요.');return}
