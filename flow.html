@@ -2947,6 +2947,13 @@ function stepForRoom(v,room){
 }
 function moveToRoom(v,room){
   if(!v||v.step<0||v.step>=10)return false;
+  if(room==='wait'&&v.step>=4&&v.step<=7){   // 진료실 등에서 「진료 전 대기」로 되돌리기 (실수로 부른 경우)
+    const now=Date.now();
+    if(v.step===7){v.recheck=false;v.log=v.log.filter(l=>l.s!==7);v.step=6;if(!v.log.some(l=>l.s===6))v.log.push({s:6,t:now});UI.msg='';UI.force=null;UI.viewStep=null;put(v,true);renderAll(true);toast((v.name||'환자')+': 진료 후 대기로 되돌렸어요.');return true}
+    let t=3;while(t>0&&!v.log.some(l=>l.s===t))t--;
+    v.log=v.log.filter(l=>l.s<=t);if(!v.log.some(l=>l.s===t))v.log.push({s:t,t:now});
+    v.step=t;v.loc='';v.locStep=null;v.c1Done=false;UI.msg='';UI.force=null;UI.viewStep=null;put(v,true);renderAll(true);toast((v.name||'환자')+': 진료 전 대기로 되돌렸어요.');return true;
+  }
   if(room==='wait2'){   // 진료 후 대기: 검사를 마치고 기다리는 칸
     if(v.step>=6)return false;
     const now=Date.now();if(v.step===4)v.xray.done=true;if(v.step===5)v.lab.drawn=true;
@@ -4674,7 +4681,7 @@ document.addEventListener('paste',function(e){try{
     if(v.step>=10){toast((v.name||'환자')+': 이미 완료된 환자예요. 상세 화면의 「완료 취소」를 먼저 눌러 주세요.');return}
     if(room==='exit'){quickDone(v,true);toast((v.name||'환자')+': 완료로 옮겼어요.');return}
     if(v.step<0){v.step=0;v.log=[{s:0,t:Date.now()}];put(v,true)}   // 예약 → 도착
-    if(room!=='wait'||v.step<0)moveToRoom(v,room);else renderAll(true);
+    if(room!=='wait'||v.step<0||v.step>=4)moveToRoom(v,room);else renderAll(true);
   });
   document.addEventListener('dragend',function(e){cid=null;window.__colDrag=false;document.querySelectorAll('.col.dropto').forEach(function(x){x.classList.remove('dropto')});try{renderAll(true)}catch(x){}});
 })();

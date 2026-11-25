@@ -48,6 +48,10 @@ function handle(b) {
   await page.evaluate(() => moveToRoom(S.items.get('b'), 'lab')); const b2 = await st('b'); chk('진료실→채혈실', b2, 5, 'lab', '채혈'); if (!b2.c1) console.log('FAIL 검사 전 진료 완료 표시 없음');
   await page.evaluate(() => moveToRoom(S.items.get('b'), 'doctor')); chk('검사 후 진료실(다시 봄)', await st('b'), 7, 'doctor', '진료 (다시 봄)');
   await page.evaluate(() => { const v = S.items.get('b'); v.step = 6; v.recheck = false; onAction('recheck', { dataset: { id: 'b' } }); }); chk('다시 진료 필요 버튼', await st('b'), 7, 'doctor', '진료 (다시 봄)');
+  // 진료실에 잘못 불렀을 때 「진료 전 대기」로 되돌리기
+  await page.evaluate(() => { const v = S.items.get('b'); v.step = 3; v.log = [{ s: 0, t: Date.now() - 9e5 }, { s: 3, t: Date.now() - 6e5 }]; v.loc = ''; v.c1Done = false; put(v, true); moveToRoom(v, 'doctor'); });
+  chk('실수로 진료실에', await st('b'), 4, 'doctor', '진료 (검사 전)');
+  await page.evaluate(() => moveToRoom(S.items.get('b'), 'wait')); const rb = await st('b'); chk('진료실→진료 전 대기', rb, 3, 'wait', '계측·인바디'); if (rb.c1) console.log('FAIL 되돌렸는데 진료 완료로 남음');
   // 현황판 칸: 진료 전 대기 / 진료 / X-ray / 채혈 / 진료 후 대기 / 귀가
   const cols = await page.evaluate(() => boardCols().map(c => c.label).join(' > '));
   if (!/진료 전 대기 > 진료실 > 엑스레이실 > 채혈실·주사실 > 진료 후 대기 > 귀가·리포트/.test(cols)) console.log('FAIL 현황판 칸 순서', cols);
