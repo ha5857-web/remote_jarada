@@ -223,6 +223,8 @@ body.pm .pm-gift>b{font-size:19px}
 body.pm .pm-gift p{margin:6px 0 10px;font-size:16px;line-height:1.6}
 body.pm .pm-gift a{display:block;text-align:center;text-decoration:none;padding:14px;border-radius:12px;background:#03C75A;color:#fff;font-size:18px;font-weight:800}
 body.pm .pm-gift small{display:block;margin-top:6px;font-size:13px;color:#5A6B73}
+body.pm .pm-vl{display:flex;align-items:center;gap:8px;white-space:nowrap;margin-top:16px;font-size:15px;font-weight:700;color:#0B7A85}
+body.pm .pm-vl select{flex:1;min-width:0;font:inherit;font-weight:600;padding:6px 10px;border:1.5px solid #C9DAD9;border-radius:10px;background:#fff;color:#14232B}
 body.pm .kiosk>.pm-lang{position:absolute;top:10px;right:10px;z-index:3;margin:0;border:0;border-radius:999px;padding:7px 14px;font:inherit;font-size:15px;font-weight:700;background:#fff;color:#0B7A85;box-shadow:0 2px 10px rgba(0,0,0,.2);cursor:pointer}
 body.pm .pm-man{display:flex;align-items:center;gap:12px;margin-top:14px;padding:14px;border-radius:14px;background:#FFF1F0;border:1.5px solid #FF3B30;text-decoration:none;color:inherit}
 body.pm .pm-man .i{flex:0 0 auto;font-size:26px}
@@ -1432,11 +1434,14 @@ function patientVideos(v){
    영상: jaradacare.com/v/en/G1~G7(보호자 안내 7편), v/en/X1~X8(추가 8편, 원장님 목소리 영어판) */
 const JRD_EN=['Is my child growing well?','Daily habits for healthy growth','Why so many tests for precocious puberty?','How does precocious puberty treatment work?','Growth hormone: how much taller?','Does my child need combination therapy?','“My child gains weight just drinking water”'];
 const XV_EN=[['Basic blood test','Basic blood test: what do we check?'],['Precocious puberty test','Precocious puberty test: how it works & how blood is drawn'],['Growth hormone follow-up','After starting growth hormone: follow-up & costs'],['Precocious puberty follow-up','After starting precocious puberty treatment: follow-up & costs'],['GH stimulation test','Growth hormone stimulation test guide'],['Nutrition','Healthy habits ① Nutrition'],['Exercise','Healthy habits ② Exercise'],['Sleep','Healthy habits ③ Sleep']];
-const V_EN='https://jaradacare.com/v/en/';
+/* 영어 모드의 영상 자막 언어 — 영어 음성은 같고, 자막·화면 글자가 각 나라 말인 판(v/<언어>/X1~X8·G1~G7). 휴대폰 언어로 처음 고르고, 화면에서 바꿀 수 있음 */
+const PM_VLANGS=[['en','English'],['zh','简体中文'],['zh-TW','繁體中文'],['ja','日本語'],['vi','Tiếng Việt'],['th','ภาษาไทย'],['id','Bahasa Indonesia'],['es','Español'],['ar','العربية'],['mn','Монгол']];
+function pmVlangGuess(){const n=String(navigator.language||'en').toLowerCase();if(/^zh/.test(n))return /tw|hk|mo|hant/.test(n)?'zh-TW':'zh';const b=n.slice(0,2);return PM_VLANGS.some(x=>x[0]===b)?b:'en'}
+function vBase(){let l='en';try{l=PM.vlang||'en'}catch(e){}return 'https://jaradacare.com/v/'+l+'/'}
 function vEN(){try{return !!(PM_CODE&&PM.lang==='en')}catch(e){return false}}
 function tr(ko,en){return vEN()?en:ko}
-function enJ(x){return vEN()&&x?Object.assign({},x,{title:JRD_EN[x.no-1]||x.title,play:V_EN+'G'+x.no+'.mp4',thumb:V_EN+'G'+x.no+'.jpg'}):x}
-function enX(x){const e=x&&XV_EN[x.no-1];return vEN()&&e?Object.assign({},x,{tag:e[0],title:e[1],play:V_EN+'X'+x.no+'.mp4',thumb:V_EN+'X'+x.no+'.jpg'}):x}
+function enJ(x){return vEN()&&x?Object.assign({},x,{title:JRD_EN[x.no-1]||x.title,play:vBase()+'G'+x.no+'.mp4',thumb:vBase()+'G'+x.no+'.jpg'}):x}
+function enX(x){const e=x&&XV_EN[x.no-1];return vEN()&&e?Object.assign({},x,{tag:e[0],title:e[1],play:vBase()+'X'+x.no+'.mp4',thumb:vBase()+'X'+x.no+'.jpg'}):x}
 function videosFor(v){const pr=(v.lab&&v.lab.proto)||'single';return VIDEOS.filter(x=>x.for==='all'||x.for===pr)}
 /* 추가 영상 8편 (검사 안내 5 + 생활습관 3). url: 유튜브 원본 주소(비어 있으면 환자에게 보이지 않음).
    play·thumb: 2026-11-21 재구성판(jaradacare.com/v/ko/X1~X8) — 환자 폰·대기 화면에서는 이 파일을 재생합니다. */
@@ -1468,7 +1473,7 @@ function kioskVideos(v){
   let a=mine.length?mine.map(x=>({title:x.title,url:x.play||x.src,thumb:x.thumb})):videosFor(v);
   const seen=new Set(xv.pick.concat(xv.always).map(x=>String(x.title||'').replace(/\s/g,'')));   // 위 상자에 이미 있는 영상은 다시 보여주지 않음
   a=a.filter(x=>!seen.has(String(x.title||'').replace(/\s/g,'')));
-  let h='';
+  let h=vEN()?`<label class="pm-vl">🎬 Video subtitles <select id="pm-vlang">${PM_VLANGS.map(x=>`<option value="${x[0]}"${x[0]===PM.vlang?' selected':''}>${x[1]}</option>`).join('')}</select></label>`:'';
   if(xv.pick.length)h+=`<div class="kvbox kvpick"><b>${tr('선생님이 권해 드리는 영상','Recommended by your doctor')}</b><p class="meta" style="margin:2px 0 8px">${tr('오늘 검사·치료와 관련된 영상이에요. 누르면 바로 재생돼요.','About today’s tests and treatment. Tap to play.')}</p>${kvRows(xv.pick,false)}</div>`;
   if(a.length)h+=`<div class="kvbox"><b>${tr('기다리는 동안 보세요','Watch while you wait')}</b><p class="meta" style="margin:2px 0 8px">${tr('보고 싶은 영상을 누르면 바로 재생돼요.','Tap any video to play it.')}</p>${kvRows(a,!!mine.length)}</div>`;
   if(xv.always.length)h+=`<div class="kvbox"><b>${tr('함께 보면 좋은 생활습관 영상','Healthy habit videos')}</b><p class="meta" style="margin:2px 0 8px">${tr('영양·운동·수면, 성장에 꼭 필요한 습관이에요.','Nutrition, exercise and sleep — habits that matter for growth.')}</p>${kvRows(xv.always,false)}</div>`;
@@ -2376,7 +2381,7 @@ function bindEvents(){
      같은 번호가 오늘 다른 아이에게 가도 그 아이 정보는 뜨지 않습니다. 대신 만족도 별점 → 🎁 보호자 안내서가 뜹니다.
    · 진료 중에 휴대폰마다 무작위 표(tok)를 서버에 묶어 두고(flowbind), 질문(flowask)·별점(flowrate)은 그 표로만 받습니다. */
 const PM_CODE=String(new URLSearchParams(location.search).get('c')||'').trim().toUpperCase();
-const PM={lang:(()=>{const q=String(new URLSearchParams(location.search).get('lang')||'').toLowerCase();if(q==='en'||q==='ko'){try{localStorage.setItem('jrd_pm_lang',q)}catch(e){}return q}let x=null;try{x=localStorage.getItem('jrd_pm_lang')}catch(e){}return x==='en'||x==='ko'?x:(/^ko/i.test(navigator.language||'ko')?'ko':'en')})(),voice:false,vs:{},off:0,alerted:new Set(),sound:false,ctx:null,wl:null,notif:false,fail:0,live:{},cur:'',busy:false,binding:{},draft:{},rateSel:{},msg:{}};
+const PM={vlang:(()=>{const q=String(new URLSearchParams(location.search).get('vl')||'');let x=q;if(!x){try{x=localStorage.getItem('jrd_pm_vlang')||''}catch(e){}}return PM_VLANGS.some(v=>v[0]===x)?x:pmVlangGuess()})(),lang:(()=>{const q=String(new URLSearchParams(location.search).get('lang')||'').toLowerCase();if(q==='en'||q==='ko'){try{localStorage.setItem('jrd_pm_lang',q)}catch(e){}return q}let x=null;try{x=localStorage.getItem('jrd_pm_lang')}catch(e){}return x==='en'||x==='ko'?x:(/^ko/i.test(navigator.language||'ko')?'ko':'en')})(),voice:false,vs:{},off:0,alerted:new Set(),sound:false,ctx:null,wl:null,notif:false,fail:0,live:{},cur:'',busy:false,binding:{},draft:{},rateSel:{},msg:{}};
 const PM_DEFAULT_ID='AKfycbzTNYUR8rlsZSmQl1AQrIkB-HGARhUQDwP4nrDFti3R7-ip4ipRGOqk4lVfVZpIFSwONg';
 const PM_GUIDE_SITE='https://jaradacare.com/app.html';
 function pmApi(){let a=String(new URLSearchParams(location.search).get('a')||PM_DEFAULT_ID);const dev=location.protocol==='file:'||/^(localhost|127\.0\.0\.1)$/.test(location.hostname);if(/^https?:/.test(a)){let ok=dev;try{const x=new URL(a);if(x.protocol==='https:'&&x.hostname==='script.google.com')ok=true}catch(e){}if(ok)return a;a=PM_DEFAULT_ID}if(!/^[A-Za-z0-9_-]+$/.test(a))a=PM_DEFAULT_ID;return 'https://script.google.com/macros/s/'+a+'/exec'}
@@ -2692,7 +2697,7 @@ function pmRender(force,ui){
   const playing=el.querySelector('.kvitem.on');   // 영상을 보는 중이면 다시 그리지 않음 (다시 그리면 영상이 3~5초 만에 끊김)
   if(playing&&!ui){pmTick(el,now);pmAlarms(s,now);return}
   const c=PM.cur,k=s.kids[c]||{st:'new'},d=k.st==='live'?PM.live[c]:null;   // 지금 찍은 카드만 — 다른 아이로 넘어가지 않음
-  const key=JSON.stringify([PM.lang,c,k.st,k.nm,k.bound,k.ask,k.rate,k.code,d,PM.sound,PM.fail,PM.pdfV,PM.pdfMsg,PM.rateSel[c],PM.msg[c],PM.msg['r'+c],PM.loaded]);
+  const key=JSON.stringify([PM.lang,PM.vlang,c,k.st,k.nm,k.bound,k.ask,k.rate,k.code,d,PM.sound,PM.fail,PM.pdfV,PM.pdfMsg,PM.rateSel[c],PM.msg[c],PM.msg['r'+c],PM.loaded]);
   if(!force&&!ui&&el.dataset.k===key){pmTick(el,now);pmAlarms(s,now);return}
   el.dataset.k=key;
   let h='';
@@ -2753,6 +2758,7 @@ function patientMode(){
   const el=$('#kiosk');el.removeAttribute('onclick');el.hidden=false;el.style.zIndex=9999;el.innerHTML='<p class="kbig">'+tr('불러오는 중…','Loading…')+'</p>';
   if(/^[A-Z]{1,3}\d{1,4}$/.test(PM_CODE)){pmAdd(PM_CODE);PM.cur=PM_CODE}
   el.addEventListener('click',pmClick);
+  el.addEventListener('change',e=>{const t=e.target;if(t&&t.id==='pm-vlang'){PM.vlang=t.value;try{localStorage.setItem('jrd_pm_vlang',PM.vlang)}catch(x){}pmRender(true,true)}});
   el.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.dataset.pmdraft!=null)PM.draft[t.dataset.pmdraft]=t.value});
   el.addEventListener('focusout',e=>{if(e.target&&e.target.tagName==='TEXTAREA')setTimeout(()=>pmRender(false),300)});
   pmLoad().then(()=>{PM.loaded=true;pmRender(true)});setInterval(pmLoad,10000);setInterval(()=>{const d=PM.live[PM.cur];if(PM.loaded&&(!d||d.step>=6))pmPdfSync(false).then(n=>{if(n)pmRender(true,true)})},20000);   // 리포트가 올라오면 이 휴대폰에 자동 저장
