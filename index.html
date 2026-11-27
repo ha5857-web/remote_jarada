@@ -1693,6 +1693,7 @@
 </div>
 
 <script src="shared/fv-common.js?v=20261120k"></script>
+<script src="shared/report-i18n.js?v=20261128a"></script>
 <script src="shared/chart-common.js?v=20261111a"></script>
 <script>
 
@@ -2215,24 +2216,29 @@ function num(v){var x=parseFloat(v);return isFinite(x)?x:null}
 function say(t){var e=document.getElementById('grmsg');if(e)e.textContent=t}
 /* 🌐 리포트 언어(st.lang: 'ko' | 'en') — 고정 문구는 LT(한국어, 영어). 원장이 쓴 자유 문장(진료 요약·검사 설명 등)은 서버 번역(translate)으로 옮겨
    이 기기에 저장해 두고 씁니다(자라다케어 환아 앱과 같은 저장 키). 번역이 안 되면 그 문장만 한국어로 남습니다. */
-var LG='ko';function LT(ko,en){return LG==='en'?en:ko}
+var LG='ko';function LT(ko,en){return LG==='ko'?ko:en}
+/* 다국어: 영어 문장(틀)을 shared/report-i18n.js 의 REPORT_I18N[언어][틀] 로 바꿉니다. {0} {1}… 자리에 값이 들어갑니다 */
+var RLANGS=['ko','en','zh','zh-TW','ja','vi','th','id','es','ar','mn'];
+var RLNAME={ko:'한국어',en:'English',zh:'简体中文','zh-TW':'繁體中文',ja:'日本語',vi:'Tiếng Việt',th:'ภาษาไทย',id:'Bahasa Indonesia',es:'Español',ar:'العربية',mn:'Монгол'};
+function K(t,a){var d=(window.REPORT_I18N||{})[LG];var s=LG!=='en'&&d&&d[t]!=null?d[t]:t;return a?String(s).replace(/\{(\d)\}/g,function(_,i){return a[+i]}):s}
 var TRC={},TRF=null;
-function trKey(s){var h=5381;for(var i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return'jrd_tr_en_'+(h>>>0).toString(36)+s.length}
-function trGet(s){s=String(s||'');var k=trKey(s);if(TRC[k])return TRC[k];try{var v=localStorage.getItem(k);if(v){TRC[k]=v;return v}}catch(e){}return null}
-function TX(s){if(LG!=='en'||!/[가-힣]/.test(String(s||'')))return s;return trGet(s)||s}
-function trNeed(m){var a=[];if(!m||m.error||!m.st||m.st.lang!=='en')return a;var add=function(s){s=String(s||'').trim();if(s&&/[가-힣]/.test(s)&&!trGet(s)&&a.indexOf(s)<0)a.push(s)};(m.st.post?m.st.post.items:[]).forEach(function(x){if(x.tr)add(x.t)});add(m.st.comment);return a}
+function trKey(s,L){var h=5381;for(var i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return'jrd_tr_'+(L||LG)+'_'+(h>>>0).toString(36)+s.length}
+function trGet(s,L){s=String(s||'');var k=trKey(s,L);if(TRC[k])return TRC[k];try{var v=localStorage.getItem(k);if(v){TRC[k]=v;return v}}catch(e){}return null}
+function TX(s){if(LG==='ko'||!/[가-힣]/.test(String(s||'')))return s;return trGet(s)||s}
+function trNeed(m){var a=[];if(!m||m.error||!m.st||!m.st.lang||m.st.lang==='ko')return a;var add=function(s){s=String(s||'').trim();if(s&&/[가-힣]/.test(s)&&!trGet(s,m.st.lang)&&a.indexOf(s)<0)a.push(s)};(m.st.post?m.st.post.items:[]).forEach(function(x){if(x.tr)add(x.t)});add(m.st.comment);return a}
 function trLeft(m){return trNeed(m).length}
 function prep(m){
   var need=trNeed(m);if(!need.length)return Promise.resolve(0);if(!TRF)return Promise.resolve(-need.length);
   return Promise.resolve().then(function(){return TRF(need,m)}).then(function(out){
-    var n=0;if(Array.isArray(out))need.forEach(function(s,i){var v=out[i];if(typeof v==='string'&&v.trim()&&!/[가-힣]{4,}/.test(v)){var k=trKey(s);TRC[k]=v.trim();try{localStorage.setItem(k,v.trim())}catch(e){}n++}});
+    var n=0;if(Array.isArray(out))need.forEach(function(s,i){var v=out[i];if(typeof v==='string'&&v.trim()&&!/[가-힣]{4,}/.test(v)){var k=trKey(s,m.st.lang);TRC[k]=v.trim();try{localStorage.setItem(k,v.trim())}catch(e){}n++}});
     return n<need.length?-(need.length-n):n},function(){return -need.length});
 }
 function setTr(f){TRF=f}
 function ord(n){var s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0])}
 var TESTEN={bloodtest:'Blood test',boneage:'Bone age (X-ray)',growth:'Height & weight check',other:'Other tests'};
 var VIDEN=['Is my child growing well?','Daily habits for healthy growth','Why so many tests for precocious puberty?','How does precocious puberty treatment work?','Growth hormone: how much taller?','Does my child need combination therapy?','“My child gains weight just drinking water”'];
-function setLG(m){LG=m&&m.st&&m.st.lang==='en'?'en':'ko'}
+function setLG(m){LG=m&&m.st&&RLANGS.indexOf(m.st.lang)>0?m.st.lang:'ko'}
+function vidsL(x){return x.v.map(function(y,i){return(i+1)+'. '+(VIDEN[y.no-1]?K(VIDEN[y.no-1]):y.title)}).join('\n')+(x.site?'\n'+K('Watch all: ')+x.site.replace(/^https?:\/\//,'')+'&lang='+LG:'')}
 
 /* ---- 성장 계산 ---- */
 function getLMS(measure,sex,m){
@@ -2263,10 +2269,10 @@ function ageM(dob,date){
   var b=new Date(dob+'T00:00:00'),t=new Date(date+'T00:00:00');if(isNaN(b)||isNaN(t))return null;
   return(t.getFullYear()-b.getFullYear())*12+(t.getMonth()-b.getMonth())+(t.getDate()-b.getDate())/30.4375;
 }
-function ageTxt(m){var mm=Math.max(0,Math.floor(m+1e-6));return LG==='en'?Math.floor(mm/12)+' y '+(mm%12)+' m':'만 '+Math.floor(mm/12)+'세 '+(mm%12)+'개월'}
+function ageTxt(m){var mm=Math.max(0,Math.floor(m+1e-6));return LG!=='ko'?K('{0} y {1} m',[Math.floor(mm/12),mm%12]):'만 '+Math.floor(mm/12)+'세 '+(mm%12)+'개월'}
 function r1(x){return Math.round(x*10)/10}
-function pctTxt(p){if(LG==='en')return p<1?'below 1st percentile':p>99?'above 99th percentile':ord(Math.round(p))+' percentile';return p<1?'1백분위 미만':p>99?'99백분위 이상':Math.round(p)+'백분위'}
-function rank(p){if(LG==='en')return p<1?'smallest of 100 peers':p>99?'largest of 100 peers':'about #'+Math.round(p)+' of 100 peers (smallest first)';return p<1?'아주 작은 쪽':p>99?'아주 큰 쪽':'작은 쪽에서 약 '+Math.round(p)+'번째'}
+function pctTxt(p){if(LG!=='ko')return p<1?K('below 1st percentile'):p>99?K('above 99th percentile'):LG==='en'?ord(Math.round(p))+' percentile':K('{0}th percentile',[Math.round(p)]);return p<1?'1백분위 미만':p>99?'99백분위 이상':Math.round(p)+'백분위'}
+function rank(p){if(LG!=='ko')return p<1?K('smallest of 100 peers'):p>99?K('largest of 100 peers'):K('about #{0} of 100 peers (smallest first)',[Math.round(p)]);return p<1?'아주 작은 쪽':p>99?'아주 큰 쪽':'작은 쪽에서 약 '+Math.round(p)+'번째'}
 
 /* ---- 입력 모으기 ---- */
 function parseBA(t){
@@ -2303,17 +2309,17 @@ function saveEx(v,o){try{localStorage.setItem(exKey(v),JSON.stringify(o))}catch(
 var POSTF=[['summary','오늘 진료 요약','Today’s visit summary'],['labs','혈액검사 결과 설명','Blood test results'],['xray','엑스레이 결과 설명','X-ray results'],['direction','앞으로의 방향','Plan going forward'],['*next','다음 내원','Next visit'],['exercise','🏃 운동','🏃 Exercise'],['nutrition','🥗 영양','🥗 Nutrition'],['sleep','😴 수면','😴 Sleep'],['*vids','집에서 다시 보세요 (자라다케어 영상)','Watch again at home (Jarada Care videos)']];
 function testName(k){try{var o=FV_TEST_OPTIONS.filter(function(x){return x.key===k})[0];return o?o.label:k}catch(e){return k}}
 function nextText(p){var t=[];if(p.nextDate)t.push(dots(p.nextDate));if(p.tests&&p.tests.length)t.push('검사: '+p.tests.map(testName).join(', '));return t.join(' · ')}
-function nextTextEn(p){var t=[];if(p.nextDate)t.push(dots(p.nextDate));if(p.tests&&p.tests.length)t.push('Tests: '+p.tests.map(function(k){return TESTEN[k]||testName(k)}).join(', '));return t.join(' · ')}
+function nextTextEn(p){var t=[];if(p.nextDate)t.push(dots(p.nextDate));if(p.tests&&p.tests.length)t.push(K('Tests: ')+p.tests.map(function(k){return TESTEN[k]?K(TESTEN[k]):testName(k)}).join(', '));return t.join(' · ')}
 function itemsOf(p){
   var o=[];
   POSTF.forEach(function(f){
-    if(f[0]==='*next'){var n=nextText(p);if(n)o.push({l:f[1],le:f[2],t:n,te:nextTextEn(p)});return}
+    if(f[0]==='*next'){var n=nextText(p);if(n)o.push({l:f[1],le:f[2],t:n,k:'*next',p:p});return}
     if(f[0]==='*vids'){
       var v=(p.videos||[]).filter(function(x){return x&&x.title});if(!v.length)return;
       var nos=v.map(function(x){return x.no}).filter(function(n){return n>=1&&n<=7}).join(''),site='';
       try{site=nos?FV_VIDEO_SITE+'?v='+nos:''}catch(e){}
       o.push({l:f[1],le:f[2],t:v.map(function(x,i){return(i+1)+'. '+x.title+(x.question?' — '+x.question:'')}).join('\n')+(site?'\n한 번에 보기: '+site.replace(/^https?:\/\//,''):''),
-        te:v.map(function(x,i){return(i+1)+'. '+(VIDEN[x.no-1]||x.title)}).join('\n')+(site?'\nWatch all: '+site.replace(/^https?:\/\//,'')+'&lang=en':'')});return;
+        k:'*vids',v:v,site:site});return;
     }
     var x=p[f[0]];if(x&&String(x).trim())o.push({l:f[1],le:f[2],t:String(x).trim(),tr:true});
   });
@@ -2328,7 +2334,7 @@ function build(p){
   });
   var recs=Object.keys(map).map(function(k){return map[k]});
   var items=po.pending?[]:itemsOf(po);
-  return{nDoc:nDoc,st:{post:items.length?{date:fv.visitDate||'',items:items}:null,name:p.name||'',sex:p.sex==='M'||p.sex==='F'?p.sex:'',dob:p.dob||'',fh:num(p.fatherHeight),mh:num(p.motherHeight),recs:recs,nextText:nextText(po),nextTextEn:nextTextEn(po),lang:rptLang(p),pid:p.accessCode||'',comment:''}};
+  return{nDoc:nDoc,st:{post:items.length?{date:fv.visitDate||'',items:items}:null,name:p.name||'',sex:p.sex==='M'||p.sex==='F'?p.sex:'',dob:p.dob||'',fh:num(p.fatherHeight),mh:num(p.motherHeight),recs:recs,nextText:nextText(po),po:po,lang:rptLang(p),pid:p.accessCode||'',comment:''}};
 }
 
 function compute(st){
@@ -2382,8 +2388,8 @@ function drawChart(cv,m){
   for(var y=yMin;y<=yMax;y+=10){ctx.beginPath();ctx.moveTo(L,fy(y));ctx.lineTo(W-R,fy(y));ctx.stroke();ctx.fillText(String(y),L-7,fy(y))}
   ctx.textAlign='center';ctx.textBaseline='top';
   for(var yr=Math.ceil(xs/12);yr<=19;yr++){var x=fx(Math.min(yr*12,228));ctx.strokeStyle='#EFF2F4';ctx.beginPath();ctx.moveTo(x,T);ctx.lineTo(x,H-B);ctx.stroke();if(yr%2===0){ctx.fillStyle='#6B7B85';ctx.fillText(String(yr),x,H-B+6)}}
-  ctx.fillStyle='#6B7B85';ctx.font=font(500,10.5);ctx.textAlign='center';ctx.fillText(LT('만 나이 (세)','Age (years)'),(L+W-R)/2,H-15);
-  ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.fillText(LT('키 (cm)','Height (cm)'),4,12);
+  ctx.fillStyle='#6B7B85';ctx.font=font(500,10.5);ctx.textAlign='center';ctx.fillText(LT('만 나이 (세)',K("Age (years)")),(L+W-R)/2,H-15);
+  ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.fillText(LT('키 (cm)',K("Height (cm)")),4,12);
   ctx.beginPath();cv2[3].forEach(function(p,i){i?ctx.lineTo(fx(p[0]),fy(p[1])):ctx.moveTo(fx(p[0]),fy(p[1]))});
   for(var k=cv2[97].length-1;k>=0;k--)ctx.lineTo(fx(cv2[97][k][0]),fy(cv2[97][k][1]));
   ctx.closePath();ctx.fillStyle='rgba(11,110,127,0.07)';ctx.fill();
@@ -2392,7 +2398,7 @@ function drawChart(cv,m){
     ctx.strokeStyle=p===50?'#5F7C89':(p===3||p===97)?'#A9BAC3':'#C9D5DB';ctx.lineWidth=p===50?1.8:1.1;ctx.stroke();
     var e=cv2[p][cv2[p].length-1];ctx.fillStyle=p===50?'#3F5B68':'#7D8E98';ctx.font=font(p===50?600:400,10);ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillText(String(p),fx(e[0])+5,fy(e[1]));
   });
-  ctx.fillStyle='#7D8E98';ctx.font=font(400,10);ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.fillText(LT('백분위','Percentile'),W-R-6,12);
+  ctx.fillStyle='#7D8E98';ctx.font=font(400,10);ctx.textAlign='right';ctx.textBaseline='alphabetic';ctx.fillText(LT('백분위',K("Percentile")),W-4,12);
   var pts=m.recs.map(function(r){return[fx(r.ageM),fy(r.h)]}),last=pts[pts.length-1];
   if(m.pred){ctx.setLineDash([5,4]);ctx.strokeStyle='#0B6E7F';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(last[0],last[1]);ctx.lineTo(fx(ADULT_M),fy(m.pred.v));ctx.stroke();ctx.setLineDash([])}
   ctx.strokeStyle='#0B6E7F';ctx.lineWidth=2.6;ctx.lineJoin='round';ctx.beginPath();pts.forEach(function(p,i){i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1])});ctx.stroke();
@@ -2403,61 +2409,60 @@ function drawChart(cv,m){
   });
   ctx.fillStyle='#0B6E7F';ctx.font=font(700,12);ctx.textAlign='center';ctx.textBaseline='alphabetic';ctx.fillText(m.cur.h+' cm',last[0],last[1]-12);
   if(m.pred){var qx=fx(ADULT_M),qy=fy(m.pred.v);ctx.save();ctx.translate(qx,qy);ctx.rotate(Math.PI/4);ctx.fillStyle='#FFFFFF';ctx.fillRect(-6,-6,12,12);ctx.lineWidth=2.2;ctx.strokeStyle='#B5651D';ctx.strokeRect(-6,-6,12,12);ctx.restore();
-    ctx.fillStyle='#B5651D';ctx.font=font(700,12);ctx.textAlign='right';ctx.fillText(LT('예측 ','Predicted ')+m.pred.v+' cm',qx-11,qy-12)}
+    ctx.fillStyle='#B5651D';ctx.font=font(700,12);ctx.textAlign='right';ctx.fillText(LT('예측 ',K("Predicted "))+m.pred.v+' cm',qx-11,qy-12)}
 }
 
 /* ---- 리포트 HTML ---- */
 function reportHTML(m){
   if(m.error)return'<div class="rp"><div class="rp-empty">'+esc(m.error)+'</div></div>';
-  var st=m.st,cur=m.cur,sexTxt=st.sex==='M'?LT('남아','Boy'):LT('여아','Girl'),t=new Date(),todayS=t.getFullYear()+'.'+pad(t.getMonth()+1)+'.'+pad(t.getDate());
+  var st=m.st,cur=m.cur,sexTxt=st.sex==='M'?LT('남아',K("Boy")):LT('여아',K("Girl")),t=new Date(),todayS=t.getFullYear()+'.'+pad(t.getMonth()+1)+'.'+pad(t.getDate());
   var stat=function(l,v,u,s,sty){return'<div class="rp-stat"><div class="l">'+l+'</div><div class="v"'+(sty?' style="'+sty+'"':'')+'>'+v+(u?'<small>'+u+'</small>':'')+'</div><div class="s">'+s+'</div></div>'};
-  var s1=stat(LT('키','Height'),cur.h,'cm',pctTxt(cur.hp)+'<br>'+LT('또래 100명 중 '+rank(cur.hp),rank(cur.hp)));
-  var s2=cur.w?stat(LT('몸무게','Weight'),cur.w,'kg',pctTxt(cur.wp)+'<br>'+LT('또래 100명 중 '+rank(cur.wp),rank(cur.wp))):stat(LT('몸무게','Weight'),'–','',LT('측정값 없음','Not measured'));
-  var s3=cur.bmi!=null?stat(LT('체질량지수(BMI)','Body mass index (BMI)'),r1(cur.bmi),'',pctTxt(cur.bp)+'<br>'+LT('키에 비한 몸무게 지표','Weight relative to height')):stat(LT('체질량지수(BMI)','Body mass index (BMI)'),'–','',LT('만 2세부터 표시','Shown from age 2'));
+  var s1=stat(LT('키',K("Height")),cur.h,'cm',pctTxt(cur.hp)+'<br>'+LT('또래 100명 중 '+rank(cur.hp),K(rank(cur.hp))));
+  var s2=cur.w?stat(LT('몸무게',K("Weight")),cur.w,'kg',pctTxt(cur.wp)+'<br>'+LT('또래 100명 중 '+rank(cur.wp),K(rank(cur.wp)))):stat(LT('몸무게',K("Weight")),'–','',LT('측정값 없음',K("Not measured")));
+  var s3=cur.bmi!=null?stat(LT('체질량지수(BMI)',K("Body mass index (BMI)")),r1(cur.bmi),'',pctTxt(cur.bp)+'<br>'+LT('키에 비한 몸무게 지표',K("Weight relative to height"))):stat(LT('체질량지수(BMI)',K("Body mass index (BMI)")),'–','',LT('만 2세부터 표시',K("Shown from age 2")));
   var s4;
   if(m.baCur){var diff=Math.round(m.baCur.ba-m.baCur.ageM);
-    s4=stat(LT('골연령','Bone age'),ageTxt(m.baCur.ba).replace('만 ',''),'',(Math.abs(diff)<=3?LT('실제 나이와 비슷함','Close to actual age'):LT('실제 나이보다 약 '+Math.abs(diff)+'개월 '+(diff>0?'빠름':'느림'),'About '+Math.abs(diff)+' months '+(diff>0?'ahead of':'behind')+' actual age'))+'<br>'+LT(dots(m.baCur.date)+' 측정','Measured '+dots(m.baCur.date)),'font-size:19px;line-height:1.5')}
-  else s4=stat(LT('골연령','Bone age'),'–','',LT('측정값 없음','Not measured'));
+    s4=stat(LT('골연령',K("Bone age")),ageTxt(m.baCur.ba).replace('만 ',''),'',(Math.abs(diff)<=3?LT('실제 나이와 비슷함',K("Close to actual age")):LT('실제 나이보다 약 '+Math.abs(diff)+'개월 '+(diff>0?'빠름':'느림'),(diff>0?K("About {0} months ahead of actual age",[Math.abs(diff)]):K("About {0} months behind actual age",[Math.abs(diff)]))))+'<br>'+LT(dots(m.baCur.date)+' 측정',K("Measured {0}",[dots(m.baCur.date)])),'font-size:19px;line-height:1.5')}
+  else s4=stat(LT('골연령',K("Bone age")),'–','',LT('측정값 없음',K("Not measured")));
   var rows=m.recs.slice(-6).reverse().map(function(r,i){return'<tr class="'+(i===0?'cur':'')+'"><td>'+dots(r.date)+'</td><td>'+ageTxt(r.ageM).replace('만 ','')+'</td><td>'+r.h+' <small class="pc">('+Math.round(r.hp)+'%)</small></td><td>'+(r.w?r.w+' <small class="pc">('+Math.round(r.wp)+'%)</small>':'–')+'</td><td>'+(r.ba!=null?ageTxt(r.ba).replace('만 ',''):'–')+'</td></tr>'}).join('');
-  var note=m.pred.kind==='ba'?LT(dots(m.pred.date)+' 골연령('+ageTxt(m.pred.ba).replace('만 ','')+') 기준 백분위가 성인까지 유지된다고 가정한 값입니다.','Assumes the height percentile for bone age ('+ageTxt(m.pred.ba)+', '+dots(m.pred.date)+') continues into adulthood.'):LT('골연령 측정값이 없어, 현재 키 백분위가 성인까지 유지된다고 가정한 값입니다.','No bone age yet, so this assumes the current height percentile continues into adulthood.');
-  var boxes='<div class="rp-box hl"><div class="l">'+LT('예측 성인키 (참고)','Predicted adult height (reference)')+'</div><div class="v">'+m.pred.v+'<small> cm</small></div><div class="t">'+note+LT(' 사춘기 시작 시기와 치료에 따라 달라질 수 있습니다.',' It can change with the timing of puberty and treatment.')+'</div></div>';
-  if(m.target)boxes+='<div class="rp-box"><div class="l">'+LT('부모님 키로 본 목표키','Target height from parents')+'</div><div class="v">'+m.target.v+'<small> cm ('+m.target.lo+'–'+m.target.hi+')</small></div><div class="t">'+LT('아버지 '+st.fh+' cm, 어머니 '+st.mh+' cm 기준 유전 목표 범위입니다.','Genetic target range based on father '+st.fh+' cm and mother '+st.mh+' cm.')+'</div></div>';
-  if(m.vel)boxes+='<div class="rp-box"><div class="l">'+LT('최근 성장 속도','Recent growth rate')+'</div><div class="v">'+m.vel.cm+'<small>'+LT(' cm/년',' cm/yr')+'</small></div><div class="t">'+LT(dots(m.vel.from)+' 이후 '+m.vel.months+'개월 동안 '+m.vel.gain+' cm 자랐습니다.','Grew '+m.vel.gain+' cm in '+m.vel.months+' months since '+dots(m.vel.from)+'.')+'</div></div>';
-  var cm=st.comment?'<div class="rp-cm"><div class="l">'+LT('원장 코멘트','Doctor’s comment')+'</div>'+esc(TX(st.comment))+'</div>':'';
-  return'<div class="rp"><div class="rp-head"><div><div class="k">GROWTH REPORT</div><h1>'+LT('성장 리포트','Growth Report')+'</h1></div><div class="d">'+LT('삼성자라다 소아청소년과<br>작성일 ','Samsung Jarada Pediatric Clinic<br>Issued ')+todayS+'</div></div>'+
-    '<div class="rp-who"><span><b>'+esc(st.name||LT('이름 미입력','(no name)'))+'</b>'+sexTxt+'</span><span>'+LT('생년월일 ','Born ')+dots(st.dob)+'</span><span>'+LT(ageTxt(cur.ageM)+' · '+dots(cur.date)+' 측정','Age '+ageTxt(cur.ageM)+' · measured '+dots(cur.date))+'</span></div>'+
+  var note=m.pred.kind==='ba'?LT(dots(m.pred.date)+' 골연령('+ageTxt(m.pred.ba).replace('만 ','')+') 기준 백분위가 성인까지 유지된다고 가정한 값입니다.',K("Assumes the height percentile for bone age ({0}, {1}) continues into adulthood.",[ageTxt(m.pred.ba),dots(m.pred.date)])):LT('골연령 측정값이 없어, 현재 키 백분위가 성인까지 유지된다고 가정한 값입니다.',K("No bone age yet, so this assumes the current height percentile continues into adulthood."));
+  var boxes='<div class="rp-box hl"><div class="l">'+LT('예측 성인키 (참고)',K("Predicted adult height (reference)"))+'</div><div class="v">'+m.pred.v+'<small> cm</small></div><div class="t">'+note+LT(' 사춘기 시작 시기와 치료에 따라 달라질 수 있습니다.',K(" It can change with the timing of puberty and treatment."))+'</div></div>';
+  if(m.target)boxes+='<div class="rp-box"><div class="l">'+LT('부모님 키로 본 목표키',K("Target height from parents"))+'</div><div class="v">'+m.target.v+'<small> cm ('+m.target.lo+'–'+m.target.hi+')</small></div><div class="t">'+LT('아버지 '+st.fh+' cm, 어머니 '+st.mh+' cm 기준 유전 목표 범위입니다.',K("Genetic target range based on father {0} cm and mother {1} cm.",[st.fh,st.mh]))+'</div></div>';
+  if(m.vel)boxes+='<div class="rp-box"><div class="l">'+LT('최근 성장 속도',K("Recent growth rate"))+'</div><div class="v">'+m.vel.cm+'<small>'+LT(' cm/년',K(" cm/yr"))+'</small></div><div class="t">'+LT(dots(m.vel.from)+' 이후 '+m.vel.months+'개월 동안 '+m.vel.gain+' cm 자랐습니다.',K("Grew {0} cm in {1} months since {2}.",[m.vel.gain,m.vel.months,dots(m.vel.from)]))+'</div></div>';
+  var cm=st.comment?'<div class="rp-cm"><div class="l">'+LT('원장 코멘트',K("Doctor’s comment"))+'</div>'+esc(TX(st.comment))+'</div>':'';
+  return'<div class="rp"><div class="rp-head"><div><div class="k">GROWTH REPORT</div><h1>'+LT('성장 리포트',K("Growth Report"))+'</h1></div><div class="d">'+LT('삼성자라다 소아청소년과<br>작성일 ',K("Samsung Jarada Pediatric Clinic<br>Issued "))+todayS+'</div></div>'+
+    '<div class="rp-who"><span><b>'+esc(st.name||LT('이름 미입력',K("(no name)")))+'</b>'+sexTxt+'</span><span>'+LT('생년월일 ',K("Born "))+dots(st.dob)+'</span><span>'+LT(ageTxt(cur.ageM)+' · '+dots(cur.date)+' 측정',K("Age {0} · measured {1}",[ageTxt(cur.ageM),dots(cur.date)]))+'</span></div>'+
     '<div class="rp-stats">'+s1+s2+s3+s4+'</div>'+
-    '<div><h2>'+LT('우리 아이의 키 성장곡선','Your child’s height growth chart')+'</h2><canvas class="chart" width="1412" height="636"></canvas></div>'+
-    '<div class="rp-cols"><div><h2>'+LT('측정 기록','Measurements')+'</h2><table><thead><tr>'+LT('<th>측정일</th><th>나이</th><th>키(cm)</th><th>몸무게(kg)</th><th>골연령</th>','<th>Date</th><th>Age</th><th>Height (cm)</th><th>Weight (kg)</th><th>Bone age</th>')+'</tr></thead><tbody>'+rows+'</tbody></table></div><div>'+boxes+'</div></div>'+cm+
-    '<div class="rp-foot"><div>'+LT('삼성자라다 소아청소년과 · 02-523-0111<br>평일 10:00–20:00 · 토 09:00–18:00 (목요일·공휴일 휴진)<br>2017 소아청소년 성장도표(질병관리청) 기준의 참고 자료이며 진단이 아닙니다. 자세한 해석은 진료 시 설명드립니다.','Samsung Jarada Pediatric Clinic · +82-2-523-0111<br>Weekdays 10:00–20:00 · Sat 09:00–18:00 (closed Thu &amp; public holidays)<br>Reference based on the 2017 Korean National Growth Charts (KDCA); not a diagnosis. The doctor explains the details at your visit.')+'</div>'+(st.nextText?'<div class="nx">'+LT('다음 내원·추적','Next visit')+'<br>'+esc(LT(st.nextText,st.nextTextEn||st.nextText))+'</div>':'')+'</div></div>';
+    '<div><h2>'+LT('우리 아이의 키 성장곡선',K("Your child’s height growth chart"))+'</h2><canvas class="chart" width="1412" height="636"></canvas></div>'+
+    '<div class="rp-cols"><div><h2>'+LT('측정 기록',K("Measurements"))+'</h2><table><thead><tr>'+LT('<th>측정일</th><th>나이</th><th>키(cm)</th><th>몸무게(kg)</th><th>골연령</th>',K("<th>Date</th><th>Age</th><th>Height (cm)</th><th>Weight (kg)</th><th>Bone age</th>"))+'</tr></thead><tbody>'+rows+'</tbody></table></div><div>'+boxes+'</div></div>'+cm+
+    '<div class="rp-foot"><div>'+LT('삼성자라다 소아청소년과 · 02-523-0111<br>평일 10:00–20:00 · 토 09:00–18:00 (목요일·공휴일 휴진)<br>2017 소아청소년 성장도표(질병관리청) 기준의 참고 자료이며 진단이 아닙니다. 자세한 해석은 진료 시 설명드립니다.',K("Samsung Jarada Pediatric Clinic · +82-2-523-0111<br>Weekdays 10:00–20:00 · Sat 09:00–18:00 (closed Thu &amp; public holidays)<br>Reference based on the 2017 Korean National Growth Charts (KDCA); not a diagnosis. The doctor explains the details at your visit."))+'</div>'+(st.nextText?'<div class="nx">'+LT('다음 내원·추적',K("Next visit"))+'<br>'+esc(LT(st.nextText,K(st.po?nextTextEn(st.po):st.nextText)))+'</div>':'')+'</div></div>';
 }
 function backHTML(m){
   if(m.error)return'';
-  var st=m.st,cur=m.cur,sexTxt=st.sex==='M'?LT('남아','Boy'):LT('여아','Girl'),d=m.der,po=st.post;
-  var head='<div class="rp-head"><div><div class="k">GROWTH REPORT · '+LT('뒷장','PAGE 2')+'</div><h1>'+LT('예측 키 계산 근거와 진료 후 기록','How we predicted height &amp; today’s visit notes')+'</h1></div><div class="d"><b style="color:#14232B;font-size:14px">'+esc(st.name||LT('이름 미입력','(no name)'))+'</b> '+sexTxt+'<br>'+LT(dots(cur.date)+' 진료','Visit '+dots(cur.date))+'</div></div>';
+  var st=m.st,cur=m.cur,sexTxt=st.sex==='M'?LT('남아',K("Boy")):LT('여아',K("Girl")),d=m.der,po=st.post;
+  var head='<div class="rp-head"><div><div class="k">GROWTH REPORT · '+LT('뒷장',K("PAGE 2"))+'</div><h1>'+LT('예측 키 계산 근거와 진료 후 기록',K("How we predicted height &amp; today’s visit notes"))+'</h1></div><div class="d"><b style="color:#14232B;font-size:14px">'+esc(st.name||LT('이름 미입력',K("(no name)")))+'</b> '+sexTxt+'<br>'+LT(dots(cur.date)+' 진료',K("Visit {0}",[dots(cur.date)]))+'</div></div>';
   var h='<div class="rp">'+head;
-  h+='<div class="rp-sec"><h2>'+LT('예측 성인키는 이렇게 계산했어요','How we calculated predicted adult height')+'</h2>';
+  h+='<div class="rp-sec"><h2>'+LT('예측 성인키는 이렇게 계산했어요',K("How we calculated predicted adult height"))+'</h2>';
   if(d){
     var r=d.rec,diff=Math.round(r.ba-r.ageM),ad=(ADULT_M/12);
-    var c1='<div class="rp-step"><div class="n">'+LT('① 그날의 키','① Height that day')+'</div><div class="v">'+r.h+'<small> cm</small></div><div class="s">'+dots(r.date)+' · '+ageTxt(r.ageM)+'<br>'+LT('같은 나이 또래 중 ','Among same-age peers: ')+'<b>'+pctTxt(d.pc)+'</b></div></div>';
-    var c2='<div class="rp-step"><div class="n">'+LT('② 뼈나이로 다시 보기','② Re-read by bone age')+'</div><div class="v" style="font-size:19px;line-height:1.55">'+ageTxt(r.ba).replace('만 ','')+'</div><div class="s">'+LT('같은 키를 뼈나이 또래와 견주면','Same height vs bone-age peers:')+'<br><b>'+pctTxt(d.pb)+'</b></div></div>';
-    var c3='<div class="rp-step hl"><div class="n">'+LT('③ 성인 키로 이어 보기','③ Carried to adult height')+'</div><div class="v">'+m.pred.v+'<small> cm</small></div><div class="s">'+LT(pctTxt(d.pb)+'가 만 18세 9개월까지<br>이어진다고 가정한 키','If the '+pctTxt(d.pb)+'<br>holds until age 18 y 9 m')+'</div></div>';
+    var c1='<div class="rp-step"><div class="n">'+LT('① 그날의 키',K("① Height that day"))+'</div><div class="v">'+r.h+'<small> cm</small></div><div class="s">'+dots(r.date)+' · '+ageTxt(r.ageM)+'<br>'+LT('같은 나이 또래 중 ',K("Among same-age peers: "))+'<b>'+pctTxt(d.pc)+'</b></div></div>';
+    var c2='<div class="rp-step"><div class="n">'+LT('② 뼈나이로 다시 보기',K("② Re-read by bone age"))+'</div><div class="v" style="font-size:19px;line-height:1.55">'+ageTxt(r.ba).replace('만 ','')+'</div><div class="s">'+LT('같은 키를 뼈나이 또래와 견주면',K("Same height vs bone-age peers:"))+'<br><b>'+pctTxt(d.pb)+'</b></div></div>';
+    var c3='<div class="rp-step hl"><div class="n">'+LT('③ 성인 키로 이어 보기',K("③ Carried to adult height"))+'</div><div class="v">'+m.pred.v+'<small> cm</small></div><div class="s">'+LT(pctTxt(d.pb)+'가 만 18세 9개월까지<br>이어진다고 가정한 키',K("If the {0}<br>holds until age 18 y 9 m",[pctTxt(d.pb)]))+'</div></div>';
     h+='<div class="rp-steps">'+c1+'<div class="ar">→</div>'+c2+'<div class="ar">→</div>'+c3+'</div>';
-    var why=LG==='en'?(Math.abs(diff)<=3?'Bone age is close to actual age, so both methods give similar results.':diff>0?'Bone age is about '+diff+' months ahead of actual age, so the same height sits lower among bone-age peers and the predicted height comes out lower.':'Bone age is about '+(-diff)+' months behind actual age, so the same height sits higher among bone-age peers and the predicted height comes out higher.'):
-      Math.abs(diff)<=3?'뼈나이가 실제 나이와 비슷해 두 방식의 결과가 크게 다르지 않습니다.':(diff>0?'뼈나이가 실제 나이보다 약 '+diff+'개월 빨라, 같은 키라도 뼈나이 기준에서는 상대적으로 작은 쪽에 놓여 예측 키가 낮게 계산됩니다.':'뼈나이가 실제 나이보다 약 '+(-diff)+'개월 느려, 같은 키라도 뼈나이 기준에서는 상대적으로 큰 쪽에 놓여 예측 키가 높게 계산됩니다.');
-    h+='<p class="rp-p">'+LT('뼈나이(손목 엑스레이로 보는 뼈의 성숙도)는 앞으로 더 자랄 수 있는 기간을 가늠하는 지표입니다. ','Bone age (bone maturity seen on a wrist X-ray) shows how much growing time is left. ')+why+LT(' 실제 나이 기준 백분위('+pctTxt(d.pc)+')를 그대로 연장하면 <b>'+d.byAge+' cm</b>로, 뼈나이를 쓴 값과 '+r1(Math.abs(m.pred.v-d.byAge))+' cm 차이가 납니다.',' Extending the percentile for actual age ('+pctTxt(d.pc)+') gives <b>'+d.byAge+' cm</b>, '+r1(Math.abs(m.pred.v-d.byAge))+' cm different from the bone-age value.')+'</p>';
+    var why=Math.abs(diff)<=3?LT('뼈나이가 실제 나이와 비슷해 두 방식의 결과가 크게 다르지 않습니다.',K("Bone age is close to actual age, so both methods give similar results.")):(diff>0?LT('뼈나이가 실제 나이보다 약 '+diff+'개월 빨라, 같은 키라도 뼈나이 기준에서는 상대적으로 작은 쪽에 놓여 예측 키가 낮게 계산됩니다.',K("Bone age is about {0} months ahead of actual age, so the same height sits lower among bone-age peers and the predicted height comes out lower.",[diff])):LT('뼈나이가 실제 나이보다 약 '+(-diff)+'개월 느려, 같은 키라도 뼈나이 기준에서는 상대적으로 큰 쪽에 놓여 예측 키가 높게 계산됩니다.',K("Bone age is about {0} months behind actual age, so the same height sits higher among bone-age peers and the predicted height comes out higher.",[-diff])));
+    h+='<p class="rp-p">'+LT('뼈나이(손목 엑스레이로 보는 뼈의 성숙도)는 앞으로 더 자랄 수 있는 기간을 가늠하는 지표입니다. ',K("Bone age (bone maturity seen on a wrist X-ray) shows how much growing time is left. "))+why+LT(' 실제 나이 기준 백분위('+pctTxt(d.pc)+')를 그대로 연장하면 <b>'+d.byAge+' cm</b>로, 뼈나이를 쓴 값과 '+r1(Math.abs(m.pred.v-d.byAge))+' cm 차이가 납니다.',K(" Extending the percentile for actual age ({0}) gives <b>{1} cm</b>, {2} cm different from the bone-age value.",[pctTxt(d.pc),d.byAge,r1(Math.abs(m.pred.v-d.byAge))]))+'</p>';
     var tr=d.rows.slice(-4).reverse().map(function(x,i){return'<tr class="'+(i===0?'cur':'')+'"><td>'+dots(x.date)+'</td><td>'+ageTxt(x.ageM).replace('만 ','')+'</td><td>'+ageTxt(x.ba).replace('만 ','')+'</td><td>'+x.h+'</td><td>'+Math.round(x.pb)+'%</td><td>'+x.pred+'</td></tr>'}).join('');
-    h+='<table><thead><tr>'+LT('<th>측정일</th><th>실제 나이</th><th>뼈나이</th><th>키(cm)</th><th>뼈나이 백분위</th><th>예측 성인키(cm)</th>','<th>Date</th><th>Actual age</th><th>Bone age</th><th>Height (cm)</th><th>Bone-age percentile</th><th>Predicted adult (cm)</th>')+'</tr></thead><tbody>'+tr+'</tbody></table>';
+    h+='<table><thead><tr>'+LT('<th>측정일</th><th>실제 나이</th><th>뼈나이</th><th>키(cm)</th><th>뼈나이 백분위</th><th>예측 성인키(cm)</th>',K("<th>Date</th><th>Actual age</th><th>Bone age</th><th>Height (cm)</th><th>Bone-age percentile</th><th>Predicted adult (cm)</th>"))+'</tr></thead><tbody>'+tr+'</tbody></table>';
   }else{
-    h+='<p class="rp-p">'+LT('골연령(뼈나이) 측정값이 없어, <b>'+dots(cur.date)+'</b> 키 '+cur.h+' cm가 같은 나이 또래 중 <b>'+pctTxt(cur.hp)+'</b>인 점을 이용했습니다. 이 백분위가 만 18세 9개월까지 이어진다고 가정하면 <b>'+m.pred.v+' cm</b>입니다. 손목 엑스레이로 뼈나이를 확인하면 더 정확하게 가늠할 수 있습니다.','There is no bone age measurement yet, so we used the height of '+cur.h+' cm on <b>'+dots(cur.date)+'</b>, which is at the <b>'+pctTxt(cur.hp)+'</b> among same-age peers. If this percentile holds until age 18 y 9 m, adult height would be <b>'+m.pred.v+' cm</b>. A wrist X-ray for bone age gives a more accurate estimate.')+'</p>';
+    h+='<p class="rp-p">'+LT('골연령(뼈나이) 측정값이 없어, <b>'+dots(cur.date)+'</b> 키 '+cur.h+' cm가 같은 나이 또래 중 <b>'+pctTxt(cur.hp)+'</b>인 점을 이용했습니다. 이 백분위가 만 18세 9개월까지 이어진다고 가정하면 <b>'+m.pred.v+' cm</b>입니다. 손목 엑스레이로 뼈나이를 확인하면 더 정확하게 가늠할 수 있습니다.',K("There is no bone age measurement yet, so we used the height of {0} cm on <b>{1}</b>, which is at the <b>{2}</b> among same-age peers. If this percentile holds until age 18 y 9 m, adult height would be <b>{3} cm</b>. A wrist X-ray for bone age gives a more accurate estimate.",[cur.h,dots(cur.date),pctTxt(cur.hp),m.pred.v]))+'</p>';
   }
-  if(m.target){var df=r1(m.pred.v-m.target.v);h+='<p class="rp-p">'+LT('부모님 키로 본 목표키는 <b>'+m.target.v+' cm</b>(범위 '+m.target.lo+'–'+m.target.hi+' cm)이며, 예측 성인키는 목표키보다 <b>'+(df>=0?'+':'')+df+' cm</b>입니다. (목표키 = (아버지 키 + 어머니 키 ± 13) ÷ 2)','The target height from the parents’ heights is <b>'+m.target.v+' cm</b> (range '+m.target.lo+'–'+m.target.hi+' cm); the predicted adult height is <b>'+(df>=0?'+':'')+df+' cm</b> compared with it. (Target = (father + mother ± 13) ÷ 2)')+'</p>'}
-  h+='<p class="rp-p mute">'+LT('예측 키는 현재 성장 속도와 백분위가 유지된다는 가정의 참고 값입니다. 사춘기 시작 시기, 성장 속도 변화, 치료 여부에 따라 실제 키는 달라질 수 있습니다. 2017 소아청소년 성장도표(질병관리청) 기준입니다.','The prediction is a reference value that assumes the current growth rate and percentile continue. Actual height can differ with the timing of puberty, changes in growth rate and treatment. Based on the 2017 Korean National Growth Charts (KDCA).')+'</p></div>';
+  if(m.target){var df=r1(m.pred.v-m.target.v);h+='<p class="rp-p">'+LT('부모님 키로 본 목표키는 <b>'+m.target.v+' cm</b>(범위 '+m.target.lo+'–'+m.target.hi+' cm)이며, 예측 성인키는 목표키보다 <b>'+(df>=0?'+':'')+df+' cm</b>입니다. (목표키 = (아버지 키 + 어머니 키 ± 13) ÷ 2)',K("The target height from the parents’ heights is <b>{0} cm</b> (range {1}–{2} cm); the predicted adult height is <b>{3}{4} cm</b> compared with it. (Target = (father + mother ± 13) ÷ 2)",[m.target.v,m.target.lo,m.target.hi,df>=0?'+':'',df]))+'</p>'}
+  h+='<p class="rp-p mute">'+LT('예측 키는 현재 성장 속도와 백분위가 유지된다는 가정의 참고 값입니다. 사춘기 시작 시기, 성장 속도 변화, 치료 여부에 따라 실제 키는 달라질 수 있습니다. 2017 소아청소년 성장도표(질병관리청) 기준입니다.',K("The prediction is a reference value that assumes the current growth rate and percentile continue. Actual height can differ with the timing of puberty, changes in growth rate and treatment. Based on the 2017 Korean National Growth Charts (KDCA)."))+'</p></div>';
   if(po&&po.items.length){
-    h+='<div class="rp-sec rp-post"><h2>'+LT('오늘 진료 후 기록','Notes from today’s visit')+(po.date?' <small>'+dots(po.date)+'</small>':'')+'</h2><div class="rp-pb" id="rp-pb">'+
-      po.items.map(function(x){return'<div class="it"><div class="l">'+esc(LT(x.l,x.le||x.l))+'</div><div class="t">'+esc(LG==='en'?(x.te!=null?x.te:TX(x.t)):x.t)+'</div></div>'}).join('')+'</div></div><p class="rp-p mute" style="margin:6px 0 0">'+LT('이 안내는 담당 의료진이 확인한 내용입니다.','Reviewed by your care team. The English text was translated automatically from the doctor’s Korean notes.')+'</p>';
+    h+='<div class="rp-sec rp-post"><h2>'+LT('오늘 진료 후 기록',K("Notes from today’s visit"))+(po.date?' <small>'+dots(po.date)+'</small>':'')+'</h2><div class="rp-pb" id="rp-pb">'+
+      po.items.map(function(x){return'<div class="it"><div class="l">'+esc(LT(x.l,K(x.le||x.l)))+'</div><div class="t">'+esc(LG==='ko'?x.t:x.k==='*next'?nextTextEn(x.p):x.k==='*vids'?vidsL(x):TX(x.t))+'</div></div>'}).join('')+'</div></div><p class="rp-p mute" style="margin:6px 0 0">'+LT('이 안내는 담당 의료진이 확인한 내용입니다.',K("Reviewed by your care team. This text was translated automatically from the doctor’s Korean notes."))+'</p>';
   }else h+='<div class="rp-sec rp-post" style="flex:1"></div>';
-  h+='<div class="rp-foot"><div>'+LT('삼성자라다 소아청소년과 · 02-523-0111<br>평일 10:00–20:00 · 토 09:00–18:00 (목요일·공휴일 휴진)<br>궁금한 점이나 아이 상태가 달라지면 병원으로 문의해 주세요.','Samsung Jarada Pediatric Clinic · +82-2-523-0111<br>Weekdays 10:00–20:00 · Sat 09:00–18:00 (closed Thu &amp; public holidays)<br>If you have questions or your child’s condition changes, please contact us.')+'</div>'+(st.nextText?'<div class="nx">'+LT('다음 내원·추적','Next visit')+'<br>'+esc(LT(st.nextText,st.nextTextEn||st.nextText))+'</div>':'')+'</div></div>';
+  h+='<div class="rp-foot"><div>'+LT('삼성자라다 소아청소년과 · 02-523-0111<br>평일 10:00–20:00 · 토 09:00–18:00 (목요일·공휴일 휴진)<br>궁금한 점이나 아이 상태가 달라지면 병원으로 문의해 주세요.',K("Samsung Jarada Pediatric Clinic · +82-2-523-0111<br>Weekdays 10:00–20:00 · Sat 09:00–18:00 (closed Thu &amp; public holidays)<br>If you have questions or your child’s condition changes, please contact us."))+'</div>'+(st.nextText?'<div class="nx">'+LT('다음 내원·추적',K("Next visit"))+'<br>'+esc(LT(st.nextText,K(st.po?nextTextEn(st.po):st.nextText)))+'</div>':'')+'</div></div>';
   return h;
 }
 function pagesHTML(m){setLG(m);return m.error?reportHTML(m):reportHTML(m)+backHTML(m)}
@@ -2476,13 +2481,13 @@ function onKey(e){if(e.key==='Escape')close()}
 function open(id){
   var p=typeof getPatient==='function'?getPatient(id):null;if(!p){alert('환아 정보를 찾을 수 없습니다.');return}
   if(document.getElementById('fv_summary')&&typeof fvReadPost==='function'){try{fvReadPost(p)}catch(e){}}
-  var b=build(p),m=compute(b.st);cache={p:p,m:m};close();
+  var b=build(p),out=b.st.lang;b.st.lang='ko';var m=compute(b.st);cache={p:p,m:m};close();   // 화면은 언제나 한국어로 먼저 (원장 확인용)
   var o=document.createElement('div');o.className='grov';o.id='grov';
-  o.innerHTML='<div class="grbar"><b>성장 리포트</b><span id="grmsg">'+(m.error?esc(m.error):'앞장·뒷장 2쪽 (양면 인쇄용 PDF)')+'</span><div class="grbtns">'+
+  o.innerHTML='<div class="grbar"><b>성장 리포트</b><span id="grmsg">'+(m.error?esc(m.error):out!=='ko'?'한국어로 먼저 확인하세요 · 보호자에게는 '+RLNAME[out]+'로 나가요 (오른쪽에서 골라 미리 보기)':'앞장·뒷장 2쪽 (양면 인쇄용 PDF)')+'</span><div class="grbtns">'+
     '<button class="btn btn-primary" onclick="GR.act(\'pdf\')"'+(m.error?' disabled':'')+'>PDF 저장</button>'+
     '<button class="btn btn-outline" onclick="GR.act(\'png\')"'+(m.error?' disabled':'')+'>이미지 저장</button>'+
     '<button class="btn btn-outline" onclick="GR.act(\'copy\')"'+(m.error?' disabled':'')+'>이미지 복사</button>'+
-    '<span class="grlang" style="display:inline-flex;gap:4px;margin-right:6px"><button class="btn '+(b.st.lang==='en'?'btn-outline':'btn-primary')+'" onclick="GR.lang(\'ko\')">한국어</button><button class="btn '+(b.st.lang==='en'?'btn-primary':'btn-outline')+'" onclick="GR.lang(\'en\')">English</button></span>'+
+    '<select class="grlang btn btn-outline" title="리포트 언어 — 고르면 이 환아의 보호자용 리포트(PDF·초진방·flow)도 그 언어로 나가요" onchange="GR.lang(this.value)" style="margin-right:6px">'+RLANGS.map(function(l){return'<option value="'+l+'"'+(l==='ko'?' selected':'')+'>🌐 '+RLNAME[l]+(l===out&&l!=='ko'?' (보호자용)':'')+'</option>'}).join('')+'</select>'+
     '<button class="btn btn-outline" onclick="GR.close()">닫기</button></div></div>'+
     '<div class="grscroll"><div class="gr-wrap" id="gr-wrap"><div class="gr-inner" id="gr-inner">'+pagesHTML(m)+'</div></div></div>';
   document.body.appendChild(o);paint(o,m);fit();
@@ -2494,18 +2499,18 @@ function lang(l){
   [p,real].forEach(function(x){if(x)x.reportLang=l});try{if(real){real.updatedAt=new Date().toISOString();savePatients()}}catch(e){}
   var m=compute(build(p).st);cache.m=m;var host=document.getElementById('gr-inner');if(!host){open(p.id);return}
   host.innerHTML=pagesHTML(m);paint(host,m);fit();
-  [].forEach.call(document.querySelectorAll('#grov .grlang .btn'),function(b,i){var on=(i===1)===(l==='en');b.className='btn '+(on?'btn-primary':'btn-outline')});
-  say(m.error||(l==='en'?'English report · 2 pages':'앞장·뒷장 2쪽 (양면 인쇄용 PDF)'));trRun(m);
+  var sel=document.querySelector('#grov .grlang');if(sel)sel.value=l;
+  say(m.error||(l==='ko'?'앞장·뒷장 2쪽 (양면 인쇄용 PDF) · 보호자에게도 한국어로 나가요':RLNAME[l]+' 리포트 · 보호자에게 이 언어로 나가요'));trRun(m);
 }
 function trRun(m){
-  if(!m||m.error||m.st.lang!=='en'||!trLeft(m))return;say('🌐 원장님이 쓴 문장을 영어로 옮기는 중…');
+  if(!m||m.error||m.st.lang==='ko'||!trLeft(m))return;say('🌐 원장님이 쓴 문장을 '+RLNAME[m.st.lang]+'로 옮기는 중…');
   prep(m).then(function(n){
     if(!cache||cache.m!==m)return;var host=document.getElementById('gr-inner');
-    if(n>0&&host){host.innerHTML=pagesHTML(m);paint(host,m);fit();say('English report · 2 pages')}
-    else if(n<0)say('⚠️ 원장님이 쓴 문장 일부를 영어로 옮기지 못해 한국어로 남았어요. 인터넷을 확인하고 다시 열어 주세요.');
+    if(n>0&&host){host.innerHTML=pagesHTML(m);paint(host,m);fit();say(RLNAME[m.st.lang]+' 리포트 · 보호자에게 이 언어로 나가요')}
+    else if(n<0)say('⚠️ 원장님이 쓴 문장 일부를 번역하지 못해 한국어로 남았어요. 인터넷을 확인하고 다시 열어 주세요.');
   });
 }
-TRF=function(texts,m){return bqPost({action:'translate',pid:(m&&m.st.pid)||'doctor',lang:'en',texts:texts}).then(function(j){return j&&j.status==='ok'&&Array.isArray(j.texts)?j.texts:null})};
+TRF=function(texts,m){return bqPost({action:'translate',pid:(m&&m.st.pid)||'doctor',lang:(m&&m.st.lang)||'en',texts:texts}).then(function(j){return j&&j.status==='ok'&&Array.isArray(j.texts)?j.texts:null})};
 
 /* ---- 저장·복사 ---- */
 function loadScript(src){return new Promise(function(ok,no){var s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=function(){no(new Error('load'))};document.head.appendChild(s)})}
@@ -2523,7 +2528,7 @@ function capture0(m){
     return pg.reduce(function(pr,el){return pr.then(function(){return html2canvas(el,{scale:2,backgroundColor:'#ffffff',useCORS:true,logging:false}).then(function(c){out.push(c)})})},Promise.resolve()).then(function(){return out});
   }).then(function(c){done();return c},function(e){done();throw e});
 }
-function fname(m,ext,suf){var t=new Date(),en=m.st.lang==='en';return(en?'GrowthReport_':'성장리포트_')+(m.st.name||(en?'child':'환아')).replace(/[\\/:*?"<>|]/g,'')+'_'+t.getFullYear()+pad(t.getMonth()+1)+pad(t.getDate())+(suf||'')+'.'+ext}
+function fname(m,ext,suf){var t=new Date(),en=!!m.st.lang&&m.st.lang!=='ko';return(en?'GrowthReport_':'성장리포트_')+(m.st.name||(en?'child':'환아')).replace(/[\\/:*?"<>|]/g,'')+'_'+t.getFullYear()+pad(t.getMonth()+1)+pad(t.getDate())+(suf||'')+'.'+ext}
 function saveBlob(blob,name){var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(a.href)},4000)}
 function toBlob(c){return new Promise(function(ok){c.toBlob(ok,'image/png')})}
 function stack(cs){var W=cs[0].width,g=28,H=cs.reduce(function(a,c){return a+c.height},0)+g*(cs.length-1),o=document.createElement('canvas');o.width=W;o.height=H;var x=o.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,W,H);var y=0;cs.forEach(function(c){x.drawImage(c,0,y);y+=c.height+g});return o}
@@ -2532,7 +2537,7 @@ function act(kind){
   var m=cache.m;say('파일을 만드는 중입니다…');
   libs(kind==='pdf').then(function(){return capture(m)}).then(function(cs){
     if(kind==='pdf'){var pdf=new window.jspdf.jsPDF({unit:'mm',format:'a4',compress:true});cs.forEach(function(c,i){if(i)pdf.addPage();pdf.addImage(c.toDataURL('image/jpeg',0.95),'JPEG',0,0,210,297)});saveBlob(pdf.output('blob'),fname(m,'pdf'));say('PDF를 저장했습니다. (앞장·뒷장 2쪽, 양면 인쇄용)');return}
-    if(kind==='png'){return Promise.all(cs.map(toBlob)).then(function(bs){bs.forEach(function(b,i){setTimeout(function(){saveBlob(b,fname(m,'png',m.st.lang==='en'?(i?'_p2':'_p1'):(i?'_뒷장':'_앞장')))},i*400)});say('이미지를 저장했습니다. (앞장·뒷장)')})}
+    if(kind==='png'){return Promise.all(cs.map(toBlob)).then(function(bs){bs.forEach(function(b,i){setTimeout(function(){saveBlob(b,fname(m,'png',(m.st.lang&&m.st.lang!=='ko')?(i?'_p2':'_p1'):(i?'_뒷장':'_앞장')))},i*400)});say('이미지를 저장했습니다. (앞장·뒷장)')})}
     return toBlob(stack(cs)).then(function(b){
       try{return navigator.clipboard.write([new ClipboardItem({'image/png':b})]).then(function(){say('앞장·뒷장 이미지를 복사했습니다. 메시지 창에 붙여 넣으세요.')},function(){saveBlob(b,fname(m,'png'));say('복사가 막혀 있어 이미지로 저장했습니다.')})}
       catch(e){saveBlob(b,fname(m,'png'));say('복사가 막혀 있어 이미지로 저장했습니다.')}
@@ -2551,7 +2556,7 @@ function pdfBlob(id,q){
 }
 function quick(id){return pdfBlob(id,0.95).then(function(r){saveBlob(r.blob,r.name);return r})}
 window.addEventListener('resize',fit);
-return{open:open,close:close,act:act,pdfBlob:pdfBlob,quick:quick,lang:lang,prep:prep,setTr:setTr};
+return{open:open,close:close,act:act,pdfBlob:pdfBlob,quick:quick,lang:lang,prep:prep,setTr:setTr,RLANGS:RLANGS,RLNAME:RLNAME};
 })();
 
 /* ---------------- Views ---------------- */
@@ -9408,7 +9413,7 @@ async function rvPushFlow(p, o){
       recsText: rvRecsText(p) || old.recsText || '',
       post: { summary:po.summary||'', labs:po.labs||'', xray:po.xray||'', direction:po.direction||'', exercise:po.exercise||'', nutrition:po.nutrition||'', sleep:po.sleep||'', nextDate:po.nextDate||'', tests:po.tests||[], videos:vids },
       ready:true, at:Date.now(), from:'index',
-      lang: old.langBy==='flow' ? (old.lang==='en' ? 'en' : 'ko') : rptLang(p)
+      lang: old.langBy==='flow' ? (old.lang || 'ko') : rptLang(p)
     });
     if(p.rvQ) gr.q = { blood:!!p.rvQ.blood, xray:!!p.rvQ.xray, t:p.rvQ.t };
     if(o.reviewed){ gr.reviewed = true; gr.reviewedAt = Date.now(); gr.printedAt = null; }
@@ -9420,7 +9425,7 @@ async function rvPushFlow(p, o){
   }catch(e){ rvFlowSay('flow로 보내지 못했어요: ' + (e.message||'연결 오류'), true); }
 }
 /* 🌐 성장 리포트 언어: 원장이 리포트 창에서 고른 값(p.reportLang) → 없으면 환아 정보의 언어(한국어가 아니면 영어) */
-function rptLang(p){ const l = p && (p.reportLang || (p.lang && p.lang!=='ko' ? 'en' : 'ko')); return l==='en' ? 'en' : 'ko'; }
+function rptLang(p){ const M = { zt:'zh-TW' }, ok = ['ko','en','zh','zh-TW','ja','vi','th','id','es','ar','mn']; const l = p && (p.reportLang || (p.lang ? (M[p.lang] || p.lang) : 'ko')); return ok.includes(l) ? l : (l ? 'en' : 'ko'); }
 /* ================== 오늘 혈액검사·엑스레이 한 아이 → 성장 리포트 작성 대기 → flow 인쇄 대상 ==================
  * p.rvQ = { date, blood, xray, st:'wait'|'sent', t(표시 시각), sentAt }
  *  ▸ 표시되는 경로: ① 외래 명단 도구(patient_filter_emr_app)에서 🩸/🦴 선택·자동 인식 → localStorage rvMarks_<오늘>
