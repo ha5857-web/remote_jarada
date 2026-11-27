@@ -223,6 +223,7 @@ body.pm .pm-gift>b{font-size:19px}
 body.pm .pm-gift p{margin:6px 0 10px;font-size:16px;line-height:1.6}
 body.pm .pm-gift a{display:block;text-align:center;text-decoration:none;padding:14px;border-radius:12px;background:#03C75A;color:#fff;font-size:18px;font-weight:800}
 body.pm .pm-gift small{display:block;margin-top:6px;font-size:13px;color:#5A6B73}
+body.pm .kiosk>.pm-lang{position:absolute;top:10px;right:10px;z-index:3;margin:0;border:0;border-radius:999px;padding:7px 14px;font:inherit;font-size:15px;font-weight:700;background:#fff;color:#0B7A85;box-shadow:0 2px 10px rgba(0,0,0,.2);cursor:pointer}
 body.pm .pm-man{display:flex;align-items:center;gap:12px;margin-top:14px;padding:14px;border-radius:14px;background:#FFF1F0;border:1.5px solid #FF3B30;text-decoration:none;color:inherit}
 body.pm .pm-man .i{flex:0 0 auto;font-size:26px}
 body.pm .pm-man b{display:block;font-size:19px;color:#D32F2F}
@@ -1425,8 +1426,17 @@ async function autoVids(){
 }
 function patientVideos(v){
   const nos=String(v.vids||'').replace(/[^1-7]/g,'').split('').filter((n,i,a)=>a.indexOf(n)===i);
-  return nos.map(n=>JRD_VIDEOS.find(x=>x.no===+n)).filter(Boolean);
+  return nos.map(n=>JRD_VIDEOS.find(x=>x.no===+n)).filter(Boolean).map(enJ);
 }
+/* 🌐 영어 모드 — 보호자 폰에서 「English」를 누르면(또는 휴대폰 언어가 한국어가 아니면) 화면·음성 안내·영상이 모두 영어판으로 바뀝니다.
+   영상: jaradacare.com/v/en/G1~G7(보호자 안내 7편), v/en/X1~X8(추가 8편, 원장님 목소리 영어판) */
+const JRD_EN=['Is my child growing well?','Daily habits for healthy growth','Why so many tests for precocious puberty?','How does precocious puberty treatment work?','Growth hormone: how much taller?','Does my child need combination therapy?','“My child gains weight just drinking water”'];
+const XV_EN=[['Basic blood test','Basic blood test: what do we check?'],['Precocious puberty test','Precocious puberty test: how it works & how blood is drawn'],['Growth hormone follow-up','After starting growth hormone: follow-up & costs'],['Precocious puberty follow-up','After starting precocious puberty treatment: follow-up & costs'],['GH stimulation test','Growth hormone stimulation test guide'],['Nutrition','Healthy habits ① Nutrition'],['Exercise','Healthy habits ② Exercise'],['Sleep','Healthy habits ③ Sleep']];
+const V_EN='https://jaradacare.com/v/en/';
+function vEN(){try{return !!(PM_CODE&&PM.lang==='en')}catch(e){return false}}
+function tr(ko,en){return vEN()?en:ko}
+function enJ(x){return vEN()&&x?Object.assign({},x,{title:JRD_EN[x.no-1]||x.title,play:V_EN+'G'+x.no+'.mp4',thumb:V_EN+'G'+x.no+'.jpg'}):x}
+function enX(x){const e=x&&XV_EN[x.no-1];return vEN()&&e?Object.assign({},x,{tag:e[0],title:e[1],play:V_EN+'X'+x.no+'.mp4',thumb:V_EN+'X'+x.no+'.jpg'}):x}
 function videosFor(v){const pr=(v.lab&&v.lab.proto)||'single';return VIDEOS.filter(x=>x.for==='all'||x.for===pr)}
 /* 추가 영상 8편 (검사 안내 5 + 생활습관 3). url: 유튜브 원본 주소(비어 있으면 환자에게 보이지 않음).
    play·thumb: 2026-11-21 재구성판(jaradacare.com/v/ko/X1~X8) — 환자 폰·대기 화면에서는 이 파일을 재생합니다. */
@@ -1440,7 +1450,7 @@ const XVIDEOS=[
  {no:6,tag:'영양',title:'생활습관 ① 영양',url:'https://youtu.be/SYpwq8TUdvY',always:1},
  {no:7,tag:'운동',title:'생활습관 ② 운동',url:'https://youtu.be/5WLZPNcSZmw',always:1},
  {no:8,tag:'수면',title:'생활습관 ③ 수면',url:'https://youtu.be/UbREQz30qMs',always:1}].map(x=>Object.assign(x,{play:XV_BASE+x.no+'.mp4',thumb:XV_BASE+x.no+'.jpg'}));
-const xvList=v=>{const sel=String(v.xv||'').replace(/[^1-5]/g,'').split('').filter((n,i,a)=>a.indexOf(n)===i).map(n=>XVIDEOS.find(x=>x.no===+n));return {pick:sel.filter(x=>x&&x.url),always:XVIDEOS.filter(x=>x.always&&x.url)}};
+const xvList=v=>{const sel=String(v.xv||'').replace(/[^1-5]/g,'').split('').filter((n,i,a)=>a.indexOf(n)===i).map(n=>XVIDEOS.find(x=>x.no===+n));return {pick:sel.filter(x=>x&&x.url).map(enX),always:XVIDEOS.filter(x=>x.always&&x.url).map(enX)}};
 function ytId(u){const m=String(u||'').match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{6,})/);return m?m[1]:''}
 function xvPanel(v){
   const sel=String(v.xv||''),sug=(v.lab&&v.lab.proto)||'single',reg=XVIDEOS.filter(x=>x.url).length;
@@ -1451,7 +1461,7 @@ function xvPanel(v){
 function kvRows(a,ranked){
   return a.map((x,i)=>{
     const id=ytId(x.url),th=x.thumb?`<img src="${esc(x.thumb)}" alt="" loading="lazy">`:id?`<img src="https://i.ytimg.com/vi/${id}/mqdefault.jpg" alt="" loading="lazy">`:'<span class="kvph">▶</span>';
-    return `<div class="kvitem"><button type="button" class="kvrow" data-vsrc="${esc(x.play||x.url)}"${x.thumb?` data-vthumb="${esc(x.thumb)}"`:''} aria-expanded="false"><span class="kvth">${th}<i>▶</i></span><span class="kvtx">${x.tag?'<em>'+esc(x.tag)+'</em>':ranked?'<em>'+(i+1)+'순위</em>':''}<b>${esc(x.title||'영상')}</b></span></button><div class="kvplay"></div></div>`}).join('');
+    return `<div class="kvitem"><button type="button" class="kvrow" data-vsrc="${esc(x.play||x.url)}"${x.thumb?` data-vthumb="${esc(x.thumb)}"`:''} aria-expanded="false"><span class="kvth">${th}<i>▶</i></span><span class="kvtx">${x.tag?'<em>'+esc(x.tag)+'</em>':ranked?'<em>'+tr((i+1)+'순위','Top '+(i+1))+'</em>':''}<b>${esc(x.title||'영상')}</b></span></button><div class="kvplay"></div></div>`}).join('');
 }
 function kioskVideos(v){
   const mine=patientVideos(v),xv=xvList(v);
@@ -1459,9 +1469,9 @@ function kioskVideos(v){
   const seen=new Set(xv.pick.concat(xv.always).map(x=>String(x.title||'').replace(/\s/g,'')));   // 위 상자에 이미 있는 영상은 다시 보여주지 않음
   a=a.filter(x=>!seen.has(String(x.title||'').replace(/\s/g,'')));
   let h='';
-  if(xv.pick.length)h+=`<div class="kvbox kvpick"><b>선생님이 권해 드리는 영상</b><p class="meta" style="margin:2px 0 8px">오늘 검사·치료와 관련된 영상이에요. 누르면 바로 재생돼요.</p>${kvRows(xv.pick,false)}</div>`;
-  if(a.length)h+=`<div class="kvbox"><b>기다리는 동안 보세요</b><p class="meta" style="margin:2px 0 8px">보고 싶은 영상을 누르면 바로 재생돼요.</p>${kvRows(a,!!mine.length)}</div>`;
-  if(xv.always.length)h+=`<div class="kvbox"><b>함께 보면 좋은 생활습관 영상</b><p class="meta" style="margin:2px 0 8px">영양·운동·수면, 성장에 꼭 필요한 습관이에요.</p>${kvRows(xv.always,false)}</div>`;
+  if(xv.pick.length)h+=`<div class="kvbox kvpick"><b>${tr('선생님이 권해 드리는 영상','Recommended by your doctor')}</b><p class="meta" style="margin:2px 0 8px">${tr('오늘 검사·치료와 관련된 영상이에요. 누르면 바로 재생돼요.','About today’s tests and treatment. Tap to play.')}</p>${kvRows(xv.pick,false)}</div>`;
+  if(a.length)h+=`<div class="kvbox"><b>${tr('기다리는 동안 보세요','Watch while you wait')}</b><p class="meta" style="margin:2px 0 8px">${tr('보고 싶은 영상을 누르면 바로 재생돼요.','Tap any video to play it.')}</p>${kvRows(a,!!mine.length)}</div>`;
+  if(xv.always.length)h+=`<div class="kvbox"><b>${tr('함께 보면 좋은 생활습관 영상','Healthy habit videos')}</b><p class="meta" style="margin:2px 0 8px">${tr('영양·운동·수면, 성장에 꼭 필요한 습관이에요.','Nutrition, exercise and sleep — habits that matter for growth.')}</p>${kvRows(xv.always,false)}</div>`;
   return h;
 }
 function kvToggle(btn,noScroll){
@@ -1469,7 +1479,7 @@ function kvToggle(btn,noScroll){
   box.querySelectorAll('.kvitem').forEach(it=>{it.querySelector('.kvrow').setAttribute('aria-expanded','false');it.querySelector('.kvplay').innerHTML='';it.classList.remove('on')});
   if(open)return;
   const u=btn.dataset.vsrc,id=ytId(u);
-  if(id)pl.innerHTML=`<iframe class="kv" src="https://www.youtube.com/embed/${id}?autoplay=1&playsinline=1&rel=0" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe><a class="kvopen" href="${esc(u)}" target="_blank" rel="noopener">유튜브 앱에서 크게 보기 ↗</a>`;
+  if(id)pl.innerHTML=`<iframe class="kv" src="https://www.youtube.com/embed/${id}?autoplay=1&playsinline=1&rel=0" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe><a class="kvopen" href="${esc(u)}" target="_blank" rel="noopener">${tr('유튜브 앱에서 크게 보기 ↗','Open in YouTube ↗')}</a>`;
   else if(/\.(mp4|webm)(\?|$)/i.test(u))pl.innerHTML=`<video class="kv" src="${esc(u)}"${btn.dataset.vthumb?` poster="${esc(btn.dataset.vthumb)}"`:''} controls playsinline autoplay preload="metadata"></video>`;
   else pl.innerHTML=videoEmbed(u)+`<a class="kvopen" href="${esc(u)}" target="_blank" rel="noopener">크게 보기 ↗</a>`;
   btn.setAttribute('aria-expanded','true');item.classList.add('on');
@@ -2366,7 +2376,7 @@ function bindEvents(){
      같은 번호가 오늘 다른 아이에게 가도 그 아이 정보는 뜨지 않습니다. 대신 만족도 별점 → 🎁 보호자 안내서가 뜹니다.
    · 진료 중에 휴대폰마다 무작위 표(tok)를 서버에 묶어 두고(flowbind), 질문(flowask)·별점(flowrate)은 그 표로만 받습니다. */
 const PM_CODE=String(new URLSearchParams(location.search).get('c')||'').trim().toUpperCase();
-const PM={voice:false,vs:{},off:0,alerted:new Set(),sound:false,ctx:null,wl:null,notif:false,fail:0,live:{},cur:'',busy:false,binding:{},draft:{},rateSel:{},msg:{}};
+const PM={lang:(()=>{const q=String(new URLSearchParams(location.search).get('lang')||'').toLowerCase();if(q==='en'||q==='ko'){try{localStorage.setItem('jrd_pm_lang',q)}catch(e){}return q}let x=null;try{x=localStorage.getItem('jrd_pm_lang')}catch(e){}return x==='en'||x==='ko'?x:(/^ko/i.test(navigator.language||'ko')?'ko':'en')})(),voice:false,vs:{},off:0,alerted:new Set(),sound:false,ctx:null,wl:null,notif:false,fail:0,live:{},cur:'',busy:false,binding:{},draft:{},rateSel:{},msg:{}};
 const PM_DEFAULT_ID='AKfycbzTNYUR8rlsZSmQl1AQrIkB-HGARhUQDwP4nrDFti3R7-ip4ipRGOqk4lVfVZpIFSwONg';
 const PM_GUIDE_SITE='https://jaradacare.com/app.html';
 function pmApi(){let a=String(new URLSearchParams(location.search).get('a')||PM_DEFAULT_ID);const dev=location.protocol==='file:'||/^(localhost|127\.0\.0\.1)$/.test(location.hostname);if(/^https?:/.test(a)){let ok=dev;try{const x=new URL(a);if(x.protocol==='https:'&&x.hostname==='script.google.com')ok=true}catch(e){}if(ok)return a;a=PM_DEFAULT_ID}if(!/^[A-Za-z0-9_-]+$/.test(a))a=PM_DEFAULT_ID;return 'https://script.google.com/macros/s/'+a+'/exec'}
@@ -2429,13 +2439,13 @@ function pmLoadJs(src){return new Promise((ok,no)=>{const e=document.createEleme
 function pmReviewSheet(){
   if(document.getElementById('pm-rvsheet'))return;
   const c=PM.cur,k=(pmStore().kids[c])||{},el=document.createElement('div');el.id='pm-rvsheet';
-  el.innerHTML='<div class="pm-rvbox"><b>리포트 잘 보셨나요?</b><p>오늘 진료가 도움이 되셨다면 <b>네이버 영수증 리뷰</b> 한 줄을 남겨 주세요. 다른 부모님들께 큰 도움이 돼요.</p><a class="pm-review" href="'+esc(pmReviewUrl(k))+'" target="_blank" rel="noopener" id="pm-rvgo">⭐ 네이버 영수증 리뷰 남기기</a><button type="button" class="btn sm ghost" id="pm-rvlater">나중에 할게요</button></div>';
+  el.innerHTML='<div class="pm-rvbox"><b>'+tr('리포트 잘 보셨나요?','Did you find the report helpful?')+'</b><p>'+tr('오늘 진료가 도움이 되셨다면 <b>네이버 영수증 리뷰</b> 한 줄을 남겨 주세요. 다른 부모님들께 큰 도움이 돼요.','If today’s visit helped, please leave a short <b>Naver receipt review</b>. It really helps other parents.')+'</p><a class="pm-review" href="'+esc(pmReviewUrl(k))+'" target="_blank" rel="noopener" id="pm-rvgo">⭐ '+tr('네이버 영수증 리뷰 남기기','Leave a Naver receipt review')+'</a><button type="button" class="btn sm ghost" id="pm-rvlater">'+tr('나중에 할게요','Maybe later')+'</button></div>';
   el.addEventListener('click',e=>{if(e.target.id==='pm-rvlater'||e.target===el)el.remove();else if(e.target.id==='pm-rvgo')setTimeout(()=>el.remove(),600)});
   document.body.appendChild(el);
 }
 async function pmPdfView(pid){
   const x=pmPdfAll()[pid];if(!x||document.getElementById('pm-rv'))return;
-  const ov=document.createElement('div');ov.id='pm-rv';ov.innerHTML='<div class="pm-rvbar"><span>📄 성장 리포트</span><button type="button" id="pm-rvx">닫기 ✕</button></div><div class="pm-rvbody" id="pm-rvbody"><p class="meta" style="padding:20px">리포트를 여는 중…</p></div>';
+  const ov=document.createElement('div');ov.id='pm-rv';ov.innerHTML='<div class="pm-rvbar"><span>📄 '+tr('성장 리포트','Growth report')+'</span><button type="button" id="pm-rvx">'+tr('닫기 ✕','Close ✕')+'</button></div><div class="pm-rvbody" id="pm-rvbody"><p class="meta" style="padding:20px">'+tr('리포트를 여는 중…','Opening the report…')+'</p></div>';
   document.body.appendChild(ov);document.body.classList.add('pm-rvopen');
   const close=()=>{ov.remove();document.body.classList.remove('pm-rvopen');pmReviewSheet()};
   ov.querySelector('#pm-rvx').onclick=close;
@@ -2450,7 +2460,7 @@ async function pmPdfView(pid){
       cv.width=Math.floor(v1.width*sc*dpr);cv.height=Math.floor(v1.height*sc*dpr);cv.style.width='100%';
       body.appendChild(cv);await pg.render({canvasContext:cv.getContext('2d'),viewport:pg.getViewport({scale:sc*dpr})}).promise;
     }
-    const end=document.createElement('div');end.className='pm-rvend';end.innerHTML='<button type="button" class="btn primary pm-wide" id="pm-rvdone">다 봤어요 (닫기)</button><button type="button" class="btn pm-wide" data-pmpdf="'+esc(pid)+'">⬇️ PDF 저장</button>';
+    const end=document.createElement('div');end.className='pm-rvend';end.innerHTML='<button type="button" class="btn primary pm-wide" id="pm-rvdone">'+tr('다 봤어요 (닫기)','Done (close)')+'</button><button type="button" class="btn pm-wide" data-pmpdf="'+esc(pid)+'">⬇️ '+tr('PDF 저장','Save PDF')+'</button>';
     end.querySelector('#pm-rvdone').onclick=close;end.querySelector('[data-pmpdf]').onclick=()=>pmPdfOpen(pid);body.appendChild(end);
   }catch(e){   // 뷰어를 못 불러오면 PDF를 내려받게 하고, 바로 리뷰 안내를 띄움
     ov.remove();document.body.classList.remove('pm-rvopen');pmPdfOpen(pid);setTimeout(pmReviewSheet,1200);
@@ -2458,18 +2468,18 @@ async function pmPdfView(pid){
 }
 function pmEndHtml(c,k){
   const l=pmPdfList();
-  let h='<div class="keta pm-end"><b>📄 오늘 성장 리포트</b>';
-  if(l.length)h+='<p class="meta">화면에서 바로 열어 보실 수 있어요. 닫으면 네이버 리뷰로 이어져요.</p>'+l.map(x=>'<button type="button" class="btn primary pm-wide" data-pmview="'+esc(x.pid)+'">📄 '+esc((x.name||'리포트').replace(/\.pdf$/i,''))+' 열어 보기</button><p class="pm-sub"><button type="button" class="btn sm ghost" data-pmpdf="'+esc(x.pid)+'">⬇️ PDF 저장</button> <span class="meta">'+esc(x.date||'')+'</span></p>').join('');
-  else h+='<p class="meta">리포트가 준비되는 대로 이 휴대폰에 저장됩니다. 문자로 받은 초진방 링크를 한 번 열어 두셨다면 자동으로 가져와요.</p><button type="button" class="btn" data-pmpdf-sync="1">지금 가져오기</button><p class="meta">'+esc(PM.pdfMsg||'')+'</p>';
-  return h+'<a class="pm-review" href="'+esc(pmReviewUrl(k))+'" target="_blank" rel="noopener">⭐ 네이버 영수증 리뷰 남기기</a><p class="meta" style="margin:6px 0 0">리뷰를 남기시면 「보호자 안내서」(성장·성조숙증·비만 Q&amp;A)가 열려요.</p></div>';
+  let h='<div class="keta pm-end"><b>📄 '+tr('오늘 성장 리포트','Today’s growth report')+'</b>';
+  if(l.length)h+='<p class="meta">'+tr('화면에서 바로 열어 보실 수 있어요. 닫으면 네이버 리뷰로 이어져요.','Open it right here. When you close it, the Naver review comes next.')+'</p>'+l.map(x=>'<button type="button" class="btn primary pm-wide" data-pmview="'+esc(x.pid)+'">📄 '+tr(esc((x.name||'리포트').replace(/\.pdf$/i,''))+' 열어 보기','Open '+esc((x.name||'report').replace(/\.pdf$/i,'')))+'</button><p class="pm-sub"><button type="button" class="btn sm ghost" data-pmpdf="'+esc(x.pid)+'">⬇️ '+tr('PDF 저장','Save PDF')+'</button> <span class="meta">'+esc(x.date||'')+'</span></p>').join('');
+  else h+='<p class="meta">'+tr('리포트가 준비되는 대로 이 휴대폰에 저장됩니다. 문자로 받은 초진방 링크를 한 번 열어 두셨다면 자동으로 가져와요.','The report will be saved to this phone as soon as it’s ready. If you opened the intake room link we texted you, it’s fetched automatically.')+'</p><button type="button" class="btn" data-pmpdf-sync="1">'+tr('지금 가져오기','Fetch now')+'</button><p class="meta">'+esc(PM.pdfMsg||'')+'</p>';
+  return h+'<a class="pm-review" href="'+esc(pmReviewUrl(k))+'" target="_blank" rel="noopener">⭐ '+tr('네이버 영수증 리뷰 남기기','Leave a Naver receipt review')+'</a><p class="meta" style="margin:6px 0 0">'+tr('리뷰를 남기시면 「보호자 안내서」(성장·성조숙증·비만 Q&amp;A)가 열려요.','Leave a review and the Guardian Guide (Q&amp;A on growth, precocious puberty and obesity) opens.')+'</p></div>';
 }
 function pmPdfHtml(final){
   const l=pmPdfList();
   if(!l.length){
     if(!final)return '';
-    return '<div class="keta pm-pdf"><b>📄 성장 리포트 PDF</b><p class="meta">리포트가 준비되면 이 휴대폰에 저장돼서, 다음에 카드 번호가 바뀌어도 계속 열어 볼 수 있어요. 문자로 받은 초진방 링크를 한 번 열어 두셨다면 자동으로 가져옵니다.</p><button type="button" class="btn" data-pmpdf-sync="1">지금 가져오기</button><p class="meta">'+esc(PM.pdfMsg||'')+'</p></div>';
+    return '<div class="keta pm-pdf"><b>📄 '+tr('성장 리포트 PDF','Growth report PDF')+'</b><p class="meta">'+tr('리포트가 준비되면 이 휴대폰에 저장돼서, 다음에 카드 번호가 바뀌어도 계속 열어 볼 수 있어요. 문자로 받은 초진방 링크를 한 번 열어 두셨다면 자동으로 가져옵니다.','When it’s ready, the report is saved on this phone, so it keeps opening even after the card number changes. If you opened the intake room link we texted you, it’s fetched automatically.')+'</p><button type="button" class="btn" data-pmpdf-sync="1">'+tr('지금 가져오기','Fetch now')+'</button><p class="meta">'+esc(PM.pdfMsg||'')+'</p></div>';
   }
-  return '<div class="keta pm-pdf"><b>📄 성장 리포트 PDF</b><p class="meta">이 휴대폰에 저장되어 있어요. 병원 카드 번호가 다른 아이에게 넘어가도 계속 열립니다.<br><b>🎁 PDF 뒷장 아래 「보호자 안내서 선물」 칸을 누르면</b> 네이버 리뷰 → 보호자 안내서(전자책)로 바로 이어져요.</p>'+
+  return '<div class="keta pm-pdf"><b>📄 '+tr('성장 리포트 PDF','Growth report PDF')+'</b><p class="meta">'+tr('이 휴대폰에 저장되어 있어요. 병원 카드 번호가 다른 아이에게 넘어가도 계속 열립니다.<br><b>🎁 PDF 뒷장 아래 「보호자 안내서 선물」 칸을 누르면</b> 네이버 리뷰 → 보호자 안내서(전자책)로 바로 이어져요.','Saved on this phone. It keeps opening even if the clinic card goes to another child.<br><b>🎁 Tap the “Guardian Guide gift” box at the bottom of the PDF’s back page</b> to go to the Naver review → Guardian Guide (e-book).')+'</p>'+
     l.map(x=>'<div class="pm-row" style="margin:6px 0"><button type="button" class="btn primary" data-pmpdf="'+esc(x.pid)+'">⬇️ '+esc((x.name||'리포트').replace(/\.pdf$/i,''))+'</button><span class="meta">'+esc(x.date||'')+' · '+Math.max(1,Math.round((x.size||0)/1024))+'KB</span></div>').join('')+'</div>';
 }
 function pmToday(){const n=new Date(Date.now()+PM.off);return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0')}
@@ -2523,7 +2533,7 @@ function pmBeep(n){
 }
 function pmNotify(t){
   pmBeep(3);try{navigator.vibrate&&navigator.vibrate([400,200,400,200,400])}catch(e){}
-  try{if(PM.notif&&window.Notification&&Notification.permission==='granted')new Notification('삼성자라다 소아청소년과',{body:t})}catch(e){}
+  try{if(PM.notif&&window.Notification&&Notification.permission==='granted')new Notification(tr('삼성자라다 소아청소년과','Samsung Jarada Pediatric Clinic'),{body:t})}catch(e){}
 }
 async function pmEnableAlarm(){
   try{PM.ctx=PM.ctx||new (window.AudioContext||window.webkitAudioContext)();await PM.ctx.resume();PM.sound=true;pmBeep(1)}catch(e){}
@@ -2542,6 +2552,12 @@ function pmReceiptHtml(){
   const st=(n,t,desc,label,url)=>`<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line)"><div style="flex:0 0 26px;height:26px;border-radius:50%;background:#03C75A;color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center">${n}</div><div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:700">${t}</div>${desc?`<div style="font-size:14px;color:var(--muted);line-height:1.55;margin-top:2px">${desc}</div>`:''}${url?`<a href="${url}" target="_blank" rel="noopener" style="display:block;text-align:center;text-decoration:none;margin-top:8px;padding:10px 12px;font-size:15px;font-weight:700;border-radius:10px;background:#03C75A;color:#fff">${label}</a>`:''}</div></div>`;
   /* 🎁 아이마다 1회용 코드는 성장 리포트 뒷장 아래 QR에만 싣습니다(카드 번호는 C001…처럼 추측할 수 있어 이 화면엔 싣지 않음).
      QR → 「네이버 리뷰 참여하기」 → 리뷰 창을 닫으면 안내서가 자동으로 열립니다. 리포트가 없을 때만 예전 방식(신청서 → 문자 코드). */
+  if(vEN())return `<div class="keta" style="border-color:#03C75A;margin-top:18px"><h2 style="font-size:22px;margin:0 0 6px">🎁 Guardian Guide gift</h2><p style="margin:0;font-size:17px;line-height:1.65">Scan the <b>🎁 QR code at the bottom of the back page of your growth report</b> with your phone camera.<br>Tap <b>“Join Naver review”</b>, leave a review and close the window — the <b>Guardian Guide</b> (116 Q&amp;As on growth, precocious puberty and obesity) opens right away.</p>`+
+    `<details style="margin-top:10px"><summary style="cursor:pointer;font-size:14px;color:var(--muted)">Didn’t get a growth report? (Get a code with the form)</summary>`+
+    st(1,'Leave a Naver receipt review','','Write a review on Naver',PM_RECEIPT.reviewUrl)+
+    st(2,'Submit the review check form','Please attach a photo of your receipt.','Fill out the form',PM_RECEIPT.formUrl)+
+    st(3,'Enter the code you got by text','Each code can be used only once.','Enter the code',PM_RECEIPT.guideUrl)+
+    '</details><p style="margin:8px 0 0;font-size:13px;color:var(--muted)">Questions: +82-2-523-0111</p></div>';
   return `<div class="keta" style="border-color:#03C75A;margin-top:18px"><h2 style="font-size:22px;margin:0 0 6px">🎁 보호자 안내서 선물</h2><p style="margin:0;font-size:17px;line-height:1.65">진료 후 받으시는 <b>성장 리포트 뒷장 아래 🎁 QR</b>을 휴대폰 카메라로 찍어 주세요.<br><b>「네이버 리뷰 참여하기」</b>를 누르고 리뷰를 남긴 뒤 창을 닫으면 <b>「보호자 안내서」</b>(성장·성조숙증·비만 Q&amp;A 116개)가 바로 열려요.</p>`+
     `<details style="margin-top:10px"><summary style="cursor:pointer;font-size:14px;color:var(--muted)">성장 리포트를 받지 않으셨나요? (신청서로 코드 받기)</summary>`+
     st(1,'네이버 영수증 리뷰 남기기','','네이버에서 리뷰 쓰기',PM_RECEIPT.reviewUrl)+
@@ -2552,44 +2568,45 @@ function pmReceiptHtml(){
 /* ▶️ 사용법 안내 영상 — 카드 QR을 찍은 보호자 휴대폰 화면에 항상 붙습니다 */
 const PM_MANUAL_URL='https://jaradacare.com/app.html#manual';
 function pmManualHtml(){
-  return `<a class=\"pm-man\" href=\"${PM_MANUAL_URL}\" target=\"_blank\" rel=\"noopener\"><div class=\"i\">▶️</div><div><b>사용법 안내 영상</b><span>자라다 케어 사용법을 영상으로 확인하세요</span></div><div class=\"ar\">›</div></a>`;
+  return `<a class=\"pm-man\" href=\"${PM_MANUAL_URL}\" target=\"_blank\" rel=\"noopener\"><div class=\"i\">▶️</div><div><b>${tr('사용법 안내 영상','How-to video')}</b><span>${tr('자라다 케어 사용법을 영상으로 확인하세요','See how to use Jarada Care')}</span></div><div class=\"ar\">›</div></a>`;
 }
 function pmGiftHtml(k){
+  if(k&&k.code&&/^[A-Z0-9]{6,12}$/.test(k.code)&&vEN())return `<div class="pm-gift"><b>🎁 Guardian Guide gift</b><p>Join the <b>Naver receipt review</b> and the Guardian Guide (116 Q&amp;As on growth, precocious puberty and obesity) opens right away.</p><a href="${PM_GUIDE_SITE}?rv=${encodeURIComponent(k.code)}" rel="noopener">Join Naver review &amp; get the guide</a><small>The guide opens automatically when you close the review window · for this child only · one-time use</small></div>`;
   if(k&&k.code&&/^[A-Z0-9]{6,12}$/.test(k.code))return `<div class="pm-gift"><b>🎁 보호자 안내서 선물</b><p><b>네이버 영수증 리뷰</b>에 참여해 주시면 「보호자 안내서」(성장·성조숙증·비만 Q&amp;A 116개)가 바로 열려요.</p><a href="${PM_GUIDE_SITE}?rv=${encodeURIComponent(k.code)}" rel="noopener">네이버 리뷰 참여하고 안내서 받기</a><small>리뷰를 남기고 창을 닫으면 안내서가 자동으로 열려요 · 이 아이 전용 · 한 번만 사용</small></div>`;
   return pmReceiptHtml();
 }
 function pmAskHtml(c,k,d){
   if(!k.bound)return '';
   const a=k.ask||null;
-  if(d.step>=7)return a&&a.t?`<div class="keta pm-ask"><b>❓ 원장님께 전달한 질문</b><p class="pm-q">${esc(a.t)}</p></div>`:'';
+  if(d.step>=7)return a&&a.t?`<div class="keta pm-ask"><b>❓ ${tr('원장님께 전달한 질문','Your question for the doctor')}</b><p class="pm-q">${esc(a.t)}</p></div>`:'';
   const val=PM.draft[c]!=null?PM.draft[c]:(a&&a.t||'');
-  return `<div class="keta pm-ask"><b>❓ 오늘 원장님께 꼭 물어볼 것</b><p class="meta">적어 두시면 진료실 화면에 미리 떠요. 진료 때 빠뜨리지 않게 챙겨 드릴게요.</p>`+
-    `<textarea id="pm-ask" data-pmdraft="${esc(c)}" rows="3" maxlength="300" placeholder="예) 요즘 밤에 자주 깨요 / 우유는 하루에 얼마나 먹여야 하나요?">${esc(val)}</textarea>`+
-    `<div class="pm-row"><button class="btn primary" id="pm-ask-send">${a&&a.t?'고쳐서 다시 전달':'원장님께 전달하기'}</button><span class="meta">${esc(PM.msg[c]||(a&&a.t?'✓ 전달됨 '+fmtT(a.at):''))}</span></div></div>`;
+  return `<div class="keta pm-ask"><b>❓ ${tr('오늘 원장님께 꼭 물어볼 것','Anything to ask the doctor today?')}</b><p class="meta">${tr('적어 두시면 진료실 화면에 미리 떠요. 진료 때 빠뜨리지 않게 챙겨 드릴게요.','Write it here and it shows on the doctor’s screen before your visit, so nothing gets missed. English is fine.')}</p>`+
+    `<textarea id="pm-ask" data-pmdraft="${esc(c)}" rows="3" maxlength="300" placeholder="${tr('예) 요즘 밤에 자주 깨요 / 우유는 하루에 얼마나 먹여야 하나요?','e.g. My child wakes up often at night / How much milk a day is right?')}">${esc(val)}</textarea>`+
+    `<div class="pm-row"><button class="btn primary" id="pm-ask-send">${a&&a.t?tr('고쳐서 다시 전달','Edit and resend'):tr('원장님께 전달하기','Send to the doctor')}</button><span class="meta">${esc(PM.msg[c]||(a&&a.t?tr('✓ 전달됨 ','✓ Sent ')+fmtT(a.at):''))}</span></div></div>`;
 }
 function pmRateHtml(c,k){
   if(!k.bound)return pmReceiptHtml();
   const r=k.rate;
-  if(r&&r.s&&PM.rateSel[c]==null)return `<div class="keta pm-rate"><b>소중한 의견 감사합니다 🙏</b><p class="pm-stars-done">${'★'.repeat(r.s)}<span>${'★'.repeat(5-r.s)}</span>${r.t?'<small>'+esc(r.t)+'</small>':''}</p><button class="btn sm ghost" data-pmrate-edit>별점 고치기</button>${pmGiftHtml(k)}</div>`;
+  if(r&&r.s&&PM.rateSel[c]==null)return `<div class="keta pm-rate"><b>${tr('소중한 의견 감사합니다 🙏','Thank you for your feedback 🙏')}</b><p class="pm-stars-done">${'★'.repeat(r.s)}<span>${'★'.repeat(5-r.s)}</span>${r.t?'<small>'+esc(r.t)+'</small>':''}</p><button class="btn sm ghost" data-pmrate-edit>${tr('별점 고치기','Edit rating')}</button>${pmGiftHtml(k)}</div>`;
   const sel=PM.rateSel[c]||0;
-  let h=`<div class="keta pm-rate"><b>오늘 원장님 설명이 잘 이해되셨나요?</b><div class="pm-stars" role="radiogroup" aria-label="별점">`+[1,2,3,4,5].map(n=>`<button type="button" role="radio" aria-checked="${n===sel}" data-pmstar="${n}" class="${n<=sel?'on':''}" aria-label="${n}점">★</button>`).join('')+`</div>`;
-  if(sel)h+=`<textarea id="pm-rate-t" data-pmdraft="r${esc(c)}" rows="2" maxlength="300" placeholder="${sel<=3?'어떤 점이 아쉬우셨나요? 원장님께 바로 전달돼요.':'좋았던 점이나 하고 싶은 말씀 (선택)'}">${esc(PM.draft['r'+c]!=null?PM.draft['r'+c]:(r&&r.t||''))}</textarea><button class="btn primary pm-wide" id="pm-rate-send">보내기</button>`;
-  else h+=`<p class="meta">별을 눌러 주세요. 별점과 상관없이 🎁 보호자 안내서를 드려요.</p>`;
+  let h=`<div class="keta pm-rate"><b>${tr('오늘 원장님 설명이 잘 이해되셨나요?','Was today’s explanation easy to understand?')}</b><div class="pm-stars" role="radiogroup" aria-label="${tr('별점','Rating')}">`+[1,2,3,4,5].map(n=>`<button type="button" role="radio" aria-checked="${n===sel}" data-pmstar="${n}" class="${n<=sel?'on':''}" aria-label="${tr(n+'점',n+' star'+(n>1?'s':''))}">★</button>`).join('')+`</div>`;
+  if(sel)h+=`<textarea id="pm-rate-t" data-pmdraft="r${esc(c)}" rows="2" maxlength="300" placeholder="${sel<=3?tr('어떤 점이 아쉬우셨나요? 원장님께 바로 전달돼요.','What could we do better? It goes straight to the doctor.'):tr('좋았던 점이나 하고 싶은 말씀 (선택)','What you liked, or anything you’d like to say (optional)')}">${esc(PM.draft['r'+c]!=null?PM.draft['r'+c]:(r&&r.t||''))}</textarea><button class="btn primary pm-wide" id="pm-rate-send">${tr('보내기','Send')}</button>`;
+  else h+=`<p class="meta">${tr('별을 눌러 주세요. 별점과 상관없이 🎁 보호자 안내서를 드려요.','Tap a star. You’ll get the 🎁 Guardian Guide whatever your rating.')}</p>`;
   return h+(PM.msg['r'+c]?`<p class="meta">${esc(PM.msg['r'+c])}</p>`:'')+'</div>';
 }
 function pmLiveHtml(c,k,d,now){
-  const names=['접수·대기','초진기록지','초진방 링크','키·몸무게·인바디','X-ray','채혈','대기','진료 (다시 봄)','수납·귀가','귀가'];
+  const names=vEN()?['Check-in · waiting','Intake form','Intake room link','Height · weight · InBody','X-ray','Blood test','Waiting','Doctor (follow-up)','Payment · going home','Going home']:['접수·대기','초진기록지','초진방 링크','키·몸무게·인바디','X-ray','채혈','대기','진료 (다시 봄)','수납·귀가','귀가'];
   const draws=d.draws||[],pend=draws.filter(x=>!x.done),cur=Math.min(d.step,9);
-  const dc=d.loc==='doctor'&&d.step>=4&&d.step<=6,ms=['접수','계측','진료','X-ray','채혈','대기','수납'],mi=d.step<=2?0:d.step>=8?6:d.step===3?1:dc?2:Math.min(d.step-1,5);
-  let now_=d.step<0?'<div class="pm-now"><b>아직 접수 전이에요</b></div>':d.step>=8?'<div class="pm-now"><b>진료가 끝났어요</b><span>수납 후 귀가해 주세요</span></div>':`<div class="pm-now"><span>지금</span><b>${esc(dc?'원장님 진료 (검사 전)':names[cur])}</b><span class="pm-t"><span data-since="${d.since||now}">${mins(now-(d.since||now))}분째</span></span></div>`;
-  let h=`<div class="pm-hero"><small>삼성자라다 소아청소년과</small><h2>${esc(d.name)} 어린이</h2>${now_}</div>`+
+  const dc=d.loc==='doctor'&&d.step>=4&&d.step<=6,ms=vEN()?['Arrive','Measure','Doctor','X-ray','Blood','Wait','Pay']:['접수','계측','진료','X-ray','채혈','대기','수납'],mi=d.step<=2?0:d.step>=8?6:d.step===3?1:dc?2:Math.min(d.step-1,5);
+  let now_=d.step<0?`<div class="pm-now"><b>${tr('아직 접수 전이에요','Not checked in yet')}</b></div>`:d.step>=8?`<div class="pm-now"><b>${tr('진료가 끝났어요','Your visit is done')}</b><span>${tr('수납 후 귀가해 주세요','Please pay at the front desk before leaving')}</span></div>`:`<div class="pm-now"><span>${tr('지금','Now')}</span><b>${esc(dc?tr('원장님 진료 (검사 전)','Doctor visit (before tests)'):names[cur])}</b><span class="pm-t"><span data-since="${d.since||now}">${pmMins(now-(d.since||now))}</span></span></div>`;
+  let h=`<div class="pm-hero"><small>${tr('삼성자라다 소아청소년과','Samsung Jarada Pediatric Clinic')}</small><h2>${esc(d.name)}${tr(' 어린이','')}</h2>${now_}</div>`+
     (d.step<0?'':`<ol class="pm-track">`+ms.map((n,i)=>`<li class="${i<mi?'d':i===mi?'c':''}"><i>${i<mi?'✓':i+1}</i><span>${n}</span></li>`).join('')+'</ol>');
   h+=pmVoiceHtml(d);
   if(draws.length){
-    h+=`<div class="keta"><b>${esc(d.protoName||'자극검사')} 채혈 일정</b>`+draws.map(x=>`<div style="display:grid;grid-template-columns:56px 1fr auto;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)"><b>${x.off}분</b><span>${fmtT(x.due)}</span>${x.done?'<span style="color:var(--ok);font-weight:700">✓ 완료</span>':`<b data-due="${x.due}"></b>`}</div>`).join('')+
-      (pend.length?'<p class="meta" style="margin:8px 0 0">시간이 되면 채혈실로 와 주세요. 직원이 안내해 드립니다.</p>':'<p class="meta" style="margin:8px 0 0">채혈이 모두 끝났습니다.</p>')+'</div>';
-    if(pend.length&&!PM.sound)h+='<p><button class="btn primary" id="pm-alarm" style="font-size:18px;padding:12px 18px">🔔 채혈 시간 알람 켜기</button></p><p class="meta">알람은 이 화면이 켜져 있을 때만 울립니다. 화면이 꺼지면 울리지 않으니, 시간이 되면 직원이 안내해 드립니다.</p>';
-    else if(pend.length)h+='<p class="meta">🔔 알람이 켜져 있습니다. 화면이 켜져 있을 때만 소리·진동으로 알려드려요. 꺼지면 직원이 안내해 드립니다.</p>';
+    h+=`<div class="keta"><b>${tr(esc(d.protoName||'자극검사')+' 채혈 일정','Stimulation test: blood draw schedule')}</b>`+draws.map(x=>`<div style="display:grid;grid-template-columns:${tr('56px','72px')} 1fr auto;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)"><b>${x.off}${tr('분',' min')}</b><span>${fmtT(x.due)}</span>${x.done?`<span style="color:var(--ok);font-weight:700">✓ ${tr('완료','Done')}</span>`:`<b data-due="${x.due}"></b>`}</div>`).join('')+
+      (pend.length?`<p class="meta" style="margin:8px 0 0">${tr('시간이 되면 채혈실로 와 주세요. 직원이 안내해 드립니다.','When it’s time, please come to the blood draw room. Staff will guide you.')}</p>`:`<p class="meta" style="margin:8px 0 0">${tr('채혈이 모두 끝났습니다.','All blood draws are done.')}</p>`)+'</div>';
+    if(pend.length&&!PM.sound)h+=`<p><button class="btn primary" id="pm-alarm" style="font-size:18px;padding:12px 18px">🔔 ${tr('채혈 시간 알람 켜기','Turn on blood draw alarm')}</button></p><p class="meta">${tr('알람은 이 화면이 켜져 있을 때만 울립니다. 화면이 꺼지면 울리지 않으니, 시간이 되면 직원이 안내해 드립니다.','The alarm only sounds while this screen is on. If the screen turns off, staff will tell you when it’s time.')}</p>`;
+    else if(pend.length)h+=`<p class="meta">🔔 ${tr('알람이 켜져 있습니다. 화면이 켜져 있을 때만 소리·진동으로 알려드려요. 꺼지면 직원이 안내해 드립니다.','The alarm is on. It sounds and vibrates only while this screen is on. Otherwise staff will tell you.')}</p>`;
   }
   if(d.step<8)h+=pmAskHtml(c,k,d);
   if(d.step>=8)h+=pmRateHtml(c,k);
@@ -2602,11 +2619,14 @@ function pmLiveHtml(c,k,d,now){
    브라우저는 사용자가 한 번 눌러야 소리를 낼 수 있어서 「음성 안내 듣기」 버튼을 둡니다. 환자 이름은 읽지 않습니다. */
 function pmSay(t){
   if(!PM.voice||!('speechSynthesis' in window))return;
-  try{const u=new SpeechSynthesisUtterance(t);u.lang='ko-KR';u.rate=.95;const v=speechSynthesis.getVoices().find(x=>/^ko/i.test(x.lang));if(v)u.voice=v;speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){}
+  try{const en=vEN(),u=new SpeechSynthesisUtterance(t);u.lang=en?'en-US':'ko-KR';u.rate=.95;const v=speechSynthesis.getVoices().find(x=>en?/^en/i.test(x.lang):/^ko/i.test(x.lang));if(v)u.voice=v;speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){}
 }
 const PM_STEP_SAY=['접수와 대기','초진기록지 작성','초진방 링크 확인','키와 몸무게 측정','엑스레이 촬영','채혈','대기','원장님 진료','수납과 귀가','귀가'];
 /* 단계마다 무엇을 하면 되는지 — 방을 옮기면 이 말이 바뀝니다 */
 const PM_STEP_DO=['접수가 끝났어요. 대기실에서 잠시 기다려 주세요.','초진기록지를 작성해 주세요. 다 쓰시면 직원에게 알려 주세요.','보내 드린 초진방 링크를 열어 확인해 주세요.','키와 몸무게, 인바디를 잴 차례예요. 신발과 겉옷을 벗고 준비해 주세요.','엑스레이 촬영 차례예요. 엑스레이실로 이동해 주세요.','채혈 차례예요. 채혈실로 이동해 주세요.','검사가 끝났어요. 대기실에서 잠시 기다려 주세요. 영상을 보며 쉬셔도 좋아요.','원장님이 다시 한 번 볼게요. 진료실로 들어와 주세요.'];
+const PM_STEP_SAY_EN=['check-in and waiting','the intake form','the intake room link','height and weight measurement','the X-ray','the blood test','waiting','the doctor visit','payment and going home','going home'];
+const PM_STEP_DO_EN=['You are checked in. Please wait in the waiting room.','Please fill out the intake form, and tell the staff when you are done.','Please open the intake room link we sent you.','It is time to measure height, weight and body composition. Please take off your shoes and outer clothing.','It is time for the X-ray. Please go to the X-ray room.','It is time for the blood test. Please go to the blood draw room.','The tests are done. Please wait in the waiting room. Feel free to watch the videos while you rest.','The doctor will see you again. Please come into the exam room.'];
+function pmMins(ms){const m=mins(ms);return tr(m+'분째',m+' min')}
 function koCount(n){const o=['','한','두','세','네','다섯','여섯','일곱','여덟','아홉'],t=['','열','스물','서른'];if(n<1||n>39)return String(n);if(n===20)return '스무';const tt=Math.floor(n/10),u=n%10;return (t[tt]||'')+(u?(tt&&u===1?'한':o[u]):(tt===2?'':''))}
 /* 보호자 폰 화면 아래에 실제로 보이는 영상 목록과 같은 순서 (kioskVideos와 같음) */
 function pmVideoList(d){
@@ -2616,12 +2636,23 @@ function pmVideoList(d){
 }
 function pmVideoSay(d){
   const L=pmVideoList(d);if(!L.length)return '';
-  const st=d.step,test=x=>/채혈|검사/.test(x.tag+x.title);
+  const st=d.step,test=x=>/채혈|검사|blood|test/i.test(x.tag+x.title);
   const pick=(st===4||st===5)?(L.find(x=>x.k==='pick'&&test(x))||L.find(test)||L[0]):st===6?(L.find(x=>x.k==='pick')||L.find(x=>x.k==='life')||L[0]):(L.find(x=>x.k==='pick')||L[0]);
+  if(vEN()){const w=st===5?'While you wait around the blood draw':st===6?'While you wait for the results':'While you wait';return w+', there are '+L.length+' videos for you below. We suggest starting with “'+pick.title.replace(/[①②③]/g,'').trim()+'”. Tap a video to play it. '}
   const when=st===5?'채혈 전후로 기다리시는 동안':st===6?'결과를 기다리시는 동안':'기다리시는 동안';
   return when+' 보실 영상 '+koCount(L.length)+' 편이 화면 아래에 있어요. 지금은 「'+pick.title.replace(/[①②③]/g,'')+'」 영상을 먼저 보시면 좋아요. 영상을 터치하시면 재생됩니다. ';
 }
 function pmStepSay(d,next){
+  if(vEN()){
+    if(d.step<0)return 'Once you check in, this screen will guide you step by step. ';
+    if(d.step>=8)return 'Your visit is done. Please pay at the front desk before going home. Thank you for coming today. ';
+    if(d.loc==='doctor'&&d.step>=4&&d.step<=6)return (next?'Next step. ':'Right now: the doctor visit. ')+'It is your turn to see the doctor. Please come into the exam room. The tests will be explained after the visit. The doctor will also look at the question you left. ';
+    if(d.loc==='fluid')return (next?'You have moved to the IV room. ':'You are in the IV room now. ')+'Please rest comfortably during the IV. '+pmVideoSay(d);
+    let e=(next?'Next step. ':'Right now: '+PM_STEP_SAY_EN[d.step]+'. ')+PM_STEP_DO_EN[d.step]+' ';
+    if(d.step===5&&(d.draws||[]).length)e+='For the stimulation test, blood is drawn at set times. Please check the blood draw times on the screen. ';
+    if(d.step<7)e+=pmVideoSay(d);
+    return e;
+  }
   if(d.step<0)return '접수가 끝나면 이 화면에서 순서를 안내해 드립니다. ';
   if(d.step>=8)return '진료가 끝났습니다. 수납 후 귀가해 주세요. 오늘도 수고 많으셨습니다.';
   if(d.loc==='doctor'&&d.step>=4&&d.step<=6)return (next?'다음 순서입니다. ':'지금은 원장님 진료 단계입니다. ')+'원장님 진료 차례예요. 진료실로 들어와 주세요. 진료가 끝나면 검사를 안내해 드려요. 남겨 주신 질문도 함께 봐 드려요. ';
@@ -2633,24 +2664,25 @@ function pmStepSay(d,next){
 }
 function pmVoiceKey(d){return d.step+'|'+(d.loc||'')}
 function pmGreeting(d){
+  if(vEN())return 'Hello. Thank you for visiting Samsung Jarada Pediatric Clinic. '+pmStepSay(d,false)+(d.step>=0&&d.step<7?'If you have any questions, please leave them on the screen. ':'')+'Medical decisions will be made by the doctor during your visit.';
   return '안녕하세요. 삼성자라다 소아청소년과를 찾아주셔서 감사합니다. '+pmStepSay(d,false)+(d.step>=0&&d.step<7?'궁금한 점은 화면에 질문으로 남겨 주세요. ':'')+'의학적인 판단은 진료 때 원장님께서 해드립니다.';
 }
 function pmVoiceHtml(d){
   if(!('speechSynthesis' in window))return '';
-  return PM.voice?'<p class="meta"><button type="button" class="btn sm" id="pm-voice-off">🔇 음성 안내 끄기</button> 단계가 바뀌면 짧게 알려 드려요.</p>'
-   :'<div class="keta pm-voicebox"><b>🎧 음성으로 안내받기</b><p class="meta">이어폰을 끼고 아래 버튼을 눌러 주세요. 지금 순서와 볼 영상을 말씀드립니다.</p><p><button type="button" class="btn primary" id="pm-voice" style="font-size:18px;padding:12px 18px">🎧 음성 안내 듣기</button></p></div>';
+  return PM.voice?'<p class="meta"><button type="button" class="btn sm" id="pm-voice-off">🔇 '+tr('음성 안내 끄기','Turn off voice guide')+'</button> '+tr('단계가 바뀌면 짧게 알려 드려요.','We’ll tell you briefly when the step changes.')+'</p>'
+   :'<div class="keta pm-voicebox"><b>🎧 '+tr('음성으로 안내받기','Voice guide')+'</b><p class="meta">'+tr('이어폰을 끼고 아래 버튼을 눌러 주세요. 지금 순서와 볼 영상을 말씀드립니다.','Put on earphones and tap the button below. We’ll tell you the current step and which videos to watch.')+'</p><p><button type="button" class="btn primary" id="pm-voice" style="font-size:18px;padding:12px 18px">🎧 '+tr('음성 안내 듣기','Listen to voice guide')+'</button></p></div>';
 }
 function pmTick(el,now){
-  el.querySelectorAll('[data-due]').forEach(e=>{const l=Number(e.dataset.due)-now;e.textContent=fmtLeft(l);e.classList.toggle('late',l<=0);e.classList.toggle('soon',l>0&&l<=120000)});
-  const se=el.querySelector('[data-since]');if(se)se.textContent=mins(now-Number(se.dataset.since))+'분째';
+  el.querySelectorAll('[data-due]').forEach(e=>{const l=Number(e.dataset.due)-now;e.textContent=vEN()&&l<=0?'Late '+Math.max(1,Math.floor(-l/60000))+' min':fmtLeft(l);e.classList.toggle('late',l<=0);e.classList.toggle('soon',l>0&&l<=120000)});
+  const se=el.querySelector('[data-since]');if(se)se.textContent=pmMins(now-Number(se.dataset.since));
 }
 function pmAlarms(s,now){
   [PM.cur].forEach(c=>{
     const d=s.kids[c]&&PM.live[c];if(!d)return;
     (d.draws||[]).forEach(x=>{
       if(x.done)return;const k=c+':'+d.step+':'+x.off,l=x.due-now,who='';
-      if(l<=0&&!PM.alerted.has(k+'d')){PM.alerted.add(k+'d');PM.alerted.add(k+'p');if(l>-600000)pmNotify(who+x.off+'분 채혈 시간입니다. 채혈실로 와 주세요.')}
-      else if(l>0&&l<=120000&&!PM.alerted.has(k+'p')){PM.alerted.add(k+'p');pmNotify(who+x.off+'분 채혈 2분 전입니다.')}
+      if(l<=0&&!PM.alerted.has(k+'d')){PM.alerted.add(k+'d');PM.alerted.add(k+'p');if(l>-600000)pmNotify(tr(who+x.off+'분 채혈 시간입니다. 채혈실로 와 주세요.','Time for the '+x.off+'-minute blood draw. Please come to the blood draw room.'))}
+      else if(l>0&&l<=120000&&!PM.alerted.has(k+'p')){PM.alerted.add(k+'p');pmNotify(tr(who+x.off+'분 채혈 2분 전입니다.','The '+x.off+'-minute blood draw is in 2 minutes.'))}
     });
   });
 }
@@ -2660,16 +2692,17 @@ function pmRender(force,ui){
   const playing=el.querySelector('.kvitem.on');   // 영상을 보는 중이면 다시 그리지 않음 (다시 그리면 영상이 3~5초 만에 끊김)
   if(playing&&!ui){pmTick(el,now);pmAlarms(s,now);return}
   const c=PM.cur,k=s.kids[c]||{st:'new'},d=k.st==='live'?PM.live[c]:null;   // 지금 찍은 카드만 — 다른 아이로 넘어가지 않음
-  const key=JSON.stringify([c,k.st,k.nm,k.bound,k.ask,k.rate,k.code,d,PM.sound,PM.fail,PM.pdfV,PM.pdfMsg,PM.rateSel[c],PM.msg[c],PM.msg['r'+c],PM.loaded]);
+  const key=JSON.stringify([PM.lang,c,k.st,k.nm,k.bound,k.ask,k.rate,k.code,d,PM.sound,PM.fail,PM.pdfV,PM.pdfMsg,PM.rateSel[c],PM.msg[c],PM.msg['r'+c],PM.loaded]);
   if(!force&&!ui&&el.dataset.k===key){pmTick(el,now);pmAlarms(s,now);return}
   el.dataset.k=key;
   let h='';
   if(d)h=pmLiveHtml(c,k,d,now);
-  else if(k.st==='old')h='<h2>삼성자라다 소아청소년과</h2><p class="kbig">지난 진료 때 받으신 카드예요.<br><span style="font-size:16px">이 카드는 다음 내원 때 반납해 주세요. 오늘 받은 카드라면 아래 단추를 눌러 주세요.</span></p><button class="btn primary pm-wide" id="pm-today">오늘 받은 카드예요</button>'+pmReceiptHtml();
-  else if(k.st==='done')h=`<div class="pm-hero"><small>삼성자라다 소아청소년과</small><h2>${esc(k.nm||'')} 어린이</h2><div class="pm-now"><b>오늘 진료가 끝났어요</b><span>수고 많으셨어요. 조심히 들어가세요.</span></div></div>`+pmEndHtml(c,k)+pmRateHtml(c,k);
-  else if(!PM.loaded)h='<p class="kbig">불러오는 중…</p>';
-  else h='<h2>삼성자라다 소아청소년과</h2><p class="kbig">'+(PM.fail?'대기 현황을 불러오지 못했습니다. 자동으로 다시 시도합니다.<br><span style="font-size:15px">계속 안 되면 접수 데스크에 카드를 보여 주세요.</span>':'지금 확인되는 접수 정보가 없습니다. 접수 후 다시 카드를 찍어 주세요.')+'</p>'+pmReceiptHtml();
+  else if(k.st==='old')h='<h2>'+tr('삼성자라다 소아청소년과','Samsung Jarada Pediatric Clinic')+'</h2><p class="kbig">'+tr('지난 진료 때 받으신 카드예요.<br><span style="font-size:16px">이 카드는 다음 내원 때 반납해 주세요. 오늘 받은 카드라면 아래 단추를 눌러 주세요.</span>','This card is from your last visit.<br><span style="font-size:16px">Please return it at your next visit. If you got this card today, tap the button below.</span>')+'</p><button class="btn primary pm-wide" id="pm-today">'+tr('오늘 받은 카드예요','I got this card today')+'</button>'+pmReceiptHtml();
+  else if(k.st==='done')h=`<div class="pm-hero"><small>${tr('삼성자라다 소아청소년과','Samsung Jarada Pediatric Clinic')}</small><h2>${esc(k.nm||'')}${tr(' 어린이','')}</h2><div class="pm-now"><b>${tr('오늘 진료가 끝났어요','Today’s visit is done')}</b><span>${tr('수고 많으셨어요. 조심히 들어가세요.','Thank you. Have a safe trip home.')}</span></div></div>`+pmEndHtml(c,k)+pmRateHtml(c,k);
+  else if(!PM.loaded)h='<p class="kbig">'+tr('불러오는 중…','Loading…')+'</p>';
+  else h='<h2>'+tr('삼성자라다 소아청소년과','Samsung Jarada Pediatric Clinic')+'</h2><p class="kbig">'+(PM.fail?tr('대기 현황을 불러오지 못했습니다. 자동으로 다시 시도합니다.<br><span style="font-size:15px">계속 안 되면 접수 데스크에 카드를 보여 주세요.</span>','Couldn’t load your visit status. Retrying automatically.<br><span style="font-size:15px">If it keeps failing, show your card at the front desk.</span>'):tr('지금 확인되는 접수 정보가 없습니다. 접수 후 다시 카드를 찍어 주세요.','No check-in found yet. Please scan your card again after checking in.'))+'</p>'+pmReceiptHtml();
   if(!d&&PM.loaded)h+=(k.st==='done'?'':pmPdfHtml(false))+pmManualHtml();
+  h+=`<button type="button" class="pm-lang" data-pmlang aria-label="${tr('Switch to English','한국어로 보기')}">🌐 ${tr('English','한국어')}</button>`;
   const keep=playing&&playing.querySelector('.kvrow')?playing.querySelector('.kvrow').dataset.vsrc:null;
   el.innerHTML=h;
   if(keep){const b=[...el.querySelectorAll('.kvrow')].find(x=>x.dataset.vsrc===keep);if(b)kvToggle(b,true)}
@@ -2679,11 +2712,12 @@ function pmRender(force,ui){
 function pmClick(e){
   const t=e.target.closest('button');if(!t)return;
   const c=PM.cur;
+  if(t.hasAttribute('data-pmlang')){PM.lang=PM.lang==='en'?'ko':'en';try{localStorage.setItem('jrd_pm_lang',PM.lang)}catch(x){}pmLangDoc();try{speechSynthesis.cancel()}catch(x){}const d=PM.live[c];if(PM.voice&&d){PM.vs[c]=pmVoiceKey(d);pmSay(pmGreeting(d))}pmRender(true,true);window.scrollTo(0,0);return}
   if(t.id==='pm-voice'){PM.voice=true;const d=PM.live[c];if(d){PM.vs[c]=pmVoiceKey(d);pmSay(pmGreeting(d))}pmRender(true,true);return}
   if(t.id==='pm-voice-off'){PM.voice=false;try{speechSynthesis.cancel()}catch(e){}pmRender(true,true);return}
   if(t.dataset.pmview){pmPdfView(t.dataset.pmview);return}
-  if(t.dataset.pmpdf){if(!pmPdfOpen(t.dataset.pmpdf)){PM.pdfMsg='파일을 열지 못했어요. 다시 가져와 주세요.';pmRender(true,true)}return}
-  if(t.dataset.pmpdfSync){PM.pdfMsg='가져오는 중…';pmRender(true,true);pmPdfSync(true).then(n=>{PM.pdfMsg=n?'':(navigator.onLine?'아직 올라온 리포트가 없어요. 원장님이 확인하는 대로 자동으로 나타나요.':'인터넷 연결을 확인해 주세요.');pmRender(true,true)});return}
+  if(t.dataset.pmpdf){if(!pmPdfOpen(t.dataset.pmpdf)){PM.pdfMsg=tr('파일을 열지 못했어요. 다시 가져와 주세요.','Couldn’t open the file. Please fetch it again.');pmRender(true,true)}return}
+  if(t.dataset.pmpdfSync){PM.pdfMsg=tr('가져오는 중…','Fetching…');pmRender(true,true);pmPdfSync(true).then(n=>{PM.pdfMsg=n?'':(navigator.onLine?tr('아직 올라온 리포트가 없어요. 원장님이 확인하는 대로 자동으로 나타나요.','No report yet. It appears automatically once the doctor has reviewed it.'):tr('인터넷 연결을 확인해 주세요.','Please check your internet connection.'));pmRender(true,true)});return}
   if(t.id==='pm-alarm'){pmEnableAlarm();return}
   if(t.id==='pm-today'){const h=pmHist();delete h[c];try{localStorage.setItem(PM_HIST,JSON.stringify(h))}catch(x){}const st=pmStore();if(st.kids[c]){st.kids[c].st='new';delete st.kids[c].nm;pmSave(st)}PM.busy=false;pmLoad();return}
   if(t.dataset.pmstar){PM.rateSel[c]=Number(t.dataset.pmstar);pmRender(true,true);const ta=$('#pm-rate-t');if(ta&&PM.rateSel[c]<=3)ta.focus();return}
@@ -2694,33 +2728,35 @@ function pmClick(e){
 async function pmAskSend(){
   const c=PM.cur,k=pmStore().kids[c];if(!k)return;
   const t=String(($('#pm-ask')||{}).value||'').trim().slice(0,300);
-  PM.draft[c]=t;PM.msg[c]='보내는 중…';pmRender(true,true);
+  PM.draft[c]=t;PM.msg[c]=tr('보내는 중…','Sending…');pmRender(true,true);
   try{
     const r=await pmPost({action:'flowask',card:c,tok:k.tok,text:t});const s2=pmStore(),k2=s2.kids[c];
-    if(r&&r.status==='ok'&&k2){k2.ask=t?{t:t,at:Date.now()}:null;pmSave(s2);delete PM.draft[c];PM.msg[c]=t?'✓ 원장님께 전달됐어요':'질문을 지웠어요'}
-    else PM.msg[c]=(r&&r.message)||'전달하지 못했어요. 다시 눌러 주세요.';
-  }catch(e){PM.msg[c]='인터넷 연결을 확인한 뒤 다시 눌러 주세요.'}
+    if(r&&r.status==='ok'&&k2){k2.ask=t?{t:t,at:Date.now()}:null;pmSave(s2);delete PM.draft[c];PM.msg[c]=t?tr('✓ 원장님께 전달됐어요','✓ Sent to the doctor'):tr('질문을 지웠어요','Question removed')}
+    else PM.msg[c]=vEN()?'Couldn’t send. Please tap again.':((r&&r.message)||'전달하지 못했어요. 다시 눌러 주세요.');
+  }catch(e){PM.msg[c]=tr('인터넷 연결을 확인한 뒤 다시 눌러 주세요.','Please check your internet connection and tap again.')}
   pmRender(true,true);
 }
 async function pmRateSend(){
   const c=PM.cur,k=pmStore().kids[c],sel=PM.rateSel[c];if(!k||!sel)return;
   const t=String(($('#pm-rate-t')||{}).value||'').trim().slice(0,300);
-  PM.draft['r'+c]=t;PM.msg['r'+c]='보내는 중…';pmRender(true,true);
+  PM.draft['r'+c]=t;PM.msg['r'+c]=tr('보내는 중…','Sending…');pmRender(true,true);
   try{
     const r=await pmPost({action:'flowrate',card:c,tok:k.tok,score:sel,text:t});const s2=pmStore(),k2=s2.kids[c];
     if(r&&r.status==='ok'&&k2){k2.rate={s:sel,t:t,at:Date.now()};if(r.code)k2.code=String(r.code);pmSave(s2);delete PM.msg['r'+c];delete PM.draft['r'+c];delete PM.rateSel[c]}
-    else PM.msg['r'+c]=(r&&r.message)||'보내지 못했어요. 다시 눌러 주세요.';
-  }catch(e){PM.msg['r'+c]='인터넷 연결을 확인한 뒤 다시 눌러 주세요.'}
+    else PM.msg['r'+c]=vEN()?'Couldn’t send. Please tap again.':((r&&r.message)||'보내지 못했어요. 다시 눌러 주세요.');
+  }catch(e){PM.msg['r'+c]=tr('인터넷 연결을 확인한 뒤 다시 눌러 주세요.','Please check your internet connection and tap again.')}
   pmRender(true,true);
 }
+function pmLangDoc(){document.documentElement.lang=PM.lang;document.title=tr('삼성자라다 · 내 검사 안내','Samsung Jarada · My visit guide')}
 function patientMode(){
-  document.title='삼성자라다 · 내 검사 안내';document.body.classList.add('pm');
-  const el=$('#kiosk');el.removeAttribute('onclick');el.hidden=false;el.style.zIndex=9999;el.innerHTML='<p class="kbig">불러오는 중…</p>';
+  document.body.classList.add('pm');pmLangDoc();
+  const el=$('#kiosk');el.removeAttribute('onclick');el.hidden=false;el.style.zIndex=9999;el.innerHTML='<p class="kbig">'+tr('불러오는 중…','Loading…')+'</p>';
   if(/^[A-Z]{1,3}\d{1,4}$/.test(PM_CODE)){pmAdd(PM_CODE);PM.cur=PM_CODE}
   el.addEventListener('click',pmClick);
   el.addEventListener('input',e=>{const t=e.target;if(t&&t.dataset&&t.dataset.pmdraft!=null)PM.draft[t.dataset.pmdraft]=t.value});
   el.addEventListener('focusout',e=>{if(e.target&&e.target.tagName==='TEXTAREA')setTimeout(()=>pmRender(false),300)});
-  pmLoad().then(()=>{PM.loaded=true;pmRender(true)});setInterval(pmLoad,10000);setInterval(()=>{const d=PM.live[PM.cur];if(PM.loaded&&(!d||d.step>=6))pmPdfSync(false).then(n=>{if(n)pmRender(true,true)})},20000);   // 리포트가 올라오면 이 휴대폰에 자동 저장setInterval(()=>pmRender(false),1000);
+  pmLoad().then(()=>{PM.loaded=true;pmRender(true)});setInterval(pmLoad,10000);setInterval(()=>{const d=PM.live[PM.cur];if(PM.loaded&&(!d||d.step>=6))pmPdfSync(false).then(n=>{if(n)pmRender(true,true)})},20000);   // 리포트가 올라오면 이 휴대폰에 자동 저장
+  setInterval(()=>pmRender(false),1000);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){pmLoad();if(PM.sound&&navigator.wakeLock)navigator.wakeLock.request('screen').then(w=>PM.wl=w).catch(()=>{})}});
 }
 if(PM_CODE){patientMode()}else{
